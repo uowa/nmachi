@@ -1,0 +1,21 @@
+/*Sass(Scss記法)にしようかと思ったんやけど、これコンパイルのやり方とか揃えな困るんかな？
+と思ったので、とりまcssで運用
+あとなんか、Koalaってコンパイルソフトで一回やってみたんやけど、
+バグった*/
+
+body {
+  background-color: #333333;
+}
+
+h1 {
+  color:white;
+}
+.graphic {
+  text-align: center;
+}
+
+.avatar{
+  position:absolute;
+  top:0;
+  left:0;
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--dist,node_modules,src,babel.package-lock,packageは
+javascriptのコンパイル用に入れたやつ、正直使い方よくわかってない
+今のとこ、触ってるのは、
+index.html,
+stylesheet.css,
+pmjs.js
+の三点と画像類のみ
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>ProjectMachi ver5</title>
+    <link rel="stylesheet" href="stylesheet.css">
+    <script type="text/javascript" src="pmjs.js"></script>
+  </head>
+  <body>
+    <h1 class="title">ProjectMachi ver5 プロトタイプ</h1>
+
+    <!--プロ街のグラフィック画面-->
+    <div class="graphic">
+      <!--縦横比率は8：11っぽい-->
+      <img src="whitemap.png">
+    </div>
+
+<!--ここは後で消す:座標表示-->
+    X座標：<input type="text" id="txtX" />
+　　Y座標：<input type="text" id="txtY" />
+
+
+<!--アバター-->
+<!--とりあえずクリックでアバター動かせる様にしようと思ったんやけど、
+なんかできなくて詰まってる、読込み順の問題かなあ？と思うんやが-->
+<div class = "avatar">
+  <img  src="left.png" alt="">
+</div>
+
+  </body>
+</html>
