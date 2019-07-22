@@ -5,13 +5,12 @@
     <meta charset="utf-8">
     <title>ProjectMachi ver5</title>
     <link rel="stylesheet" href="stylesheet.css">
-    <script type="text/javascript" src="pmjs.js"></script>
   </head>
   <body>
     <h1 class="title">ProjectMachi ver5 プロトタイプ</h1>
 
     <!--プロ街のグラフィック画面-->
-    <div class="graphic">
+    <div class="graphic" id="graphic">
       <!--縦横比率は8：11っぽい-->
       <img src="whitemap.png">
     </div>
@@ -22,11 +21,9 @@
 
 
 <!--アバター-->
-<!--とりあえずクリックでアバター動かせる様にしようと思ったんやけど、
-なんかできなくて詰まってる、読込み順の問題かなあ？と思うんやが-->
-<div class = "avatar">
-  <img  src="left.png" alt="">
+<div>
+  <img id = "avatar" src="left.png" alt="">
 </div>
-
+<script type="text/javascript" src="pmjs.js"></script>
   </body>
 </html>
