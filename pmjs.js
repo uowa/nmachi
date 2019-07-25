@@ -29,7 +29,7 @@ window.onload=function(){
 //？？？？？？？クリックしたら画像を切り替えて、場所を移動するアバターって
 //処理をやりたいんやけど、なんで上手くいかんのかわからんぞ！！！
 //最初の一回しか画像が切り替わってくれん！！
-var direction_src = new Array("right.png","left.png");
+const direction_src = new Array("right.png","left.png");
 
 //クリック時に発生するイベント
 document.getElementById("graphic").onclick = () => {
