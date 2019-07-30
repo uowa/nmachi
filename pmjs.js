@@ -50,6 +50,7 @@ setTimeout("imgTimer()",100); //*6
 var moveX = 0;
 var moveY = 0;
 
+//？？？？　とりあえずクリックしたら、斜めに動くモーションを作ってるんだけど、動かねーー！
 const avatarTimer = () =>{
 //？？？？　　　↓のaXを数字に変えたら一応動くから、ここが問題だと思うんだけど、どう直すのが正解なのかよくわからない。
 if(moveX < (mX-aX)){
@@ -73,7 +74,8 @@ avatarTimer();
 
 
 
-/*document.getElementById('graphic').onclick = () => {
+/*とりま止めてる
+document.getElementById('graphic').onclick = () => {
   //ここにクリックした時の処理を記述
     if (mX > aX+aW && mY < aY-aH) {
 
