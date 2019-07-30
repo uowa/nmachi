@@ -5,27 +5,44 @@
     <meta charset="utf-8">
     <title>ProjectMachi ver5</title>
     <link rel="stylesheet" href="stylesheet.css">
-  </head>
-  <body>
+</head>
+<body>
     <h1 class="title">ProjectMachi ver5 プロトタイプ</h1>
 
 
     <div class = main>
-      <!--日付-->
-       <div id="box"></div>
-      <!--プロ街のグラフィック画面縦横比率は8：11っぽい-->
-      <img class="graphic" id="graphic" src="whitemap.png">
+        <!--日付-->
+        <div id="box"></div>
+        <!--プロ街のグラフィック画面縦横比率は8：11っぽい-->
+        <div id = "graphic">
+          <img class ="graphic" src="img/whitemap.png">
+          <div class="block1">
+            <img  class="graphic" src="img/block1.png">
+          </div>
+          <div class="block2">
+            <img  class="graphic"src="img/Test.png" alt="">
+          </div>
+        </div>
+
+
+
+        <!--ここは後で消す:座標表示-->
+        <div>
+          X座標：<input type="text" id="txtX" />
+ 　　     Y座標：<input type="text" id="txtY" />
+        </div>
+        
+    <!--アバター-->
+      <div>
+        <img id = "avatar" src="img/left.gif" alt="">
+      </div>
+
+      <div>
+        <img  src="img/left.gif" name = "avatar2" alt="">
+      </div>
     </div>
 
-<!--ここは後で消す:座標表示-->
-    X座標：<input type="text" id="txtX" />
-　　Y座標：<input type="text" id="txtY" />
 
-
-<!--アバター-->
-<div>
-  <img id = "avatar" src="left.png" alt="">
-</div>
 <script type="text/javascript" src="pmjs.js"></script>
-  </body>
+</body>
 </html>
