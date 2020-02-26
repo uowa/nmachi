@@ -1,0 +1,199 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('pmachi5:server');
+var http = require('http');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * ADDED!! Require Socket.IO
+ */
+var io = require('socket.io')(server);
+
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * ADDED!! Socket.IO Connection.
+ */
+let userNum=0;
+let userEX = [];
+let userName=[];
+let userIDEX = [];
+
+//アバター
+let AX = [];
+let AY=[];
+let C = [];
+for (let i = 0; i < 10000; i++){
+  AX[i] = 410;
+  AY[i] = 80;
+  C[i] = 6;
+}
+
+let room;
+
+
+io.on('connection', function (socket) {
+  console.log("socketID" + socket.id);
+  io.sockets.emit("pageUser", {
+    pageUser: userNum,
+  });
+
+  //マイナンバー
+  socket.on("myNum", function (data) {
+    userIDEX[userNum] = socket.id;
+    io.to(socket.id).json.emit("myNum_from_server",{
+      userNum: userNum,
+    });
+    userNum++;
+  });
+
+
+  socket.on("join_room", function (data) {//部屋に入室した時
+    room = data.room;
+    userName[data.userNum]=data.userName;//名前をサバに保存
+    socket.join(room);
+    io.to(room).emit("join_room_from_server",{
+      userNum:data.userNum,
+      userName:data.userName,
+      msg:userName[data.userNum]+"が"+room+"に入室しました。",
+    });
+    io.to(socket.id).json.emit("join_me_from_server",{
+      userEX:[userEX[0],userEX[1],userEX[2],userEX[3],userEX[4],userEX[5],userEX[6],userEX[7],userEX[8],userEX[9],userEX[10]],
+      userName:[userName[0],userName[1],userName[2],userName[3],userName[4],userName[5],userName[6],userName[7],userName[8],userName[9],userNum[10]],
+      AX:[AX[0],AX[1],AX[2],AX[3],AX[4],AX[5],AX[6],AX[7],AX[8],AX[9],AY[10]],
+      AY:[AY[0],AY[1],AY[2],AY[3],AY[4],AY[5],AY[6],AY[7],AY[8],AY[9],AY[10]],
+      C:[C[0],C[1],C[2],C[3],C[4],C[5],C[6],C[7],C[8],C[10],],
+    });
+    userEX[data.userNum]=true;
+  });
+
+  // socket.on(){}
+  //メッセージを送信
+  socket.on("emit_msg",function(data){
+    io.to(room).emit("emit_msg_from_server",{
+      msg:"["+userName[data.userNum]+"]:"+data.msg,
+      userNum:data.userNum,
+      avaMsg:data.msg,
+    });
+  });
+
+  //クリックイベント
+  socket.on('clickMap', function (data) {
+        C[data.userNum]=data.C;
+        AX[data.userNum]=data.AX;
+        AY[data.userNum]=data.AY;
+    io.to(room).emit("clickMap_from_server",{
+      D:C[data.userNum],
+      C:data.C,
+      userNum:data.userNum,
+      moveX:data.moveX,
+      moveY:data.moveY,
+    });
+  });
+  
+  socket.on("AXYC",function(data){
+    AX[data.userNum]=data.AX;
+    AY[data.userNum]=data.AY;
+    C[data.userNum]=data.C;
+  });
+  
+  //退出時
+  socket.on("disconnect", function () {
+    console.log("socket.id:dis:"+socket.id);
+    for (let i = 0; i < userIDEX.length; i++) {
+      if (userIDEX[i] == socket.id) {
+        userEX[i] = false;
+        io.to(room).emit("logout_from_server", {
+          userIDEX: i,
+          msg: userName[i] + "が退出しました。",
+        });
+      }
+    }
+  });
+});
+
+//あとでuserNumを０から埋める処理とAXとかAYの初期化処理を付け加える
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}

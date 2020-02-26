@@ -1,0 +1,118 @@
+h1 {
+  font-size: 40pt;
+  color: #eee;
+  text-align: right;
+  margin:0px;
+}
+body {
+  font-size:12pt;
+  margin:5px;
+}
+p {
+  font-size: 14pt;
+  margin:0px 20px;
+}
+
+
+ul {
+  list-style: none;
+  color: #fff;
+  padding: 3px 10px;
+}
+li {
+  background-color: #999;
+}
+
+#gamen{
+  display: inline-block;
+  width:660px;
+}
+
+#graphic{
+  display: inline-block;
+  position: relative;
+  /* width: 660px;
+  height:480px; */
+  /* background-color: rgb(76, 76, 82); */
+  /* background-size: cover; */
+}
+
+#login{
+  position: absolute;
+  font-weight: bold;
+  border-style: none;
+  color          : rgb(76, 76, 82);           /* 文字の色 */
+  font-size      : 18pt;               /* 文字のサイズ */
+  letter-spacing : 4px;                /* 文字間 */
+  text-shadow    : 
+       2px  2px 5px #ffff1a,
+      -2px  2px 5px #ffff1a,
+       2px -2px 5px #ffff1a,
+      -2px -2px 5px #ffff1a,
+       2px  0px 5px #ffff1a,
+       0px  2px 5px #ffff1a,
+      -2px  0px 5px #ffff1a,
+       0px -2px 5px #ffff1a;        /* 文字の影 */
+       
+  background-color: rgb(76, 76, 82);
+  top: 50%;
+  left: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  -webkit- transform: translateY(-50%) translateX(-50%);
+  margin: auto;
+}
+#login:hover{
+  text-shadow    : 
+       2px  2px 5px red,
+      -2px  2px 5px red,
+       2px -2px 5px red,
+      -2px -2px 5px red,
+       2px  0px 5px red,
+       0px  2px 5px red,
+      -2px  0px 5px red,
+       0px -2px 5px red;
+}
+
+.userForm{
+  text-align: right;
+}
+input {
+  background-color: rgb(25, 85, 85);
+}
+
+#chatLog {
+  display: inline-block;
+  width: 660px;
+  height: 500px;
+  background-color: rgb(76, 76, 82);
+  color:#999;
+  overflow: scroll;
+}
+#msgForm{
+  display: none;
+}
+
+
+
+
+
+
+.box { 
+      cursor: pointer;
+      stroke-linecap:round ;
+    }
+    .box.moved {
+      animation-name: spin;
+      animation-duration: 2s;
+      /* animation-iteration-count: infinite; */
+      animation-timing-function: ease-in-out;
+      /* animation-direction: alternate; */
+      animation-fill-mode: forwards;
+    }
+    @keyframes spin {
+      0% { transform: none; }
+      20% { transform: rotate(100deg) scale(1.8); }
+      50% { transform: rotate(270deg) scale(1.8); border-radius: 50%;}
+      80% { transform: rotate(320deg) scale(5.8) translate(1px); }
+      100% { transform: rotate(360deg) scale(1.8) translateX(8px);border-radius: 20%;}
+    }
