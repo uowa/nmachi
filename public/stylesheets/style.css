@@ -5,22 +5,24 @@ h1 {
   margin:0px;
 }
 body {
+  color:#eee;
   font-size:12pt;
   margin:5px;
+  background-color: #333333;
 }
 p {
-  font-size: 14pt;
+  font-size: 12pt;
   margin:0px 20px;
 }
 
 
 ul {
   list-style: none;
-  color: #fff;
+  background-color: #fff;
   padding: 3px 10px;
 }
 li {
-  background-color: #999;
+  color: #000000;
 }
 
 #gamen{
@@ -61,6 +63,7 @@ li {
   -webkit- transform: translateY(-50%) translateX(-50%);
   margin: auto;
 }
+
 #login:hover{
   text-shadow    : 
        2px  2px 5px red,
@@ -76,14 +79,11 @@ li {
 .userForm{
   text-align: right;
 }
-input {
-  background-color: rgb(25, 85, 85);
-}
 
 #chatLog {
   display: inline-block;
   width: 660px;
-  height: 500px;
+  height: 550px;
   background-color: rgb(76, 76, 82);
   color:#999;
   overflow: scroll;
@@ -91,11 +91,6 @@ input {
 #msgForm{
   display: none;
 }
-
-
-
-
-
 
 .box { 
       cursor: pointer;

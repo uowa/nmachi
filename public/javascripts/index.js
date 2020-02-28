@@ -2,9 +2,9 @@
 //ソケットIOをonにする
 var socket = io.connect('153.127.33.40:3000');
 
-// 未検証！！！！！！！
-// タッチ操作をサポートしているブラウザーなら, タッチ操作を有効にする。
-//ブラウザがcanvas未対応だった時に、読みこみを止めれるようにできるらしいんだけど、なんかエラー吐く。
+console.log("socketID-"+socket.id);
+
+
 
 //アバターの初期位置
 let AX = 410;
@@ -137,9 +137,13 @@ for(let i=0; i<direction.length; i++){
 //   imgS[i].src = directionS[i];
 //     }
 // 画像の基準点を真ん中にするために、横幅半分と、高さの数値を取る
-let aW = img[0].naturalWidth/2;
-let aH = img[0].naturalHeight;//大きいほう
+// let aW = img[0].naturalWidth/2;
+// let aH = img[0].naturalHeight;//大きいほう
 // let aHS = imgS[0].height;//小さいほう
+// console.log("aW:" + aW);
+// console.log("aH:" + aH);
+let aW = 17.5;
+let aH = 0.75;
 
 
 let nameTagStyle =new PIXI.TextStyle({//名前のスタイル
@@ -271,56 +275,68 @@ socket.on("pageUser", function (data) {
   console.log("pageUser" + pageUser);
 });
 
+
+let result;
+
+
+
+
+// result = new Promise(function (resolve) {
+  // console.log("test1");
+ //   resolve();
+// })
+
+// result.then(function () {}
+
+
 socket.on("myNum_from_server",function(data){
-  userNum=data.userNum;
-  //アバターの画像を設定
-  for (let i = 0; i < 200; i++) {
-    avaS[i] = new Sprite(resources["avaS"].texture);
-    avaS[i].position.set(-aW, -aH);
-    avaSW[i] = new Sprite(resources["avaSW"].texture);
-    avaSW[i].position.set(-aW, -aH);
-    avaW[i] = new Sprite(resources["avaW"].texture);
-    avaW[i].position.set(-aW, -aH);
-    avaNW[i] = new Sprite(resources["avaNW"].texture);
-    avaNW[i].position.set(-aW, -aH);
-    avaN[i] = new Sprite(resources["avaN"].texture);
-    avaN[i].position.set(-aW, -aH);
-    avaNE[i] = new Sprite(resources["avaNE"].texture);
-    avaNE[i].position.set(-aW, -aH);
-    avaE[i] = new Sprite(resources["avaE"].texture);
-    avaE[i].position.set(-aW, -aH);
-    avaSE[i] = new Sprite(resources["avaSE"].texture);
-    avaSE[i].position.set(-aW, -aH);
-
-    avaSs[i] = new Sprite(resources["avaSs"].texture);
-    avaSs[i].position.set(-aW, -aH);
-    avaSWs[i] = new Sprite(resources["avaSWs"].texture);
-    avaSWs[i].position.set(-aW, -aH);
-    avaWs[i] = new Sprite(resources["avaWs"].texture);
-    avaWs[i].position.set(-aW, -aH);
-    avaNWs[i] = new Sprite(resources["avaNWs"].texture);
-    avaNWs[i].position.set(-aW, -aH);
-    avaNs[i] = new Sprite(resources["avaNs"].texture);
-    avaNs[i].position.set(-aW, -aH);
-    avaNEs[i] = new Sprite(resources["avaNEs"].texture);
-    avaNEs[i].position.set(-aW, -aH);
-    avaEs[i] = new Sprite(resources["avaEs"].texture);
-    avaEs[i].position.set(-aW, -aH);
-    avaSEs[i] = new Sprite(resources["avaSEs"].texture);
-    avaSEs[i].position.set(-aW, -aH);
-  }
-
-
-  nameTag[0] = new PIXI.Text(document.nameForm.userName.value,nameTagStyle);
-  nameTag[0].position.set(nameTagX,nameTagY);//名前の位置
-  //アバターの親コンテナを設定
-  avaP[0]=new PIXI.Container();
-  avaP[0].position.set(320,200);
-  //名前とメッセージと画像を追加
-  avaP[0].addChild(avaS[0]);
-  avaP[0].addChild(nameTag[0]);
-  //ステージに追加
-  app.stage.addChild(avaP[0]);
+    userNum=data.userNum;
+    //アバターの画像を設定
+    for (let i = 0; i < 200; i++) {//後で考える！！！！！！！！ 
+      avaSs[i] = new Sprite(resources["avaSs"].texture);
+      avaSWs[i] = new Sprite(resources["avaSWs"].texture);
+      avaWs[i] = new Sprite(resources["avaWs"].texture);
+      avaNWs[i] = new Sprite(resources["avaNWs"].texture);
+      avaNs[i] = new Sprite(resources["avaNs"].texture);
+      avaNEs[i] = new Sprite(resources["avaNEs"].texture);
+      avaEs[i] = new Sprite(resources["avaEs"].texture);
+      avaSEs[i] = new Sprite(resources["avaSEs"].texture);
+      avaS[i] = new Sprite(resources["avaS"].texture);
+      avaSW[i] = new Sprite(resources["avaSW"].texture);
+      avaW[i] = new Sprite(resources["avaW"].texture);
+      avaNW[i] = new Sprite(resources["avaNW"].texture);
+      avaN[i] = new Sprite(resources["avaN"].texture);
+      avaNE[i] = new Sprite(resources["avaNE"].texture);
+      avaE[i] = new Sprite(resources["avaE"].texture);
+      avaSE[i] = new Sprite(resources["avaSE"].texture);
+      avaSs[i].position.set(-17.5,-75);
+      avaSWs[i].position.set(-17.5,-75);
+      avaWs[i].position.set(-17.5,-75);
+      avaNWs[i].position.set(-17.5,-75);
+      avaNs[i].position.set(-17.5,-75);
+      avaNEs[i].position.set(-17.5,-75);
+      avaEs[i].position.set(-17.5,-75);
+      avaSEs[i].position.set(-17.5,-75);
+      avaS[i].position.set(-17.5,-75);
+      avaSW[i].position.set(-17.5,-75);
+      avaW[i].position.set(-17.5,-75);
+      avaNW[i].position.set(-17.5,-75);
+      avaN[i].position.set(-17.5,-75);
+      avaNE[i].position.set(-17.5,-75);
+      avaE[i].position.set(-17.5,-75);
+      avaSE[i].position.set(-17.5,-75);
+    }
+  
+    nameTag[0] = new PIXI.Text(document.nameForm.userName.value,nameTagStyle);
+    nameTag[0].position.set(nameTagX,nameTagY);//名前の位置
+    //アバターの親コンテナを設定
+    avaP[0]=new PIXI.Container();
+    avaP[0].position.set(320,200);
+    //名前と画像を追加
+    avaP[0].addChild(avaS[0]);
+    avaP[0].addChild(nameTag[0]);
+    //ステージに追加
+    app.stage.addChild(avaP[0]);
 });
 
 
@@ -357,7 +373,7 @@ function login() {
   }
 }
 
-socket.on("join_me_from_server",function(data){
+socket.on("join_me_from_server", function (data) {
   for (let i = 0; i < pageUser + 1; i++) {
     if (data.userEX[i] == true) {
       // アバターの親コンテナを作成
@@ -1355,6 +1371,27 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
     });
 
 
+let uiColor=true;
+document.querySelector('h1').addEventListener('click', () => {
+  if (uiColor ==true) {
+    document.querySelector('h1').style.color = "#5F5F64";
+    document.querySelector('body').style.color = "black";
+    document.querySelector('body').style.backgroundColor = "white";
+    document.querySelector('ul').style.backgroundColor = "#999";
+    document.querySelector('input').style.backgroundColor = "rgb(25, 85, 85)";
+    uiColor = false;
+  } else {
+    console.log("aaaaa");
+    document.querySelector('h1').style.color = "#eee";
+    document.querySelector('body').style.color = "#eee";
+    document.querySelector('body').style.backgroundColor = "#333333";
+    document.querySelector('ul').style.backgroundColor = "#fff";
+    document.querySelector('input').style.backgroundColor = "#eee";
+    uiColor = true;
+  }
+});
+
+
 
 
 (() => {
@@ -1484,3 +1521,6 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 //   }
 // }
 // avaP=new AvaP();
+
+// タッチ操作をサポートしているブラウザーなら, タッチ操作を有効にする。
+//ブラウザがcanvas未対応だった時に、読みこみを止める。
