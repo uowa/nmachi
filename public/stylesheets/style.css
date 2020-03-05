@@ -1,8 +1,20 @@
-h1 {
-  font-size: 40pt;
-  color: #eee;
+#top{
+  position: relative;
+}
+
+#box{
+  float: left;
+  position: absolute;
+  bottom:0;
+}
+
+
+#title {
   text-align: right;
-  margin:0px;
+  font-size: 40pt;
+  font-weight: bold;
+  color: #eee;
+  /* border:2px solid blue; */
 }
 body {
   color:#eee;
@@ -10,7 +22,12 @@ body {
   margin:5px;
   background-color: #333333;
 }
-p {
+p{
+  font-size: 12pt;
+  margin:0px 20px;
+}
+a{
+  color:#ebd40e;
   font-size: 12pt;
   margin:0px 20px;
 }
@@ -22,6 +39,7 @@ ul {
   padding: 3px 10px;
 }
 li {
+  font-size: 10pt;
   color: #000000;
 }
 
@@ -78,6 +96,20 @@ li {
 
 .userForm{
   text-align: right;
+  background-color: #939393;
+}
+#userName{
+  /* width:250px; */
+  background-color: #E1E1E1;
+}
+
+#msgForm{
+  display: none;
+  background-color: #939393;
+}
+#msg{
+  width: 590px;
+  background-color: #E1E1E1;
 }
 
 #chatLog {
@@ -88,9 +120,8 @@ li {
   color:#999;
   overflow: scroll;
 }
-#msgForm{
-  display: none;
-}
+
+
 
 .box { 
       cursor: pointer;
@@ -106,8 +137,17 @@ li {
     }
     @keyframes spin {
       0% { transform: none; }
-      20% { transform: rotate(100deg) scale(1.8); }
-      50% { transform: rotate(270deg) scale(1.8); border-radius: 50%;}
-      80% { transform: rotate(320deg) scale(5.8) translate(1px); }
-      100% { transform: rotate(360deg) scale(1.8) translateX(8px);border-radius: 20%;}
+      20% { transform: rotate(100deg) scale(1.8);}
+      30% { transform: rotate(270deg) scale(1.8) translateX(-80px); border-radius: 25%;}
+      50% { transform: rotate(380deg) scale(1.8) translateX(30px); border-radius: 50%;}
+      80% { transform: rotate(640deg) scale(5.8) translateX(100px);}
+      100% { transform: rotate(720deg) scale(1.8) translateX(8px);border-radius: 20%;}
     }
+
+#kousinrireki{
+  font-size: 10px;
+  width:660px;
+  height: 100px;
+  background-color: #333332;
+  overflow: scroll;
+}

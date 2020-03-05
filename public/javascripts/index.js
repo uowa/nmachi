@@ -2,19 +2,15 @@
 //ソケットIOをonにする
 var socket = io.connect('153.127.33.40:3000');
 
-console.log("socketID-"+socket.id);
-
-
-
 //アバターの初期位置
 let AX = 410;
 let AY = 80;
 
 let userNum;
 let userName;
+let userEXNum;
 let socketID;
 
-let pageUser=0;
 let room = "エントランス";
 
 //宣言
@@ -24,7 +20,8 @@ let avaSs=[],avaSWs=[],avaWs=[],avaNWs=[],avaNs=[],avaNEs=[],avaEs=[],avaSEs=[];
 let avaC;
 let nameTag=[];
 let msg=[];
-let checkName,checkMsg;
+let checkName, checkMsg;
+
 
 
 let colPoint = [];
@@ -68,35 +65,33 @@ app.renderer.backgroundColor = 0X4C4C52;
 // app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
 //  ブロックを配置
-let block1 = new PIXI.Graphics();//ブロックを置く宣言
-block1.beginFill("black");
-block1.drawPolygon([
-  321,250,
-  690,251,
-  690,322,
-  400,323,
-  320,276,
-]);
-app.stage.addChild(block1);//実装
+// let block1 = new PIXI.Graphics();//ブロックを置く宣言
+// block1.beginFill("black");
+// block1.drawPolygon([
+//   321,250,
+//   690,251,
+//   690,322,
+//   400,323,
+//   320,276,
+// ]);
+// app.stage.addChild(block1);//実装
 
 
-
-
-let block2 = new PIXI.Graphics();//ブロックを置く宣言
-block2.beginFill("black");
-block2.drawPolygon([
-  0,0,
-  465,1,
-  460,91,
-  437,90,
-  436,21,
-  388,20,
-  386,91,
-  290,90,
-  76,198,
-  1,138,
-]);
-app.stage.addChild(block2);//実装
+// let block2 = new PIXI.Graphics();//ブロックを置く宣言
+// block2.beginFill("black");
+// block2.drawPolygon([
+//   0,0,
+//   465,1,
+//   460,91,
+//   437,90,
+//   436,21,
+//   388,20,
+//   386,91,
+//   290,90,
+//   76,198,
+//   1,138,
+// ]);
+// app.stage.addChild(block2);//実装
 
 
 // ブロックの頂点の座標をブロックごとに入れてく、最後に始点を入れてることに注意。
@@ -109,12 +104,12 @@ const block2Y=[0,  1, 91, 90, 21, 20, 91, 90,198,138,0];
 
 //アバターの画像
 //斜め右上から四方向に時計回り→上から四方向に時計回り
-let direction = ['img/avaNE.png','img/avaSE.png', 
-'img/avaSW.png','img/avaNW.png',
-'img/avaN.png', 'img/avaS.png', 'img/avaW.png',
-// 'images/upperRight2.png','images/lowerRight2.png', 'images/lowerLeft2.png','images/upperLeft2.png',
-// 'images/upper2.png', 'images/Right2.png','images/lower2.png', 'images/left2.png'
-];
+// let direction = ['img/avaNE.png','img/avaSE.png', 
+// 'img/avaSW.png','img/avaNW.png',
+// 'img/avaN.png', 'img/avaS.png', 'img/avaW.png',
+// // 'images/upperRight2.png','images/lowerRight2.png', 'images/lowerLeft2.png','images/upperLeft2.png',
+// // 'images/upper2.png', 'images/Right2.png','images/lower2.png', 'images/left2.png'
+// ];
 
 // let directionS = ['images/upperRightS.png','images/lowerRightS.png',
 // 'images/lowerLeftS.png','images/upperLeftS.png',
@@ -125,11 +120,11 @@ let direction = ['img/avaNE.png','img/avaSE.png',
 
 //ここらへん、こんなことせずに普通に数値入れれば良いかも
 // アバター画像読みこみ
-const img =[];//大きいほう
-for(let i=0; i<direction.length; i++){
-  img[i] = document.createElement('img');
-  img[i].src = direction[i];
-}
+// const img =[];//大きいほう
+// for(let i=0; i<direction.length; i++){
+//   img[i] = document.createElement('img');
+//   img[i].src = direction[i];
+// }
 
 // const imgS =[];//小さいほう
 // for(let i=0; i<direction.length; i++){
@@ -142,6 +137,8 @@ for(let i=0; i<direction.length; i++){
 // let aHS = imgS[0].height;//小さいほう
 // console.log("aW:" + aW);
 // console.log("aH:" + aH);
+
+
 let aW = 17.5;
 let aH = 0.75;
 
@@ -171,7 +168,6 @@ let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
 
 // レンダラーのviewをDOMに追加する
 document.getElementById("graphic").appendChild(app.view);
-//userNumを取得する
 Loader
 .add("avaNE","img/avaNE.png")
 .add("avaSE","img/avaSE.png")
@@ -189,7 +185,7 @@ Loader
 .add("avaEs","img/avaEs.png")
 .add("avaSs","img/avaSs.png")
 .add("avaWs","img/avaWs.png")
-.add("entrance","img/entrance.png")
+.add("entrance","img/entrance.jpg")
 .on("progress",loadProgressHandler)
 .load(setup)
 .load(gameLoop);
@@ -199,10 +195,51 @@ Loader
 //プログラミングのローダー確認
 function loadProgressHandler(Loader,resources){
   // console.log("loading"+resources.url);
-  console.log("loading:"+resources.name);
+  // console.log("loading:"+resources.name);
   console.log("progress"+Loader.progress+"%");
 }
 
+//最大値の時の最後のユーザーの数を受け取る
+socket.on("userEXNum", function (data) {
+  userEXNum=data.userEXNum
+  console.log("userEXNum" + userEXNum);
+});
+socket.on("loadNewUser", function (data) {
+    userEXNum = data.userEXNum;
+    avaSs[userEXNum+1] = new Sprite(resources["avaSs"].texture);
+    avaSWs[userEXNum+1] = new Sprite(resources["avaSWs"].texture);
+    avaWs[userEXNum+1] = new Sprite(resources["avaWs"].texture);
+    avaNWs[userEXNum+1] = new Sprite(resources["avaNWs"].texture);
+    avaNs[userEXNum+1] = new Sprite(resources["avaNs"].texture);
+    avaNEs[userEXNum+1] = new Sprite(resources["avaNEs"].texture);
+    avaEs[userEXNum+1] = new Sprite(resources["avaEs"].texture);
+    avaSEs[userEXNum+1] = new Sprite(resources["avaSEs"].texture);
+    avaS[userEXNum+1] = new Sprite(resources["avaS"].texture);
+    avaSW[userEXNum+1] = new Sprite(resources["avaSW"].texture);
+    avaW[userEXNum+1] = new Sprite(resources["avaW"].texture);
+    avaNW[userEXNum+1] = new Sprite(resources["avaNW"].texture);
+    avaN[userEXNum+1] = new Sprite(resources["avaN"].texture);
+    avaNE[userEXNum+1] = new Sprite(resources["avaNE"].texture);
+    avaE[userEXNum+1] = new Sprite(resources["avaE"].texture);
+    avaSE[userEXNum+1] = new Sprite(resources["avaSE"].texture);
+    avaSs[userEXNum+1].position.set(-17.5, -75);
+    avaSWs[userEXNum+1].position.set(-17.5, -75);
+    avaWs[userEXNum+1].position.set(-17.5, -75);
+    avaNWs[userEXNum+1].position.set(-17.5, -75);
+    avaNs[userEXNum+1].position.set(-17.5, -75);
+    avaNEs[userEXNum+1].position.set(-17.5, -75);
+    avaEs[userEXNum+1].position.set(-17.5, -75);
+    avaSEs[userEXNum+1].position.set(-17.5, -75);
+    avaS[userEXNum+1].position.set(-17.5, -75);
+    avaSW[userEXNum+1].position.set(-17.5, -75);
+    avaW[userEXNum+1].position.set(-17.5, -75);
+    avaNW[userEXNum+1].position.set(-17.5, -75);
+    avaN[userEXNum+1].position.set(-17.5, -75);
+    avaNE[userEXNum+1].position.set(-17.5, -75);
+    avaE[userEXNum+1].position.set(-17.5, -75);
+    avaSE[userEXNum+1].position.set(-17.5, -75);
+    console.log("userEXNum" + userEXNum);
+})
 
 
 function setup() {
@@ -258,41 +295,55 @@ function setup() {
   app.stage.addChild(MtextY);
 
 
-
+  document.querySelector('input').focus();
   //名前を出力
-  checkName =()=>{
-    nameTag[0].text=(document.nameForm.userName.value);
+  checkName = function(){
+    nameTag[0].text = (document.nameForm.userName.value);
+    socket.json.emit("emit_name", {
+      name: (document.nameForm.userName.value),
+    });
   }
 
   //メッセージ出力
-  checkMsg =()=>{
-    msg.text=(document.msgForm.msg.value);
+  checkMsg = function(){
+    msg.text = (document.msgForm.msg.value);
+    socket.json.emit("emit_msg",{
+      userNum:userNum,
+      msg:(document.msgForm.msg.value),
+    });
+    document.msgForm.msg.value = "";
+    document.msgForm.msg.focus();
+    
   }
 }
+//メッセージを受け取って表示
+socket.on("emit_msg_from_server", function (data) {
+  const li = document.createElement("li");
+  li.textContent = data.msg;
+  const ul = document.querySelector("ul");
+  
+  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
 
-socket.on("pageUser", function (data) {
-  pageUser = data.pageUser;
-  console.log("pageUser" + pageUser);
+  msg[data.userNum].text = data.avaMsg;
 });
-
-
-let result;
-
+    
 
 
 
+
+
+// let result;
 // result = new Promise(function (resolve) {
-  // console.log("test1");
- //   resolve();
+//   console.log("test1");
+//    resolve();
 // })
 
-// result.then(function () {}
-
+// result.then(function () {})
 
 socket.on("myNum_from_server",function(data){
-    userNum=data.userNum;
+  userNum = data.userNum;
     //アバターの画像を設定
-    for (let i = 0; i < 200; i++) {//後で考える！！！！！！！！ 
+  for (let i = 0; i < userEXNum+1; i++) { 
       avaSs[i] = new Sprite(resources["avaSs"].texture);
       avaSWs[i] = new Sprite(resources["avaSWs"].texture);
       avaWs[i] = new Sprite(resources["avaWs"].texture);
@@ -336,7 +387,7 @@ socket.on("myNum_from_server",function(data){
     avaP[0].addChild(avaS[0]);
     avaP[0].addChild(nameTag[0]);
     //ステージに追加
-    app.stage.addChild(avaP[0]);
+  app.stage.addChild(avaP[0]);
 });
 
 
@@ -361,9 +412,10 @@ function login() {
     //フォームを切り替える
     document.getElementById("nameForm").style.display="none";
     document.getElementById("msgForm").style.display="block";
-    document.getElementById("login").remove();
-    app.stage.removeChild(block1);//ブロック１を消す
-    app.stage.removeChild(block2);//ブロック２を消す
+    document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
+    document.msgForm.msg.focus();
+    // app.stage.removeChild(block1);//ブロック１を消す
+    // app.stage.removeChild(block2);//ブロック２を消す
     //座標を消す
     app.stage.removeChild(AtextX);
     app.stage.removeChild(AtextY);
@@ -373,9 +425,14 @@ function login() {
   }
 }
 
+//ルーム入室時に自分と他人のアバターの生成する
 socket.on("join_me_from_server", function (data) {
-  for (let i = 0; i < pageUser + 1; i++) {
+  console.log("test1");
+  console.log("data.userEX:" + data.userEX);
+  console.log("userEXNum:" + userEXNum);
+  for (let i = 0; i < userEXNum+1; i++) {
     if (data.userEX[i] == true) {
+      console.log("test2");
       // アバターの親コンテナを作成
       avaP[i] = new PIXI.Container();
       avaP[i].position.set(data.AX[i], data.AY[i]);
@@ -407,34 +464,39 @@ socket.on("join_me_from_server", function (data) {
       msg[i].position.set(-30, -60);
       avaP[i].addChild(msg[i]);
     }
+    console.log("test3");
   }
+  console.log("avaP[0]405:" + avaP[0]);
+  
 });
 
 
 
-//ルーム入室時のアナウンスとアバター作成
+//自分以外がルームに入ってきたアバター作成とアナウンス
 socket.on("join_room_from_server", function (data) {
-  for (let i = 0; i < pageUser + 1; i++) {
-    if (data.userNum == i) {
-      // アバターの親コンテナを作成
-      avaP[i] = new PIXI.Container();
-      avaP[i].position.set(410, 80);
-      // //名前タグを追加
-      nameTag[i] = new PIXI.Text(data.userName, nameTagStyle);
-      nameTag[i].position.set(nameTagX, nameTagY);
-      
-      // アバターのメッセージを追加する
-      msg[i] = new PIXI.Text("", msgStyle);
-      msg[i].position.set(-30, -60);
-      // 画像とメッセージと名前を追加してステージに上げる
-      app.stage.addChild(avaP[i]);
-      avaP[i].addChild(avaS[i]);
-      avaP[i].addChild(nameTag[i]);
-      avaP[i].addChild(msg[i]);
-    }
-  }
-//入室時のメッセージを出す
-  $("#logs").prepend($("<li>").text(data.msg));
+  console.log("userNumtes" + data.userNum);
+  // アバターの親コンテナを作成
+  avaP[data.userNum] = new PIXI.Container();
+  avaP[data.userNum].position.set(410, 80);
+  // //名前タグを追加
+  nameTag[data.userNum] = new PIXI.Text(data.userName, nameTagStyle);
+  nameTag[data.userNum].position.set(nameTagX, nameTagY);
+  
+  // アバターのメッセージを追加する
+  msg[data.userNum] = new PIXI.Text("", msgStyle);
+  msg[data.userNum].position.set(-30, -60);
+  // 画像とメッセージと名前を追加してステージに上げる
+  app.stage.addChild(avaP[data.userNum]);
+  avaP[data.userNum].addChild(avaS[data.userNum]);
+  avaP[data.userNum].addChild(nameTag[data.userNum]);
+  avaP[data.userNum].addChild(msg[data.userNum]);
+  console.log("avaP[data.userNum]423:" + avaP[data.userNum]);
+  //入室時のメッセージを出す
+  const li = document.createElement("li");
+  li.textContent = data.msg;
+  const ul = document.querySelector("ul");
+  
+  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
 });
 
 
@@ -444,7 +506,7 @@ document.getElementById("graphic").onclick = function(){
     if(MX > AX + aW && MY < AY-aH){
       gsap.to(avaP[0],0,{
         delay:0.1,
-        onUpdate:function(){
+        onUpdate: function () {
           avaP[0].removeChild(avaC);
           avaC=avaNEs[0];
           avaP[0].addChild(avaC);
@@ -752,7 +814,6 @@ document.getElementById("graphic").onclick = function(){
     //マウスの座標を取得
     MX = app.renderer.plugins.interaction.mouse.global.x;
     MY = app.renderer.plugins.interaction.mouse.global.y;
-
     // 方向に合わせて画像を変えて表示
     if(MX > AX + aW && MY < AY-aH){
       C=0;
@@ -789,7 +850,7 @@ document.getElementById("graphic").onclick = function(){
       });
     }else{//ブロックと交わる場合
       //distanceが最小値順になるように並び変える
-      colPointAll.sort((a,b)=>{
+      colPointAll.sort(function(a,b){
         if(a.distance>b.distance){
           return 1;
         }else{
@@ -806,9 +867,11 @@ document.getElementById("graphic").onclick = function(){
       }else if(colPointAll[0].TX>colPointAll[0].PX && colPointAll[0].PY>colPointAll[0].TY){
         colMove(colPointAll[0],1,1);
       }
-  }
-  // 初期化
-  colPointAll=[];
+    }
+    // 初期化
+    colPointAll = [];
+    //メッセージにフォーカスを当てる
+    document.msgForm.msg.focus();
   }
 }
 
@@ -818,7 +881,103 @@ document.getElementById("graphic").onclick = function(){
 socket.on("clickMap_from_server",function(data){
   moveX=data.moveX;
   moveY = data.moveY;
-  for (let i = 0; i < pageUser+1; i++) {
+  for (let i = 0; i < userEXNum; i++) {
+    function NE0() {
+      avaP[i].removeChild(avaNE[i]);
+      avaP[i].addChild(avaNEs[i]);
+      avaP[i].addChild(nameTag[i]);
+      avaP[i].addChild(msg[i]);
+  }
+  function NE1() {
+    avaP[i].removeChild(avaNEs[i]);
+    avaP[i].addChild(avaNE[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function SE0() {
+    avaP[i].removeChild(avaSE[i]);
+    avaP[i].addChild(avaSEs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function SE1() {
+    avaP[i].removeChild(avaSEs[i]);
+    avaP[i].addChild(avaSE[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function SW0() {
+    avaP[i].removeChild(avaSW[i]);
+    avaP[i].addChild(avaSWs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function SW1() {
+    avaP[i].removeChild(avaSWs[i]);
+    avaP[i].addChild(avaSW[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function NW0() {
+    avaP[i].removeChild(avaNW[i]);
+    avaP[i].addChild(avaNWs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function NW1() {
+    avaP[i].removeChild(avaNWs[i]);
+    avaP[i].addChild(avaNW[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function N0() {
+    avaP[i].removeChild(avaN[i]);
+    avaP[i].addChild(avaNs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function N1() {
+    avaP[i].removeChild(avaNs[i]);
+    avaP[i].addChild(avaN[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function E0() {
+    avaP[i].removeChild(avaE[i]);
+    avaP[i].addChild(avaEs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function E1() {
+    avaP[i].removeChild(avaEs[i]);
+    avaP[i].addChild(avaE[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function S0() {
+    avaP[i].removeChild(avaS[i]);
+    avaP[i].addChild(avaSs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function S1() {
+    avaP[i].removeChild(avaSs[i]);
+    avaP[i].addChild(avaS[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function W0() {
+    avaP[i].removeChild(avaW[i]);
+    avaP[i].addChild(avaWs[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
+  function W1() {
+    avaP[i].removeChild(avaWs[i]);
+    avaP[i].addChild(avaW[i]);
+    avaP[i].addChild(nameTag[i]);
+    avaP[i].addChild(msg[i]);
+  }
     if (data.userNum == i) {
       if (data.D == 0) {//子要素の画像を削除
         avaP[i].removeChild(avaNE[i]);
@@ -837,302 +996,142 @@ socket.on("clickMap_from_server",function(data){
       } else {
         avaP[i].removeChild(avaW[i]);
       }
-
+      
       if (data.C == 0) {//子要素の画像を入れる
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNE[i]);
-            avaP[i].addChild(avaNEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NE0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNEs[i]);
-            avaP[i].addChild(avaNE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NE1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNE[i]);
-            avaP[i].addChild(avaNEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NE0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNEs[i]);
-            avaP[i].addChild(avaNE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NE1(),
         });
       } else if (data.C == 1) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSE[i]);
-            avaP[i].addChild(avaSEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SE0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSEs[i]);
-            avaP[i].addChild(avaSE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SE1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSE[i]);
-            avaP[i].addChild(avaSEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SE0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSEs[i]);
-            avaP[i].addChild(avaSE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SE1(),
         });
       } else if (data.C == 2) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSW[i]);
-            avaP[i].addChild(avaSWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SW0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSWs[i]);
-            avaP[i].addChild(avaSW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SW1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSW[i]);
-            avaP[i].addChild(avaSWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SW0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSWs[i]);
-            avaP[i].addChild(avaSW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: SW1(),
         });
       } else if (data.C == 3) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNW[i]);
-            avaP[i].addChild(avaNWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate:NW0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNWs[i]);
-            avaP[i].addChild(avaNW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate:NW1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNW[i]);
-            avaP[i].addChild(avaNWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NW0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNWs[i]);
-            avaP[i].addChild(avaNW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: NW1(),
         });
       } else if (data.C == 4) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaN[i]);
-            avaP[i].addChild(avaNs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: N0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNs[i]);
-            avaP[i].addChild(avaN[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: N1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaN[i]);
-            avaP[i].addChild(avaNs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: N0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaNs[i]);
-            avaP[i].addChild(avaN[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: N1(),
         });
       } else if (data.C == 5) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaE[i]);
-            avaP[i].addChild(avaEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: E0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaEs[i]);
-            avaP[i].addChild(avaE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: E1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaE[i]);
-            avaP[i].addChild(avaEs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: E0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaEs[i]);
-            avaP[i].addChild(avaE[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: E1(),
         });
       } else if (data.C == 6) {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaS[i]);
-            avaP[i].addChild(avaSs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: S0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSs[i]);
-            avaP[i].addChild(avaS[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: S1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaS[i]);
-            avaP[i].addChild(avaSs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: S0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaSs[i]);
-            avaP[i].addChild(avaS[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: S1(),
         });
       } else {
         gsap.to(avaP[i], 0, {
           delay: 0.1,
-          onUpdate: function () {
-            avaP[i].removeChild(avaW[i]);
-            avaP[i].addChild(avaWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: W0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.2,
-          onUpdate: function () {
-            avaP[i].removeChild(avaWs[i]);
-            avaP[i].addChild(avaW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: W1(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.3,
-          onUpdate: function () {
-            avaP[i].removeChild(avaW[i]);
-            avaP[i].addChild(avaWs[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: W0(),
         });
         gsap.to(avaP[i], 0, {
           delay: 0.4,
-          onUpdate: function () {
-            avaP[i].removeChild(avaWs[i]);
-            avaP[i].addChild(avaW[i]);
-            avaP[i].addChild(nameTag[i]);
-            avaP[i].addChild(msg[i]);
-          }
+          onUpdate: W1(),
         });
       }
 
@@ -1194,7 +1193,7 @@ let checkColPoint = function(bX,bY){ //(collisionPointの略)
         colPoint[i].PY=bY[i+1];
 
         // それぞれの点の物体との距離の2乗を算出する ※大きさを比較するだけなので、2乗のままでおｋ
-        colPoint[i].distance=(colPoint[i].LX -AX)**2+(colPoint[i].LY -AY)**2;
+        colPoint[i].distance=Math.pow((colPoint[i].LX -AX),2)+Math.pow((colPoint[i].LY -AY),2);
         //衝突点を配列に纏める
         colPointAll.push(colPoint[i]);
       }
@@ -1206,7 +1205,10 @@ let checkColPoint = function(bX,bY){ //(collisionPointの略)
 let iniColPoint = function(blockSize){//checkColpointで設定したcolPointを初期化
     colPoint=[];
     for(let i=0; i<blockSize.length-1; i++){
-    colPoint[i]= {LX:"", LY:"", distance:"", TX,TY,PX,PY};
+      colPoint[i] = {
+        LX: "", LY: "", distance: "",
+        // TX, TY, PX, PY
+      };
   }
 }
 
@@ -1225,9 +1227,9 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 
 
   //辺の右側に垂直な式を得る
-  rightY=(MX*(cPA.PX-cPA.TX)+(cPA.TX**2+cPA.TY**2-cPA.PX*cPA.TX-cPA.TY*cPA.PY))/(cPA.TY-cPA.PY);
+  rightY=(MX*(cPA.PX-cPA.TX)+(Math.pow(cPA.TX,2)+Math.pow(cPA.TY,2)-cPA.PX*cPA.TX-cPA.TY*cPA.PY))/(cPA.TY-cPA.PY);
   //辺の左側に垂直な式を得る
-  leftY= (MX*(cPA.PX-cPA.TX)-(cPA.PX**2+cPA.PY**2-cPA.TX*cPA.PX-cPA.TY*cPA.PY))/(cPA.TY-cPA.PY);
+  leftY= (MX*(cPA.PX-cPA.TX)-(Math.pow(cPA.PX,2)+Math.pow(cPA.PY,2)-cPA.TX*cPA.PX-cPA.TY*cPA.PY))/(cPA.TY-cPA.PY);
 
 
 
@@ -1247,23 +1249,23 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 
 
     //垂直点まで1/3ずつ移動する
-    moveX=((MX*(cPA.TX-cPA.PX)**2+cPA.TX*(cPA.TY-cPA.PY)**2
+    moveX=((MX*Math.pow((cPA.TX-cPA.PX),2)+cPA.TX*Math.pow((cPA.TY-cPA.PY),2)
     +(MY-cPA.TY)*(cPA.TY-cPA.PY)*(cPA.TX-cPA.PX))
-    /((cPA.TX-cPA.PX)**2
-    +(cPA.PY-cPA.TY)**2));
+    /(Math.pow((cPA.TX-cPA.PX),2)
+    +Math.pow((cPA.PY-cPA.TY),2)));
     moveY=(((cPA.TX-MX)*(cPA.PX-cPA.TX)*(cPA.TY-cPA.PY)
-    +(cPA.TY-MY)*(cPA.TX-cPA.PX)**2)
-    /((cPA.TX-cPA.PX)**2+(cPA.PY-cPA.TY)**2)
+    +(cPA.TY-MY)*Math.pow((cPA.TX-cPA.PX),2))
+    /(Math.pow((cPA.TX-cPA.PX),2)+Math.pow((cPA.PY-cPA.TY),2))
     +MY);
 
 
-    AX = (MX*(cPA.TX-cPA.PX)**2+cPA.TX*(cPA.TY-cPA.PY)**2
+    AX = (MX*Math.pow((cPA.TX-cPA.PX),2)+cPA.TX*Math.pow((cPA.TY-cPA.PY),2)
       +(MY-cPA.TY)*(cPA.TY-cPA.PY)*(cPA.TX-cPA.PX))
-      /((cPA.TX-cPA.PX)**2
-      +(cPA.PY-cPA.TY)**2)+jX;
+      /(Math.pow((cPA.TX-cPA.PX),2)
+      +Math.pow((cPA.PY-cPA.TY),2))+jX;
     AY = ((cPA.TX-MX)*(cPA.PX-cPA.TX)*(cPA.TY-cPA.PY)
-      +(cPA.TY-MY)*(cPA.TX-cPA.PX)**2)
-      /((cPA.TX-cPA.PX)**2+(cPA.PY-cPA.TY)**2)
+      +(cPA.TY-MY)*Math.pow((cPA.TX-cPA.PX),2))
+      /(Math.pow((cPA.TX-cPA.PX),2)+Math.pow((cPA.PY-cPA.TY),2))
       +MY+jY;
 
 
@@ -1328,42 +1330,14 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 
 
 
-  //jquery起動時の合図らしいが、これ必要なんか謎いからとりあえず省いてる
-  // $(function(){
-// });
-
-    //名前を送る
-    $("#nameForm").submit(function(e){
-      e.preventDefault();
-      socket.json.emit("emit_name",{
-        name:$("#name").val(),
-      });
-    });
-
-    //チャットの処理
-    $("#msgForm").submit(function(e){
-      e.preventDefault();
-      socket.json.emit("emit_msg",{
-        userNum:userNum,
-        msg:$("#msg").val(),
-      });
-      $("#msg").val("").focus();
-    });
-
-
-
-    socket.on("emit_msg_from_server",function(data){
-      $("#logs").prepend($("<li>").text(data.msg));
-      for (let i = 0; i < pageUser+1; i++) {
-        if(data.userNum==i) {
-            msg[i].text = data.avaMsg;
-        }
-      }
-    });
 
     socket.on("logout_from_server",function(data){
-      $("#logs").prepend($("<li>").text(data.msg));
-      for (let i = 0; i < pageUser+1; i++) {
+      const li = document.createElement("li");
+      li.textContent = data.msg;
+      const ul = document.querySelector("ul");
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+      
+      for (let i = 0; i < userEXNum; i++) {
         if(data.userIDEX==i) {
             app.stage.removeChild(avaP[i]);
         }
@@ -1372,17 +1346,16 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 
 
 let uiColor=true;
-document.querySelector('h1').addEventListener('click', () => {
+document.getElementById('title').addEventListener('click', function() {
   if (uiColor ==true) {
-    document.querySelector('h1').style.color = "#5F5F64";
+    document.querySelector('title').style.color = "#5F5F64";
     document.querySelector('body').style.color = "black";
     document.querySelector('body').style.backgroundColor = "white";
     document.querySelector('ul').style.backgroundColor = "#999";
     document.querySelector('input').style.backgroundColor = "rgb(25, 85, 85)";
     uiColor = false;
   } else {
-    console.log("aaaaa");
-    document.querySelector('h1').style.color = "#eee";
+    document.querySelector('title').style.color = "#eee";
     document.querySelector('body').style.color = "#eee";
     document.querySelector('body').style.backgroundColor = "#333333";
     document.querySelector('ul').style.backgroundColor = "#fff";
@@ -1394,9 +1367,9 @@ document.querySelector('h1').addEventListener('click', () => {
 
 
 
-(() => {
-  document.querySelector('svg').addEventListener('click', () => {
-    document.querySelectorAll('.box').forEach((box) => {
+(function(){
+  document.querySelector('svg').addEventListener('click', function(){
+    document.querySelectorAll('.box').forEach(function(box){
       box.classList.add('moved');
     });
   });
