@@ -49,13 +49,21 @@ let AY=[];
 let C = [];
 
 let room;
+let userEXNum=0;
 
 
 io.on('connection', function (socket) {
-  console.log("socketID" + socket.id);
-  io.sockets.emit("pageUser", {
-    pageUser: userEX.length+1,
+  console.log("socketID:" + socket.id);
+  io.to(socket.id).json.emit("userEXNum", {
+    userEXNum:userEXNum,
   });
+  if (userEXNum < userEX.length+1) {
+    userEXNum = userEX.length+1;
+    socket.broadcast.json.emit("loadNewUser", {
+      userEXNum: userEXNum,
+    });
+  }
+  
 
   //マイナンバー
   socket.on("myNum", function (data) {
@@ -66,7 +74,14 @@ io.on('connection', function (socket) {
     io.to(socket.id).json.emit("myNum_from_server",{
       userNum: userNum,
     });
-    userNum++;
+    userEX[userNum] = true;
+    userNum = 0;
+
+    while(userEX[userNum] == true) {
+      userNum++;
+    }
+    console.log("userEX" + userEX);
+    console.log("userNum" + userNum);
   });
 
 
@@ -74,11 +89,6 @@ io.on('connection', function (socket) {
     room = data.room;
     userName[data.userNum]=data.userName;//名前をサバに保存
     socket.join(room);
-    io.to(room).emit("join_room_from_server",{
-      userNum:data.userNum,
-      userName:data.userName,
-      msg:userName[data.userNum]+"が"+room+"に入室しました。",
-    });
     io.to(socket.id).json.emit("join_me_from_server",{
       userEX: userEX,
       userName: userName,
@@ -86,10 +96,15 @@ io.on('connection', function (socket) {
       AY: AY,
       C:C,
     });
-    userEX[data.userNum]=true;
+
+    socket.broadcast.to(room).emit("join_room_from_server", {
+      userNum:data.userNum,
+      userName:data.userName,
+      msg:userName[data.userNum]+"が"+room+"に入室しました。",
+    });
+   
   });
 
-  // socket.on(){}
   //メッセージを送信
   socket.on("emit_msg",function(data){
     io.to(room).emit("emit_msg_from_server",{
@@ -121,10 +136,15 @@ io.on('connection', function (socket) {
   
   //退出時
   socket.on("disconnect", function () {
-    console.log("socket.id:dis:"+socket.id);
-    for (let i = 0; i < userIDEX.length; i++) {
+    console.log("socket.id:dis:" + socket.id);
+    for (let i = 0; i < userIDEX.length; i++) {//IDが存在する間
       if (userIDEX[i] == socket.id) {
         userEX[i] = false;
+        if (i+1 == userEX.length) {
+          do {
+            userEX.pop();
+          } while (userEX[i]==false)
+        }
         io.to(room).emit("logout_from_server", {
           userIDEX: i,
           msg: userName[i] + "が退出しました。",
