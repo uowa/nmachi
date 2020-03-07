@@ -43,6 +43,8 @@ let moving =gsap.timeline();
 let moveX,moveY;
 let rightY, leftY;
 
+let flag = false;
+
 
 //エイリアス
 let Application = PIXI.Application,
@@ -249,7 +251,10 @@ function setup() {
   //エントランスの画像を追加
   entrance=new Sprite(resources["entrance"].texture);
   entrance.width=660;
-  entrance.height=480;
+  entrance.height = 480;
+  entrance.interactive = true;
+  
+
 
   // 座標確認用のオブジェクト
   // アバターX座標の表示位置設定
@@ -326,7 +331,6 @@ socket.on("emit_msg_from_server", function (data) {
 
   msg[data.userNum].text = data.avaMsg;
 });
-    
 
 
 
@@ -392,6 +396,8 @@ socket.on("myNum_from_server",function(data){
 
 
 
+
+
 //ログイン時の処理
 function login() {
   //userNameにフォームの内容を入れる
@@ -427,12 +433,10 @@ function login() {
 
 //ルーム入室時に自分と他人のアバターの生成する
 socket.on("join_me_from_server", function (data) {
-  console.log("test1");
   console.log("data.userEX:" + data.userEX);
   console.log("userEXNum:" + userEXNum);
   for (let i = 0; i < userEXNum+1; i++) {
     if (data.userEX[i] == true) {
-      console.log("test2");
       // アバターの親コンテナを作成
       avaP[i] = new PIXI.Container();
       avaP[i].position.set(data.AX[i], data.AY[i]);
@@ -464,10 +468,7 @@ socket.on("join_me_from_server", function (data) {
       msg[i].position.set(-30, -60);
       avaP[i].addChild(msg[i]);
     }
-    console.log("test3");
-  }
-  console.log("avaP[0]405:" + avaP[0]);
-  
+  }  
 });
 
 
@@ -500,8 +501,34 @@ socket.on("join_room_from_server", function (data) {
 });
 
 
-//クリックした時の処理
-document.getElementById("graphic").onclick = function(){
+
+//画面をタップした時の処理
+document.getElementById("graphic").addEventListener("touchstart", function () {
+  entrance.on('touchstart', function (event) {
+    flag = true;
+    console.log("tes");
+    MX = event.data.getLocalPosition(event.target).x*12/10;
+    MY = event.data.getLocalPosition(event.target).y*12/10;
+    console.log("MX"+event.data.getLocalPosition(event.target).x*12/10);
+    console.log("MY"+event.data.getLocalPosition(event.target).y*12/10);
+    moveEvent();
+  });
+});
+//画面をクリックした時の処理
+document.getElementById("graphic").addEventListener("click", function () {
+  if (flag) {
+    flag = false;
+  } else {
+    MX = app.renderer.plugins.interaction.mouse.global.x;
+    MY = app.renderer.plugins.interaction.mouse.global.y;
+    console.log("clickMX"+app.renderer.plugins.interaction.mouse.global.x);
+    console.log("clickMY"+app.renderer.plugins.interaction.mouse.global.y);
+    moveEvent();
+    document.msgForm.msg.focus();
+  }
+});
+
+function moveEvent(){
   if(inRoom==0){
     if(MX > AX + aW && MY < AY-aH){
       gsap.to(avaP[0],0,{
@@ -806,14 +833,10 @@ document.getElementById("graphic").onclick = function(){
     onComplete:function(){
       AX=avaP[0].x;
       AY=avaP[0].y;
-  
   }});
 }else if(inRoom==1){
   inRoom=2;
 }else if( inRoom==2){
-    //マウスの座標を取得
-    MX = app.renderer.plugins.interaction.mouse.global.x;
-    MY = app.renderer.plugins.interaction.mouse.global.y;
     // 方向に合わせて画像を変えて表示
     if(MX > AX + aW && MY < AY-aH){
       C=0;
@@ -871,7 +894,7 @@ document.getElementById("graphic").onclick = function(){
     // 初期化
     colPointAll = [];
     //メッセージにフォーカスを当てる
-    document.msgForm.msg.focus();
+    
   }
 }
 
@@ -1149,14 +1172,15 @@ socket.on("clickMap_from_server",function(data){
 
 function gameLoop(){
   requestAnimationFrame(gameLoop);
-  MX=app.renderer.plugins.interaction.mouse.global.x;
-  MY=app.renderer.plugins.interaction.mouse.global.y;
+  // MX = app.renderer.plugins.interaction.mouse.global.x;
+  // MY = app.renderer.plugins.interaction.mouse.global.y;
+
   AtextX.text="avaX"+AX;
   AtextY.text="avaY"+AY;
-  if(0<=MX && app.renderer.plugins.interaction.mouse.global.x<=660 && 0<=MY && MY < 480){
-    MtextX.text="mouX"+MX;
-    MtextY.text="mouY"+MY;
-  }
+  // if(0<=MX && app.renderer.plugins.interaction.mouse.global.x<=660 && 0<=MY && MY < 480){
+    // MtextX.text="mouX"+MX;
+    // MtextY.text="mouY"+MY;
+  // }
 }
 
 
@@ -1207,7 +1231,6 @@ let iniColPoint = function(blockSize){//checkColpointで設定したcolPointを�
     for(let i=0; i<blockSize.length-1; i++){
       colPoint[i] = {
         LX: "", LY: "", distance: "",
-        // TX, TY, PX, PY
       };
   }
 }
@@ -1330,13 +1353,13 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
 
 
 
-
+//ログアウトした時の処理
     socket.on("logout_from_server",function(data){
       const li = document.createElement("li");
       li.textContent = data.msg;
       const ul = document.querySelector("ul");
       ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-      
+
       for (let i = 0; i < userEXNum; i++) {
         if(data.userIDEX==i) {
             app.stage.removeChild(avaP[i]);
@@ -1345,9 +1368,18 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
     });
 
 
-let uiColor=true;
-document.getElementById('title').addEventListener('click', function() {
-  if (uiColor ==true) {
+
+
+
+
+
+
+//背景色を変える
+let uiColor = true;
+
+document.getElementById("title").addEventListener("touchstart", function (event) {
+  flag = true;
+  if (uiColor == true) {
     document.querySelector('title').style.color = "#5F5F64";
     document.querySelector('body').style.color = "black";
     document.querySelector('body').style.backgroundColor = "white";
@@ -1364,136 +1396,35 @@ document.getElementById('title').addEventListener('click', function() {
   }
 });
 
+document.getElementById('title').addEventListener("click", function () {
+  if (flag) {
+    flag = false;
+  } else { 
+    if (uiColor ==true) {
+      document.querySelector('title').style.color = "#5F5F64";
+      document.querySelector('body').style.color = "black";
+      document.querySelector('body').style.backgroundColor = "white";
+      document.querySelector('ul').style.backgroundColor = "#999";
+      document.querySelector('input').style.backgroundColor = "rgb(25, 85, 85)";
+      uiColor = false;
+    } else {
+      document.querySelector('title').style.color = "#eee";
+      document.querySelector('body').style.color = "#eee";
+      document.querySelector('body').style.backgroundColor = "#333333";
+      document.querySelector('ul').style.backgroundColor = "#fff";
+      document.querySelector('input').style.backgroundColor = "#eee";
+      uiColor = true;
+    }
+  }
+});
 
 
 
+//Pくん
 (function(){
-  document.querySelector('svg').addEventListener('click', function(){
+  document.querySelector('svg').addEventListener("click", function(){
     document.querySelectorAll('.box').forEach(function(box){
       box.classList.add('moved');
     });
   });
 })(); 
-
-
-        // //元アバターを切り替える
-        // if(345<AX && AX<475 && 202<AY && AY <246){
-        //   for(let i = 0; i<directionS.length; i++){
-        //     ava[i] = new createjs.Bitmap(directionS[i]);
-        //   }
-        //   //コンテナの基準点を切り替える
-        //   avaP.regY = aHS;
-        // }else if(257<AX && AX<321 && 214<AY && AY <316){
-        //   for(let i = 0; i<direction.length; i++){
-        //     ava[i] = new createjs.Bitmap(direction[i]);
-        //   }
-        //   //コンテナの基準点を切り替える
-        //   avaP.regY = aH;
-        // }
-
-
-//ワープポイント作成
-// let warp = new createjs.Shape();
-// //色と形を指定
-// warp.graphics.beginFill("blue").drawCircle(0, 0, 80);
-// warp.y = 300;
-// // 円を描く
-// stage.addChild(warp);
-
-
-      //ワープポイントの上にマウスオーバー
-      // warp.addEventListener("mouseover", handleMouseOver);
-      // function handleMouseOver(event){
-      //   // 緑で塗り直す
-      //   warp.graphics
-      //   .clear()
-      //   .beginFill("green")
-      //   .drawCircle(0, 0, 80);
-      // }
-      // // マウスアウトしたとき
-      // warp.addEventListener("mouseout", handleMouseOut);
-      // function handleMouseOut(event){
-      //   // 赤で塗り直す
-      //   warp.graphics
-      //   .clear()
-      //   .beginFill("blue")
-      //   .drawCircle(0, 0, 80);
-      // }
-      // // ワープポイントをクリックしたとき
-      // warp.addEventListener("click", handleClickWarp);
-      // function handleClickWarp(event) {
-      //   warp.visible = false; // 非表示にする
-      // }
-
-
-
-// let left=keyboard(37);
-//     up = keyboard(38);
-//     right=keyboard(39);
-//     down=keyboard(40);
-
-//     left.press= function(){
-//       cat.x+=cat.vx;
-//     }
-
-// スプライトの削除
-// app.stage.removeChild(anySprite)
-//スプライトの非表示
-// anySprite。visible  =  false ;
-
-//使いどころがよくわからｎ、いらんかも
-// let texture = PIXI.utils.TextureCache["img/lower.png"];
-
-// let loginText = new createjs.Text("LOGIN","24px serif", "yellow");
-// loginText.textAlign="center";
-// loginText.x=330;
-// loginText.y=240;
-// loginText.fontWeight="bold";
-// loginText.textShadow=
-//   "2px  2px 5px #ffff1a",
-//   "-2px  2px 5px #ffff1a",
-//    "2px -2px 5px #ffff1a",
-//   "-2px -2px 5px #ffff1a",
-//    "2px  0px 5px #ffff1a",
-//    "0px  2px 5px #ffff1a",
-//   "-2px  0px 5px #ffff1a",
-//    "0px -2px 5px #ffff1a";//この表記じゃうまくいかねええええええ、後で治せるかどうか考える
-
-// app.stage.addChild(loginText);
-
-
-//アバターの設定メモ
-// avaC.alpha=0.5;//半透明にする
-// avaC.scale = 3.0; // 300%の大きさにに設定する
-// avaC.scaleX = 0.5; // 50%の幅に設定する
-// avaC.scaleY = 2.0; // 200%の高さに設する
-
-
-// class AvaP extends PIXI.Container {
-//   constructor(){
-//     super();
-//     //コンテナの基準点
-//     //コンテナ初期位置
-//     this.x=AX;
-//     this.y=AY;
-//     app.stage.addChild(this);
-//     //アバターの上の名前
-//     let userName=document.nameForm.userName.value;
-//     // new createjs.Text(テキスト, フォント, 色);
-//     nameTag= new PIXI.Text(userName);
-//     nameTag.style={
-//       fontFamily:"serif",
-//       fontSize:"18px",
-//       fill:"white",
-//     }
-//     nameTag.textAlign = "left";
-//     nameTag.y = -30;
-//     this.addChild(nameTag);
-//     //初期アバターの表示
-//     this.addChild(avaC);
-//   }
-// }
-// avaP=new AvaP();
-
-// タッチ操作をサポートしているブラウザーなら, タッチ操作を有効にする。
-//ブラウザがcanvas未対応だった時に、読みこみを止める。

@@ -67,6 +67,7 @@ io.on('connection', function (socket) {
 
   //マイナンバー
   socket.on("myNum", function (data) {
+    userName[userNum]="名もなき名無し"
     userIDEX[userNum] = socket.id;
     AX[userNum] = 410;
     AY[userNum] = 80;
@@ -149,6 +150,7 @@ io.on('connection', function (socket) {
           userIDEX: i,
           msg: userName[i] + "が退出しました。",
         });
+        userName[i] = "名もなき名無し";
       }
     }
   });
