@@ -18,7 +18,7 @@
 }
 body {
   color:#eee;
-  font-size:12pt;
+  font-size:10pt;
   margin:5px;
   background-color: #333333;
 }
@@ -37,9 +37,9 @@ ul {
   list-style: none;
   background-color: #fff;
   padding: 3px 10px;
+  background-image: url(../img/chatscroll.png);
 }
 li {
-  font-size: 10pt;
   color: #000000;
 }
 
@@ -123,11 +123,11 @@ li {
 
 
 
-.box { 
+.pkun { 
       cursor: pointer;
       stroke-linecap:round ;
     }
-    .box.moved {
+    .pkun.moved {
       animation-name: spin;
       animation-duration: 2s;
       /* animation-iteration-count: infinite; */
@@ -138,8 +138,8 @@ li {
     @keyframes spin {
       0% { transform: none; }
       20% { transform: rotate(100deg) scale(1.8);}
-      30% { transform: rotate(270deg) scale(1.8) translateX(-80px); border-radius: 25%;}
-      50% { transform: rotate(380deg) scale(1.8) translateX(30px); border-radius: 50%;}
+      30% { transform: rotate(270deg) scale(1.8) translateX(-80px); border-radius: 25%;width: 250px;}
+      50% { transform: rotate(-200deg) scale(1.8) translateX(30px); border-radius: 50%;}
       80% { transform: rotate(640deg) scale(5.8) translateX(100px);}
       100% { transform: rotate(720deg) scale(1.8) translateX(8px);border-radius: 20%;}
     }

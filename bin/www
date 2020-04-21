@@ -8,6 +8,7 @@ var app = require('../app');
 var debug = require('debug')('pmachi5:server');
 var http = require('http');
 
+
 /**
  * Get port from environment and store in Express.
  */
@@ -38,125 +39,187 @@ server.on('listening', onListening);
 /**
  * ADDED!! Socket.IO Connection.
  */
-let userNum=0;
-let userEX = [];
-let userName=[];
-let userIDEX = [];
 
-//アバター
-let AX = [];
-let AY=[];
-let C = [];
-
+let user={};
+// user={socketID:{userName,socketID,room,AX,AY,DIR}};
 let room;
-let userEXNum=0;
+let entranceUser = 0;
+
+var crypto = require("crypto");//使い方は今から
+// var cipers = crypto.getCiphers();
+// console.log(cipers);
+// var hashes = crypto.getHashes();
+// console.log(hashes);
+
+function tripCreate(isTrip){
+  let tripkey = isTrip;
+  let salt = tripkey + "H.";//未入力、又は1文字入れ用にH.を追加？？
+  salt = salt.substr(1, 2);//2文字目と3文字目を切り出す
+  salt = salt.replace(/[^.-z]/g, ".");
+  salt = salt.replace(/:/g, "A");
+  salt = salt.replace(/;/g, "B");
+  salt = salt.replace(/</g, "C");
+  salt = salt.replace(/=/g, "D");
+  salt = salt.replace(/>/g, "E");
+  salt = salt.replace(/\?/g, "F");
+  salt = salt.replace(/@/g, "G");
+  salt = salt.replace(/\[/g, "a");
+  salt = salt.replace(/\\/g, "b");
+  salt = salt.replace(/]/g, "c");
+  salt = salt.replace(/\^/g, "d");
+  salt = salt.replace(/_/g, "e");
+  salt = salt.replace(/`/g, "f");
+  let cipher = crypto.createCipher("des", salt);
+  cipher.update(tripkey, 'utf-8', 'base64');
+  let cipheredText = cipher.final('base64');
+  let trip = cipheredText.substr(-10);
+  trip = "◆" + trip;
+  return trip;
+}
 
 
 io.on('connection', function (socket) {
-  console.log("socketID:" + socket.id);
-  io.to(socket.id).json.emit("userEXNum", {
-    userEXNum:userEXNum,
+  user[socket.id]= {
+    userName: "名もなき名無し",
+    AX: 410,
+    AY: 80,
+    DIR: 6,
+  };
+
+  console.log("-----------------------------------------conect");
+  let keys = Object.keys(user);
+  keys.forEach(function (value) {
+    console.log("ID:" + value + "---" + "user[socketID].DIR:"+user[value].DIR);
+    console.log("-----------------------------------------");
   });
-  if (userEXNum < userEX.length+1) {
-    userEXNum = userEX.length+1;
-    socket.broadcast.json.emit("loadNewUser", {
-      userEXNum: userEXNum,
+    
+  socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
+    socketID: socket.id,
+  });
+
+  socket.on("set", function () {
+    console.log("testID" + socket.id);
+    io.to(socket.id).json.emit("mySocketID_from_server", {
+      socketID: socket.id,
+      user: user,
     });
-  }
+  });
   
-
-  //マイナンバー
-  socket.on("myNum", function (data) {
-    userName[userNum]="名もなき名無し"
-    userIDEX[userNum] = socket.id;
-    AX[userNum] = 410;
-    AY[userNum] = 80;
-    C[userNum] = 6;
-    io.to(socket.id).json.emit("myNum_from_server",{
-      userNum: userNum,
-    });
-    userEX[userNum] = true;
-    userNum = 0;
-
-    while(userEX[userNum] == true) {
-      userNum++;
-    }
-    console.log("userEX" + userEX);
-    console.log("userNum" + userNum);
-  });
-
-
   socket.on("join_room", function (data) {//部屋に入室した時
+    data.userName = data.userName.replace(/◆/g, '■');
+  
+    if (data.userName.match(/#/)) {
+      let index = data.userName.indexOf("#");
+      let tripStr = data.userName.slice(index + 1);
+      let tripName = data.userName.slice(0, index);
+      data.userName = tripName + tripCreate(tripStr);
+    }
+    if (data.userName.match(/＃/)) {
+      let index = data.userName.indexOf("＃");
+      let tripStr = data.userName.slice(index + 1);
+      let tripName = data.userName.slice(0, index);
+      data.userName = tripName + tripCreate(tripStr);
+    }
+    user[data.socketID].userName = data.userName;//名前をサバに保存
     room = data.room;
-    userName[data.userNum]=data.userName;//名前をサバに保存
-    socket.join(room);
-    io.to(socket.id).json.emit("join_me_from_server",{
-      userEX: userEX,
-      userName: userName,
-      AX: AX,
-      AY: AY,
-      C:C,
-    });
+    if (room == "entrance") {
+      user[data.socketID].room = "entrance";
+      entranceUser++;
+    }
 
-    socket.broadcast.to(room).emit("join_room_from_server", {
-      userNum:data.userNum,
-      userName:data.userName,
-      msg:userName[data.userNum]+"が"+room+"に入室しました。",
-    });
-   
+    socket.join(room);
+
+    if (room == "entrance") {
+      io.to(socket.id).json.emit("join_me_from_server", {
+        user: user,
+        roomUser: entranceUser,
+        msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+      });
+
+      socket.broadcast.to(room).emit("join_room_from_server", {
+        socketID: data.socketID,
+        userName: data.userName,
+        roomUser: entranceUser,
+        msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+      });
+    }
   });
 
   //メッセージを送信
-  socket.on("emit_msg",function(data){
-    io.to(room).emit("emit_msg_from_server",{
-      msg:"["+userName[data.userNum]+"]:"+data.msg,
-      userNum:data.userNum,
-      avaMsg:data.msg,
+  socket.on("emit_msg", function (data) {
+    io.to(room).emit("emit_msg_from_server", {
+      msg: "[（　´∀｀）" + user[data.socketID].userName + "（´∀｀）]:" + data.msg,
+      socketID: data.socketID,
+      avaMsg: data.msg,
+      abonClass:user[data.socketID].socketID,//あとで考える！！！！！！！！！
+    });
+  });
+
+  //アボンの時
+  socket.on("abonMsg", function (data) {
+    let abonMsg;
+    let abonAvaMsg;
+    if (user[data.socketID]==null) {
+      abonMsg = "その住民は退出済みです";
+    } else if(data.abonMsg) {
+      abonMsg = user[data.socketID].userName + "をアボンしました。";
+      abonAvaMsg = "アボン";//吹き出しをアボンにする。
+    } else {
+      abonMsg = user[data.socketID].userName + "のあぼんをやめました";
+      abonAvaMsg = "";
+    }
+    io.to(socket.id).json.emit("abonMsg_from_server", {
+      msg: abonMsg,
+      socketID: data.socketID,
+      avaMsg: abonAvaMsg,
     });
   });
 
   //クリックイベント
   socket.on('clickMap', function (data) {
-        C[data.userNum]=data.C;
-        AX[data.userNum]=data.AX;
-        AY[data.userNum]=data.AY;
-    io.to(room).emit("clickMap_from_server",{
-      D:C[data.userNum],
-      C:data.C,
-      userNum:data.userNum,
-      moveX:data.moveX,
-      moveY:data.moveY,
+    user[data.socketID].DIR = data.DIR;
+    console.log("-----------------------------------------click");
+    console.log("ID:"+data.socketID);
+    console.log("TESTIDDIR: "+user);
+    keys = Object.keys(user);
+    keys.forEach(function (value) {
+      console.log("ID:"+value+"----user[socketID].DIR:"+user[value].DIR);
+    });
+    console.log("-----------------------------------------");
+    user[data.socketID].AX = data.AX;
+    user[data.socketID].AY = data.AY;
+    io.to(room).emit("clickMap_from_server", {
+      DIR: data.DIR,
+      socketID: data.socketID,
+      moveX: data.moveX,
+      moveY: data.moveY,
     });
   });
-  
-  socket.on("AXYC",function(data){
-    AX[data.userNum]=data.AX;
-    AY[data.userNum]=data.AY;
-    C[data.userNum]=data.C;
+
+  socket.on("AXYDIR", function (data) {
+    user[data.socketID].AX = data.AX;
+    user[data.socketID].AY = data.AY;
+    user[data.socketID].DIR = data.DIR;
   });
-  
+
   //退出時
   socket.on("disconnect", function () {
-    console.log("socket.id:dis:" + socket.id);
-    for (let i = 0; i < userIDEX.length; i++) {//IDが存在する間
-      if (userIDEX[i] == socket.id) {
-        userEX[i] = false;
-        if (i+1 == userEX.length) {
-          do {
-            userEX.pop();
-          } while (userEX[i]==false)
-        }
-        io.to(room).emit("logout_from_server", {
-          userIDEX: i,
-          msg: userName[i] + "が退出しました。",
-        });
-        userName[i] = "名もなき名無し";
-      }
+    if (user[socket.id].room == "entrance") {
+      entranceUser--;
+      roomUserFunk(entranceUser);
     }
+    function roomUserFunk(value) {
+      io.to(room).emit("logout_from_server", {
+        socketID:socket.id,
+        msg: user[socket.id].userName + "が退出しました。",
+        roomUser: value,
+      });
+    }
+    delete user[socket.id];
+
   });
 });
 
-//あとでuserNumを０から埋める処理とAXとかAYの初期化処理を付け加える
 
 /**
  * Normalize a port into a number, string, or false.

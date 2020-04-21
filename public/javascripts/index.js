@@ -1,28 +1,25 @@
 'use strict';
 //ソケットIOをonにする
-var socket = io.connect('153.127.33.40:3000');
+let socket = io.connect('153.127.33.40:3000');
+
 
 //アバターの初期位置
 let AX = 410;
 let AY = 80;
 
-let userNum;
 let userName;
-let userEXNum;
+
 let socketID;
 
-let room = "エントランス";
+let room = "entrance";
 
-//宣言
 let avaP = [];
 let avaS = [],avaSW=[],avaW=[],avaNW=[],avaN=[],avaNE=[],avaE=[],avaSE=[];
 let avaSs=[],avaSWs=[],avaWs=[],avaNWs=[],avaNs=[],avaNEs=[],avaEs=[],avaSEs=[];
-let avaC;
+let avaC={};
 let nameTag=[];
 let msg=[];
 let checkName, checkMsg;
-
-
 
 let colPoint = [];
 let colPointAll =[];
@@ -31,11 +28,11 @@ let wallCount=0;
 
 // let ava = [];
 
-let C = 6;
+let DIR = 6;
 
 let AtextX,AtextY,MtextX,MtextY;
 let nameTagX=-30;
-let nameTagY=-70;
+let nameTagY=-105;
 let inRoom=0;
 let entrance;
 
@@ -44,6 +41,7 @@ let moveX,moveY;
 let rightY, leftY;
 
 let flag = false;
+let abonMsg = [];
 
 
 //エイリアス
@@ -64,6 +62,7 @@ let app = new Application({
 });
 //最初の背景画像
 app.renderer.backgroundColor = 0X4C4C52;
+app.stage.interactive = true;//タップを可能にする
 // app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
 //  ブロックを配置
@@ -151,10 +150,10 @@ let nameTagStyle =new PIXI.TextStyle({//名前のスタイル
 });
 
 
-let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
-  fontFamily: "Arial",
-  fontSize: 18,
-  fill: "white",
+// let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
+//   fontFamily: "Arial",
+//   fontSize: 18,
+  // fill: "white",
   // stroke: '#ff3300',
   // strokeThickness: 4,
   // dropShadow: true,
@@ -162,10 +161,7 @@ let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
   // dropShadowBlur: 4,
   // dropShadowAngle: Math.PI / 6,
   // dropShadowDistance: 6,
-});
-
-
-
+// });
 
 
 // レンダラーのviewをDOMに追加する
@@ -177,7 +173,7 @@ Loader
 .add("avaNW","img/avaNW.png")
 .add("avaN","img/avaN.png")
 .add("avaE","img/avaE.png")
-.add("avaS","img/avaS.png")
+.add("avaS","img/gomaNeko.png")
 .add("avaW","img/avaW.png")
 .add("avaNEs","img/avaNEs.png")
 .add("avaSEs","img/avaSEs.png")
@@ -201,109 +197,106 @@ function loadProgressHandler(Loader,resources){
   console.log("progress"+Loader.progress+"%");
 }
 
-//最大値の時の最後のユーザーの数を受け取る
-socket.on("userEXNum", function (data) {
-  userEXNum=data.userEXNum
-  console.log("userEXNum" + userEXNum);
-});
+
+//新しい人がきたときにその次の人の画像を読みこんでおく※次の人のをやっておく必要性があるかはわからｎ
 socket.on("loadNewUser", function (data) {
-    userEXNum = data.userEXNum;
-    avaSs[userEXNum+1] = new Sprite(resources["avaSs"].texture);
-    avaSWs[userEXNum+1] = new Sprite(resources["avaSWs"].texture);
-    avaWs[userEXNum+1] = new Sprite(resources["avaWs"].texture);
-    avaNWs[userEXNum+1] = new Sprite(resources["avaNWs"].texture);
-    avaNs[userEXNum+1] = new Sprite(resources["avaNs"].texture);
-    avaNEs[userEXNum+1] = new Sprite(resources["avaNEs"].texture);
-    avaEs[userEXNum+1] = new Sprite(resources["avaEs"].texture);
-    avaSEs[userEXNum+1] = new Sprite(resources["avaSEs"].texture);
-    avaS[userEXNum+1] = new Sprite(resources["avaS"].texture);
-    avaSW[userEXNum+1] = new Sprite(resources["avaSW"].texture);
-    avaW[userEXNum+1] = new Sprite(resources["avaW"].texture);
-    avaNW[userEXNum+1] = new Sprite(resources["avaNW"].texture);
-    avaN[userEXNum+1] = new Sprite(resources["avaN"].texture);
-    avaNE[userEXNum+1] = new Sprite(resources["avaNE"].texture);
-    avaE[userEXNum+1] = new Sprite(resources["avaE"].texture);
-    avaSE[userEXNum+1] = new Sprite(resources["avaSE"].texture);
-    avaSs[userEXNum+1].position.set(-17.5, -75);
-    avaSWs[userEXNum+1].position.set(-17.5, -75);
-    avaWs[userEXNum+1].position.set(-17.5, -75);
-    avaNWs[userEXNum+1].position.set(-17.5, -75);
-    avaNs[userEXNum+1].position.set(-17.5, -75);
-    avaNEs[userEXNum+1].position.set(-17.5, -75);
-    avaEs[userEXNum+1].position.set(-17.5, -75);
-    avaSEs[userEXNum+1].position.set(-17.5, -75);
-    avaS[userEXNum+1].position.set(-17.5, -75);
-    avaSW[userEXNum+1].position.set(-17.5, -75);
-    avaW[userEXNum+1].position.set(-17.5, -75);
-    avaNW[userEXNum+1].position.set(-17.5, -75);
-    avaN[userEXNum+1].position.set(-17.5, -75);
-    avaNE[userEXNum+1].position.set(-17.5, -75);
-    avaE[userEXNum+1].position.set(-17.5, -75);
-    avaSE[userEXNum+1].position.set(-17.5, -75);
-    console.log("userEXNum" + userEXNum);
+    avaSs[data.socketID] = new Sprite(resources["avaSs"].texture);
+    avaSWs[data.socketID] = new Sprite(resources["avaSWs"].texture);
+    avaWs[data.socketID] = new Sprite(resources["avaWs"].texture);
+    avaNWs[data.socketID] = new Sprite(resources["avaNWs"].texture);
+    avaNs[data.socketID] = new Sprite(resources["avaNs"].texture);
+    avaNEs[data.socketID] = new Sprite(resources["avaNEs"].texture);
+    avaEs[data.socketID] = new Sprite(resources["avaEs"].texture);
+    avaSEs[data.socketID] = new Sprite(resources["avaSEs"].texture);
+    avaS[data.socketID] = new Sprite(resources["avaS"].texture);
+    avaSW[data.socketID] = new Sprite(resources["avaSW"].texture);
+    avaW[data.socketID] = new Sprite(resources["avaW"].texture);
+    avaNW[data.socketID] = new Sprite(resources["avaNW"].texture);
+    avaN[data.socketID] = new Sprite(resources["avaN"].texture);
+    avaNE[data.socketID] = new Sprite(resources["avaNE"].texture);
+    avaE[data.socketID] = new Sprite(resources["avaE"].texture);
+    avaSE[data.socketID] = new Sprite(resources["avaSE"].texture);
+    avaSs[data.socketID].position.set(-17.5, -75);
+    avaSWs[data.socketID].position.set(-17.5, -75);
+    avaWs[data.socketID].position.set(-17.5, -75);
+    avaNWs[data.socketID].position.set(-17.5, -75);
+    avaNs[data.socketID].position.set(-17.5, -75);
+    avaNEs[data.socketID].position.set(-17.5, -75);
+    avaEs[data.socketID].position.set(-17.5, -75);
+    avaSEs[data.socketID].position.set(-17.5, -75);
+    avaS[data.socketID].position.set(-17.5, -75);
+    avaSW[data.socketID].position.set(-17.5, -75);
+    avaW[data.socketID].position.set(-17.5, -75);
+    avaNW[data.socketID].position.set(-17.5, -75);
+    avaN[data.socketID].position.set(-17.5, -75);
+    avaNE[data.socketID].position.set(-17.5, -75);
+    avaE[data.socketID].position.set(-17.5, -75);
+    avaSE[data.socketID].position.set(-17.5, -75);
 })
 
 
 function setup() {
-  socket.emit("myNum", {
-  });
-
+  socket.emit("set", {});//サーバーに入ったことを伝える
   //エントランスの画像を追加
   entrance=new Sprite(resources["entrance"].texture);
   entrance.width=660;
   entrance.height = 480;
-  entrance.interactive = true;
   
 
 
   // 座標確認用のオブジェクト
-  // アバターX座標の表示位置設定
+  // アバターX座標の表示設定
   AtextX = new PIXI.Text("avaX");
-  AtextX.style={
+  AtextX.style={//アバターX座標のスタイル
     fontFamily:"serif",
     fontSize:"12px",
     fill:"blue",
   }
-
+  ///アバターX座標の位置
   AtextX.position.set(560,420);
   app.stage.addChild(AtextX);
 
-  //アバターY座標の表示位置設定
+  //アバターY座標の表示設定
   AtextY = new PIXI.Text("avaY");
-  AtextY.style={
+  AtextY.style={//アバターY座標のスタイル
     fontFamily:"serif",
     fontSize:"12px",
     fill:"blue",
   }
-
+//アバターY座標の位置
   AtextY.position.set(560,435);
   app.stage.addChild(AtextY);
-  //X座標の表示位置設定
+
+  //マウスX座標の表示設定
   MtextX = new PIXI.Text("mouX");
-  MtextX.style={
+  MtextX.style={//マウスX座標のスタイル
     fontFamily:"serif",
     fontSize:"12px",
     fill:"red",
   }
-
-
+//マウスX座標の位置
   MtextX.position.set(560,450);
   app.stage.addChild(MtextX);
-  //Y座標の表示位置設定
+
+  //マウスY座標の表示位置設定
   MtextY = new PIXI.Text("mouY");
-  MtextY.style={
+  MtextY.style={//マウスY座標のスタイル
     fontFamily:"serif",
     fontSize:"12px",
     fill:"red",
   }
+  //マウスY座標の位置
   MtextY.position.set(560,465);
   app.stage.addChild(MtextY);
 
-
+  //入った時に入力欄にフォーカスを合わせる
   document.querySelector('input').focus();
+
+
+
   //名前を出力
   checkName = function(){
-    nameTag[0].text = (document.nameForm.userName.value);
+    nameTag[socketID].text = (document.nameForm.userName.value);
     socket.json.emit("emit_name", {
       name: (document.nameForm.userName.value),
     });
@@ -313,85 +306,110 @@ function setup() {
   checkMsg = function(){
     msg.text = (document.msgForm.msg.value);
     socket.json.emit("emit_msg",{
-      userNum:userNum,
+      socketID:socketID,
       msg:(document.msgForm.msg.value),
     });
     document.msgForm.msg.value = "";
     document.msgForm.msg.focus();
-    
   }
 }
 //メッセージを受け取って表示
 socket.on("emit_msg_from_server", function (data) {
   const li = document.createElement("li");
+  if (abonMsg[data.socketID] != true) {
+    li.textContent = data.msg;
+    const ul = document.querySelector("ul");
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+    msg[data.socketID].text = data.avaMsg;
+
+    // 発言したテキストをクリックした時アボンする
+    li.className = data.abonClass;//アボンクラスを付与
+    const  abonClass = document.getElementsByClassName(data.abonClass);
+    abonClass[0].addEventListener("click", function () {
+      if (data.socketID != socketID) {//自テキストは省く
+        if (abonMsg[data.socketID]) {
+          abonMsg[data.socketID] = false;
+        } else {
+          abonMsg[data.socketID] = true;
+        }
+        socket.json.emit("abonMsg", {
+          abonMsg: abonMsg[data.socketID],
+          socketID: data.socketID,
+        });
+      }
+    });
+  }
+});
+
+//アボンした時の処理
+socket.on("abonMsg_from_server", function (data) {
+  const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-
-  msg[data.userNum].text = data.avaMsg;
+  console.log(data.msg);
+  if (abonMsg[data.socketID] == true || data.msg == "その住民は退出済みです") {
+    li.style.color = "red";
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+    msg[data.socketID].style.fill = "red";
+  } else {
+    li.style.color = "blue";
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+    msg[data.socketID].style.fill = "white";
+    }
+  msg[data.socketID].text = data.avaMsg;
 });
 
 
-
-
-
-// let result;
-// result = new Promise(function (resolve) {
-//   console.log("test1");
-//    resolve();
-// })
-
-// result.then(function () {})
-
-socket.on("myNum_from_server",function(data){
-  userNum = data.userNum;
+socket.on("mySocketID_from_server",function(data){
+  socketID = data.socketID;
+  const keys = Object.keys(data.user);
+  keys.forEach(function (value) {
     //アバターの画像を設定
-  for (let i = 0; i < userEXNum+1; i++) { 
-      avaSs[i] = new Sprite(resources["avaSs"].texture);
-      avaSWs[i] = new Sprite(resources["avaSWs"].texture);
-      avaWs[i] = new Sprite(resources["avaWs"].texture);
-      avaNWs[i] = new Sprite(resources["avaNWs"].texture);
-      avaNs[i] = new Sprite(resources["avaNs"].texture);
-      avaNEs[i] = new Sprite(resources["avaNEs"].texture);
-      avaEs[i] = new Sprite(resources["avaEs"].texture);
-      avaSEs[i] = new Sprite(resources["avaSEs"].texture);
-      avaS[i] = new Sprite(resources["avaS"].texture);
-      avaSW[i] = new Sprite(resources["avaSW"].texture);
-      avaW[i] = new Sprite(resources["avaW"].texture);
-      avaNW[i] = new Sprite(resources["avaNW"].texture);
-      avaN[i] = new Sprite(resources["avaN"].texture);
-      avaNE[i] = new Sprite(resources["avaNE"].texture);
-      avaE[i] = new Sprite(resources["avaE"].texture);
-      avaSE[i] = new Sprite(resources["avaSE"].texture);
-      avaSs[i].position.set(-17.5,-75);
-      avaSWs[i].position.set(-17.5,-75);
-      avaWs[i].position.set(-17.5,-75);
-      avaNWs[i].position.set(-17.5,-75);
-      avaNs[i].position.set(-17.5,-75);
-      avaNEs[i].position.set(-17.5,-75);
-      avaEs[i].position.set(-17.5,-75);
-      avaSEs[i].position.set(-17.5,-75);
-      avaS[i].position.set(-17.5,-75);
-      avaSW[i].position.set(-17.5,-75);
-      avaW[i].position.set(-17.5,-75);
-      avaNW[i].position.set(-17.5,-75);
-      avaN[i].position.set(-17.5,-75);
-      avaNE[i].position.set(-17.5,-75);
-      avaE[i].position.set(-17.5,-75);
-      avaSE[i].position.set(-17.5,-75);
-    }
+      avaSs[value] = new Sprite(resources["avaSs"].texture);
+      avaSWs[value] = new Sprite(resources["avaSWs"].texture);
+      avaWs[value] = new Sprite(resources["avaWs"].texture);
+      avaNWs[value] = new Sprite(resources["avaNWs"].texture);
+      avaNs[value] = new Sprite(resources["avaNs"].texture);
+      avaNEs[value] = new Sprite(resources["avaNEs"].texture);
+      avaEs[value] = new Sprite(resources["avaEs"].texture);
+      avaSEs[value] = new Sprite(resources["avaSEs"].texture);
+      avaS[value] = new Sprite(resources["avaS"].texture);
+      avaSW[value] = new Sprite(resources["avaSW"].texture);
+      avaW[value] = new Sprite(resources["avaW"].texture);
+      avaNW[value] = new Sprite(resources["avaNW"].texture);
+      avaN[value] = new Sprite(resources["avaN"].texture);
+      avaNE[value] = new Sprite(resources["avaNE"].texture);
+      avaE[value] = new Sprite(resources["avaE"].texture);
+      avaSE[value] = new Sprite(resources["avaSE"].texture);
+      avaSs[value].position.set(-17.5,-75);
+      avaSWs[value].position.set(-17.5,-75);
+      avaWs[value].position.set(-17.5,-75);
+      avaNWs[value].position.set(-17.5,-75);
+      avaNs[value].position.set(-17.5,-75);
+      avaNEs[value].position.set(-17.5,-75);
+      avaEs[value].position.set(-17.5,-75);
+      avaSEs[value].position.set(-17.5,-75);
+      avaS[value].position.set(-17.5,-75);
+      avaSW[value].position.set(-17.5,-75);
+      avaW[value].position.set(-17.5,-75);
+      avaNW[value].position.set(-17.5,-75);
+      avaN[value].position.set(-17.5,-75);
+      avaNE[value].position.set(-17.5,-75);
+      avaE[value].position.set(-17.5,-75);
+      avaSE[value].position.set(-17.5,-75);
+  })
   
-    nameTag[0] = new PIXI.Text(document.nameForm.userName.value,nameTagStyle);
-    nameTag[0].position.set(nameTagX,nameTagY);//名前の位置
+    nameTag[socketID] = new PIXI.Text(document.nameForm.userName.value,nameTagStyle);
+    nameTag[socketID].position.set(nameTagX,nameTagY);//名前の位置
     //アバターの親コンテナを設定
-    avaP[0]=new PIXI.Container();
-    avaP[0].position.set(320,200);
+    avaP[socketID]=new PIXI.Container();
+    avaP[socketID].position.set(320,200);
     //名前と画像を追加
-    avaP[0].addChild(avaS[0]);
-    avaP[0].addChild(nameTag[0]);
+    avaC[socketID] = avaS[socketID];
+    avaP[socketID].addChild(avaC[socketID]);
+    avaP[socketID].addChild(nameTag[socketID]);
     //ステージに追加
-  app.stage.addChild(avaP[0]);
+  app.stage.addChild(avaP[socketID]);
 });
 
 
@@ -401,16 +419,15 @@ socket.on("myNum_from_server",function(data){
 //ログイン時の処理
 function login() {
   //userNameにフォームの内容を入れる
-  // nameTag[0].text=document.nameForm.userName.value;
   userName=document.nameForm.userName.value;
   if(userName!=""){//名前が空だと移動しない//マップを切り替える
     //エントランス画像を表示
     app.stage.addChild(entrance);
     //ログイン画面のアバを一回消す
-    app.stage.removeChild(avaP[0]);
+    app.stage.removeChild(avaP[socketID]);
     socket.json.emit("join_room",{//エントランスに入る
-      room:"エントランス",
-      userNum:userNum,//ユーザーナンバー
+      room:"entrance",
+      socketID:socketID,//soket.id
       userName: userName,//ユーザーネーム
     });
 
@@ -431,90 +448,158 @@ function login() {
   }
 }
 
-//ルーム入室時に自分と他人のアバターの生成する
+//ルーム入室時に自分と他人のアバターを生成する
 socket.on("join_me_from_server", function (data) {
-  console.log("data.userEX:" + data.userEX);
-  console.log("userEXNum:" + userEXNum);
-  for (let i = 0; i < userEXNum+1; i++) {
-    if (data.userEX[i] == true) {
+  const keys = Object.keys(data.user);
+  keys.forEach(function (value) {
+    if (data.user[value].room == "entrance") {
       // アバターの親コンテナを作成
-      avaP[i] = new PIXI.Container();
-      avaP[i].position.set(data.AX[i], data.AY[i]);
-      // 画像とメッセージと名前を追加してステージに上げる
-      app.stage.addChild(avaP[i]);
-      if (data.C[i] == 0) {
-        avaP[i].addChild(avaNE[i]);
-      } else if (data.C[0] == 1) {
-        avaP[i].addChild(avaSE[i]);
-      } else if (data.C[0] == 2) {
-        avaP[i].addChild(avaSW[i]);
-      } else if (data.C[0] == 3) {
-        avaP[i].addChild(avaNW[i]);
-      } else if (data.C[0] == 4) {
-        avaP[i].addChild(avaN[i]);
-      } else if (data.C[0] == 5) {
-        avaP[i].addChild(avaE[i]);
-      } else if (data.C[0] == 6) {
-        avaP[i].addChild(avaS[i]);
-      } else if (data.C[0] == 7) {
-        avaP[i].addChild(avaW[i]);
-      } else { }
-      // //名前タグを追加
-      nameTag[i] = new PIXI.Text(data.userName[i], nameTagStyle);
-      nameTag[i].position.set(nameTagX, nameTagY);
-      avaP[i].addChild(nameTag[i]);
-      // アバターのメッセージを追加する
-      msg[i] = new PIXI.Text("", msgStyle);
-      msg[i].position.set(-30, -60);
-      avaP[i].addChild(msg[i]);
-    }
-  }  
-});
-
-
-
-//自分以外がルームに入ってきたアバター作成とアナウンス
-socket.on("join_room_from_server", function (data) {
-  console.log("userNumtes" + data.userNum);
-  // アバターの親コンテナを作成
-  avaP[data.userNum] = new PIXI.Container();
-  avaP[data.userNum].position.set(410, 80);
-  // //名前タグを追加
-  nameTag[data.userNum] = new PIXI.Text(data.userName, nameTagStyle);
-  nameTag[data.userNum].position.set(nameTagX, nameTagY);
+      avaP[value] = new PIXI.Container();
+      avaP[value].position.set(data.user[value].AX, data.user[value].AY);
   
-  // アバターのメッセージを追加する
-  msg[data.userNum] = new PIXI.Text("", msgStyle);
-  msg[data.userNum].position.set(-30, -60);
-  // 画像とメッセージと名前を追加してステージに上げる
-  app.stage.addChild(avaP[data.userNum]);
-  avaP[data.userNum].addChild(avaS[data.userNum]);
-  avaP[data.userNum].addChild(nameTag[data.userNum]);
-  avaP[data.userNum].addChild(msg[data.userNum]);
-  console.log("avaP[data.userNum]423:" + avaP[data.userNum]);
+      //アバタークリックでアボン
+      avaP[value].interactive = true;
+      abonMsg[value] = false;
+      avaP[value].on("click", function () {
+        if (value != socketID) {//自アバターは省く 
+          if (abonMsg[value]) {
+            abonMsg[value] = false;
+          } else {
+            abonMsg[value] = true;
+          }
+          socket.json.emit("abonMsg", {
+            abonMsg: abonMsg[value],
+            socketID: value,
+          });
+        }
+      });
+      // 画像とメッセージと名前を追加してステージに上げる
+      if (data.user[value].DIR == 0) {
+        console.log("ID" + value + "DIR" + 0);
+        avaC[value] = avaNE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 1) {
+        console.log("ID" + value + "DIR" + 1);
+        avaC[value] = avaSE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 2) {
+        console.log("ID" + value + "DIR" + 2);
+        avaC[value] = avaSW[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 3) {
+        console.log("ID" + value + "DIR" + 3);
+        avaC[value] = avaNW[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 4) {
+        console.log("ID" + value + "DIR" + 4);
+        avaC[value] = avaN[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 5) {
+        console.log("ID" + value + "DIR" + 5);
+        avaC[value] = avaE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == 6) {
+        console.log("ID" + value + "DIR" + 6);
+        avaC[value] = avaS[value];
+        avaP[value].addChild(avaC[value]);
+      } else {
+        console.log("ID" + value + "DIR" + 7);
+        avaC[value] = avaW[value];
+        avaP[value].addChild(avaC[value]);
+      }
+      // //名前タグを追加
+      nameTag[value] = new PIXI.Text(data.user[value].userName, nameTagStyle);
+      nameTag[value].position.set(nameTagX, nameTagY);
+      avaP[value].addChild(nameTag[value]);
+      // アバターのメッセージを追加する
+      msg[value] = new PIXI.Text("");
+      msg[value].position.set(-30, -95);
+      msg[value].style.fill = "white";
+      msg[value].style.fontSize = 18;
+      avaP[value].addChild(msg[value]);
+      app.stage.addChild(avaP[value]);
+    }
+  });
+
   //入室時のメッセージを出す
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  
   ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+
+  //部屋人数の表記を変える
+  document.getElementById('users').textContent = "users:"+data.roomUser;
+});
+
+
+
+
+//自分以外がルームに入ってきた時のアバター作成とアナウンス
+socket.on("join_room_from_server", function (data) {
+  // アバターの親コンテナを作成
+  avaP[data.socketID] = new PIXI.Container();
+  avaP[data.socketID].position.set(410, 80);
+  
+  // アバタークリックでアボン
+  avaP[data.socketID].interactive = true;
+  abonMsg[data.socketID] = false;
+  avaP[data.socketID].on("click", function () {
+      if (abonMsg[data.socketID]) {
+        abonMsg[data.socketID] = false;
+      } else {
+        abonMsg[data.socketID] = true;
+      }
+      socket.json.emit("abonMsg", {
+        abonMsg: abonMsg[data.socketID],
+        socketID: data.socketID,
+      });
+  });
+  
+  // //名前タグを追加
+  nameTag[data.socketID] = new PIXI.Text(data.userName, nameTagStyle);
+  nameTag[data.socketID].position.set(nameTagX, nameTagY);
+  
+  // アバターのメッセージを追加する
+  msg[data.socketID] = new PIXI.Text("");
+  msg[data.socketID].position.set(-30, -60);
+  msg[data.socketID].style.fill = "white";
+  msg[data.socketID].style.fontSize = 18;
+  // 画像とメッセージと名前を追加してステージに上げる
+  app.stage.addChild(avaP[data.socketID]);
+  avaC[data.socketID] = avaS[data.socketID];
+  avaP[data.socketID].addChild(avaC[data.socketID]);
+  avaP[data.socketID].addChild(nameTag[data.socketID]);
+  avaP[data.socketID].addChild(msg[data.socketID]);
+
+  //入室時のメッセージを出す
+  const li = document.createElement("li");
+  li.textContent = data.msg;
+  const ul = document.querySelector("ul");
+  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+  //部屋人数の表記を変える
+  document.getElementById('users').textContent = "users:"+data.roomUser;
 });
 
 
 
 //画面をタップした時の処理
 document.getElementById("graphic").addEventListener("touchstart", function () {
-  entrance.on('touchstart', function (event) {
+  console.log("tes3");
+  app.stage.on('touchstart', function (event) {
     flag = true;
     console.log("tes");
-    MX = event.data.getLocalPosition(event.target).x*12/10;
-    MY = event.data.getLocalPosition(event.target).y*12/10;
-    console.log("MX"+event.data.getLocalPosition(event.target).x*12/10);
-    console.log("MY"+event.data.getLocalPosition(event.target).y*12/10);
+    MX = event.data.getLocalPosition(event.target).x;
+    MY = event.data.getLocalPosition(event.target).y;
+    console.log("MX"+event.data.getLocalPosition(event.target).x);
+    console.log("MY"+event.data.getLocalPosition(event.target).y);
     moveEvent();
+    console.log("tes5");
   });
+  console.log("tes4");
 });
 //画面をクリックした時の処理
+// entrance.interactive = true;
+// app.stage.on("click",function(){//こっちのが良いかも、一応置いとく
 document.getElementById("graphic").addEventListener("click", function () {
   if (flag) {
     flag = false;
@@ -528,346 +613,67 @@ document.getElementById("graphic").addEventListener("click", function () {
   }
 });
 
+
 function moveEvent(){
   if(inRoom==0){
-    if(MX > AX + aW && MY < AY-aH){
-      gsap.to(avaP[0],0,{
-        delay:0.1,
-        onUpdate: function () {
-          avaP[0].removeChild(avaC);
-          avaC=avaNEs[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.2,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaNE[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.3,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaNEs[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.4,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaNE[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-    }else if(MX > AX +aW && MY > AY){
-      gsap.to(avaP[0],0,{
-        delay:0.1,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaSEs[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.2,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaSE[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.3,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaSEs[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-      gsap.to(avaP[0],0,{
-        delay:0.4,
-        onUpdate:function(){
-          avaP[0].removeChild(avaC);
-          avaC=avaSE[0];
-          avaP[0].addChild(avaC);
-          avaP[0].addChild(nameTag[0]);
-        }
-      });
-    }else if(MX < AX -aW && MY > AY){
-        gsap.to(avaP[0],0,{
-          delay:0.1,
-          onUpdate:function(){
-            avaP[0].removeChild(avaC);
-            avaC=avaSWs[0];
-            avaP[0].addChild(avaC);
-            avaP[0].addChild(nameTag[0]);
-          }
-        });
-        gsap.to(avaP[0],0,{
-          delay:0.2,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaSW[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.3,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaSWs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.4,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaSW[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          }else if(MX < AX -aW && MY < AY-aH){
-             gsap.to(avaP[0],0,{
-               delay:0.1,
-               onUpdate:function(){
-                 avaP[0].removeChild(avaC);
-                 avaC=avaNWs[0];
-                 avaP[0].addChild(avaC);
-                 avaP[0].addChild(nameTag[0]);
-                }
-              });
-             gsap.to(avaP[0],0,{
-              delay:0.2,
-              onUpdate:function(){
-                avaP[0].removeChild(avaC);
-                avaC=avaNW[0];
-                avaP[0].addChild(avaC);
-                avaP[0].addChild(nameTag[0]);
-               }
-             });
-            gsap.to(avaP[0],0,{
-              delay:0.3,
-              onUpdate:function(){
-                avaP[0].removeChild(avaC);
-                avaC=avaNWs[0];
-                avaP[0].addChild(avaC);
-                avaP[0].addChild(nameTag[0]);
-               }
-             });
-            gsap.to(avaP[0],0,{
-              delay:0.4,
-              onUpdate:function(){
-                avaP[0].removeChild(avaC);
-                avaC=avaNW[0];
-                avaP[0].addChild(avaC);
-                avaP[0].addChild(nameTag[0]);
-               }
-             });
-        }else if(MX < AX -aW){
-          gsap.to(avaP[0],0,{
-            delay:0.1,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaWs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.2,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaW[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.3,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaWs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.4,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaW[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-        }else if(MX > AX +aW){
-          gsap.to(avaP[0],0,{
-            delay:0.1,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaEs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.2,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaE[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.3,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaEs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.4,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaE[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-        }else if(MY < AY){
-          gsap.to(avaP[0],0,{
-            delay:0.1,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaNs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.2,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaN[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.3,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaNs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.4,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaN[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-        }else if(MY > AY){
-          gsap.to(avaP[0],0,{
-            delay:0.1,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaSs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.2,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC = avaS[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.3,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC=avaSs[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-          gsap.to(avaP[0],0,{
-            delay:0.4,
-            onUpdate:function(){
-              avaP[0].removeChild(avaC);
-              avaC = avaS[0];
-              avaP[0].addChild(avaC);
-              avaP[0].addChild(nameTag[0]);
-             }
-           });
-        }else{
-        }
+    if (MX > AX + aW && MY < AY - aH) {
+      anime(avaNE, avaNEs, socketID);
+    } else if (MX > AX + aW && MY > AY) {
+      anime(avaSE, avaSEs, socketID);
+    } else if (MX < AX - aW && MY > AY) {
+      anime(avaSW, avaSWs, socketID);
+    } else if (MX < AX - aW && MY < AY - aH) {
+      anime(avaNW, avaNWs, socketID);
+    } else if (MX < AX - aW) {
+      anime(avaW, avaWs, socketID);
+    }else if(MX > AX +aW){
+      anime(avaE, avaEs, socketID);
+    } else if (MY < AY) {
+      anime(avaN, avaNs, socketID);
+    }else if(MY > AY){
+      anime(avaS, avaSs, socketID);    
+    }else{
+    };
 
-  gsap.to(avaP[0],{duration:0.4,x:MX,y:MY,
+  gsap.to(avaP[socketID],{duration:0.4,x:MX,y:MY,
     onComplete:function(){
-      AX=avaP[0].x;
-      AY=avaP[0].y;
+      AX=avaP[socketID].x;
+      AY=avaP[socketID].y;
   }});
 }else if(inRoom==1){
   inRoom=2;
 }else if( inRoom==2){
     // 方向に合わせて画像を変えて表示
-    if(MX > AX + aW && MY < AY-aH){
-      C=0;
-    }else if(MX > AX +aW && MY > AY){
-      C=1;
-    }else if(MX < AX -aW && MY > AY){
-      C=2;
-    }else if(MX < AX -aW && MY < AY-aH){
-      C=3;
-    }else if(MX < AX -aW){
-      C=7;
-    }else if(MX > AX +aW){
-      C=5;
-    }else if(MY < AY){
-      C=4;
-    }else if(MY > AY){
-      C=6;
-    }else{}
-    if(room=="エントランス"){
+    if (MX > AX + aW && MY < AY - aH) {
+      DIR = 0;
+    } else if (MX > AX + aW && MY > AY) {
+      DIR = 1;
+    } else if (MX < AX - aW && MY > AY) {
+      DIR = 2;
+    } else if (MX < AX - aW && MY < AY - aH) {
+      DIR = 3;
+    } else if (MX < AX - aW) {
+      DIR = 7;
+    } else if (MX > AX + aW) {
+      DIR = 5;
+    } else if (MY < AY) {
+      DIR = 4;
+    } else if (MY > AY) {
+      DIR = 6;
+    } else { }
+    if(room=="entrance"){
       entranceBlock();
-    }//別の部屋の場合でつき足す
+    }//別の部屋の場合でつき足す!!!!!!!!!!!!
     moveX=MX;
     moveY=MY;
     AX=MX;
     AY=MY;
     if(colPointAll[0]==undefined){
       socket.json.emit("clickMap",{
-        C:C,
+        DIR:DIR,
         AX:AX,
         AY:AY,
-        userNum:userNum,
+        socketID:socketID,
         moveX:moveX,
         moveY:moveY,
       });
@@ -894,279 +700,84 @@ function moveEvent(){
     // 初期化
     colPointAll = [];
     //メッセージにフォーカスを当てる
-    
   }
 }
 
 
 
+function anime(direction1, direction2, value) {
+  gsap.to(avaP[value], 0, {
+    delay: 0.1,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = direction2[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.2,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = direction1[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.3,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = direction2[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.4,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = direction1[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+}
+
+
 //移動時のソケット受け取り
-socket.on("clickMap_from_server",function(data){
+socket.on("clickMap_from_server", function (data) {
+  socket.emit("AXYDIR", {
+    socketID: socketID,
+    AX: AX,
+    AY: AY,
+    DIR: DIR,
+  });
   moveX=data.moveX;
   moveY = data.moveY;
-  for (let i = 0; i < userEXNum; i++) {
-    function NE0() {
-      avaP[i].removeChild(avaNE[i]);
-      avaP[i].addChild(avaNEs[i]);
-      avaP[i].addChild(nameTag[i]);
-      avaP[i].addChild(msg[i]);
+  
+  if (data.DIR == 0) {//子要素の画像を入れる
+    anime(avaNE, avaNEs, data.socketID);
+  } else if (data.DIR == 1) {
+    anime(avaSE, avaSEs, data.socketID);
+  } else if (data.DIR == 2) {
+    anime(avaSW, avaSWs, data.socketID);
+  } else if (data.DIR == 3) {
+    anime(avaNW, avaNWs, data.socketID);
+  } else if (data.DIR == 4) {
+    anime(avaN, avaNs, data.socketID);
+  } else if (data.DIR == 5) {
+    anime(avaE, avaEs, data.socketID);
+  } else if (data.DIR == 6) {
+    anime(avaS, avaSs, data.socketID);
+  } else {
+    anime(avaW, avaWs, data.socketID);
   }
-  function NE1() {
-    avaP[i].removeChild(avaNEs[i]);
-    avaP[i].addChild(avaNE[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function SE0() {
-    avaP[i].removeChild(avaSE[i]);
-    avaP[i].addChild(avaSEs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function SE1() {
-    avaP[i].removeChild(avaSEs[i]);
-    avaP[i].addChild(avaSE[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function SW0() {
-    avaP[i].removeChild(avaSW[i]);
-    avaP[i].addChild(avaSWs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function SW1() {
-    avaP[i].removeChild(avaSWs[i]);
-    avaP[i].addChild(avaSW[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function NW0() {
-    avaP[i].removeChild(avaNW[i]);
-    avaP[i].addChild(avaNWs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function NW1() {
-    avaP[i].removeChild(avaNWs[i]);
-    avaP[i].addChild(avaNW[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function N0() {
-    avaP[i].removeChild(avaN[i]);
-    avaP[i].addChild(avaNs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function N1() {
-    avaP[i].removeChild(avaNs[i]);
-    avaP[i].addChild(avaN[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function E0() {
-    avaP[i].removeChild(avaE[i]);
-    avaP[i].addChild(avaEs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function E1() {
-    avaP[i].removeChild(avaEs[i]);
-    avaP[i].addChild(avaE[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function S0() {
-    avaP[i].removeChild(avaS[i]);
-    avaP[i].addChild(avaSs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function S1() {
-    avaP[i].removeChild(avaSs[i]);
-    avaP[i].addChild(avaS[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function W0() {
-    avaP[i].removeChild(avaW[i]);
-    avaP[i].addChild(avaWs[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-  function W1() {
-    avaP[i].removeChild(avaWs[i]);
-    avaP[i].addChild(avaW[i]);
-    avaP[i].addChild(nameTag[i]);
-    avaP[i].addChild(msg[i]);
-  }
-    if (data.userNum == i) {
-      if (data.D == 0) {//子要素の画像を削除
-        avaP[i].removeChild(avaNE[i]);
-      } else if (data.D == 1) {
-        avaP[i].removeChild(avaSE[i]);
-      } else if (data.D == 2) {
-        avaP[i].removeChild(avaSW[i]);
-      } else if (data.D == 3) {
-        avaP[i].removeChild(avaNW[i]);
-      } else if (data.D == 4) {
-        avaP[i].removeChild(avaN[i]);
-      } else if (data.D == 5) {
-        avaP[i].removeChild(avaE[i]);
-      } else if (data.D == 6) {
-        avaP[i].removeChild(avaS[i]);
-      } else {
-        avaP[i].removeChild(avaW[i]);
-      }
-      
-      if (data.C == 0) {//子要素の画像を入れる
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: NE0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: NE1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: NE0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: NE1(),
-        });
-      } else if (data.C == 1) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: SE0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: SE1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: SE0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: SE1(),
-        });
-      } else if (data.C == 2) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: SW0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: SW1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: SW0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: SW1(),
-        });
-      } else if (data.C == 3) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate:NW0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate:NW1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: NW0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: NW1(),
-        });
-      } else if (data.C == 4) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: N0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: N1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: N0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: N1(),
-        });
-      } else if (data.C == 5) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: E0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: E1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: E0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: E1(),
-        });
-      } else if (data.C == 6) {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: S0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: S1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: S0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: S1(),
-        });
-      } else {
-        gsap.to(avaP[i], 0, {
-          delay: 0.1,
-          onUpdate: W0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.2,
-          onUpdate: W1(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.3,
-          onUpdate: W0(),
-        });
-        gsap.to(avaP[i], 0, {
-          delay: 0.4,
-          onUpdate: W1(),
-        });
-      }
-
-      moving.to(avaP[i], { duration: 0.3, x: moveX, y: moveY });
-      socket.emit("AXYC", {
-        userNum: userNum,
-        AX: AX,
-        AY: AY,
-        C: data.C,
-      });
-    }
-  }
+  moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
 });
 
 
@@ -1186,7 +797,7 @@ function gameLoop(){
 
 
 
-let checkColPoint = function(bX,bY){ //(collisionPointの略)
+function checkColPoint(bX,bY){ //(collisionPointの略)
   //移動前の点と移動後の点との直線で、最も近い物体の交点を求める
   for(let i=0; i<bX.length-1; i++){
     //まず、移動前と移動後を結ぶ直線とそれぞれの物体の辺を横切る直線との交点を全て得る
@@ -1226,7 +837,7 @@ let checkColPoint = function(bX,bY){ //(collisionPointの略)
 
 
 
-let iniColPoint = function(blockSize){//checkColpointで設定したcolPointを初期化
+function iniColPoint(blockSize){//checkColpointで設定したcolPointを初期化
     colPoint=[];
     for(let i=0; i<blockSize.length-1; i++){
       colPoint[i] = {
@@ -1236,7 +847,7 @@ let iniColPoint = function(blockSize){//checkColpointで設定したcolPointを�
 }
 
 
-let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
+function colMove(cPA,jX,jY){//ブロックと衝突時の動きの式
   // //座標MX,MYから垂直の点の座標
   // VX=((MX*(cPA.TX-cPA.PX)**2+cPA.TX*(cPA.TY-cPA.PY)**2+(MY-cPA.TY)*(cPA.TY-cPA.PY)*(cPA.TX-cPA.PX))/((cPA.TX-cPA.PX)**2+(cPA.PY-cPA.TY)**2));
 
@@ -1263,8 +874,8 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
     moveX=cPA.LX;
     moveY=cPA.LY;
     socket.json.emit("clickMap",{
-      C:C,
-      userNum:userNum,
+      DIR:DIR,
+      socketID:socketID,
       moveX:moveX,
       moveY:moveY,
     });
@@ -1291,8 +902,6 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
       /(Math.pow((cPA.TX-cPA.PX),2)+Math.pow((cPA.PY-cPA.TY),2))
       +MY+jY;
 
-
-
     }else if((rightY>MY && cPA.PY>cPA.TY) || (rightY<MY && cPA.TY>cPA.PY)){
       //辺の右側に移動するとき//パターン３
       console.log("col2-2");
@@ -1300,8 +909,8 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
       moveX=cPA.LX;
       moveY=cPA.LY;
       socket.json.emit("clicKMap",{
-        C:C,
-        userNum:userNum,
+        DIR:DIR,
+        socketID:socketID,
         moveX:moveX,
         moveY:moveY,
       });
@@ -1309,7 +918,8 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
       moveX=cPA.TX;
       moveY=cPA.TY;
       socket.json.emit("clickMap",{
-        C:C,
+        DIR:DIR,
+        socketID:socketID,
         moveX:moveX,
         moveY:moveY,
       });
@@ -1322,8 +932,8 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
       moveX=cPA.LX;
       moveY=cPA.LY;
       socket.json.emit("clicKMap",{
-        C:C,
-        userNum:userNum,
+        DIR:DIR,
+        socketID:socketID,
         moveX:moveX,
         moveY:moveY,
       });
@@ -1332,8 +942,8 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
       moveX=cPA.PX;
       moveY=cPA.PY;
       socket.json.emit("clickMap",{
-        C:C,
-        userNum:userNum,
+        DIR:DIR,
+        socketID:socketID,
         moveX:moveX,
         moveY:moveY,
       });
@@ -1352,25 +962,17 @@ let colMove=function(cPA,jX,jY){//ブロックと衝突時の動きの式
   }
 
 
-
-//ログアウトした時の処理
-    socket.on("logout_from_server",function(data){
-      const li = document.createElement("li");
-      li.textContent = data.msg;
-      const ul = document.querySelector("ul");
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-
-      for (let i = 0; i < userEXNum; i++) {
-        if(data.userIDEX==i) {
-            app.stage.removeChild(avaP[i]);
-        }
-      }
-    });
-
-
-
-
-
+  //ログアウトした時の処理
+  socket.on("logout_from_server",function(data){
+    const li = document.createElement("li");
+    li.textContent = data.msg;//退出ログを入れる
+    const ul = document.querySelector("ul");
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+    //部屋人数の表記を変える
+    document.getElementById('users').textContent = "users:"+data.roomUser;
+    app.stage.removeChild(avaP[data.socketID]);
+  });
+  
 
 
 
@@ -1423,8 +1025,9 @@ document.getElementById('title').addEventListener("click", function () {
 //Pくん
 (function(){
   document.querySelector('svg').addEventListener("click", function(){
-    document.querySelectorAll('.box').forEach(function(box){
-      box.classList.add('moved');
+    document.querySelectorAll('.pkun').forEach(function(pkun){
+      pkun.classList.add('moved');
     });
   });
+  
 })(); 
