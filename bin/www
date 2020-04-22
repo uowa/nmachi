@@ -40,7 +40,7 @@ server.on('listening', onListening);
  * ADDED!! Socket.IO Connection.
  */
 
-let user={};
+let user = {};
 // user={socketID:{userName,socketID,room,AX,AY,DIR}};
 let room;
 let entranceUser = 0;
@@ -51,7 +51,7 @@ var crypto = require("crypto");//使い方は今から
 // var hashes = crypto.getHashes();
 // console.log(hashes);
 
-function tripCreate(isTrip){
+function tripCreate(isTrip) {
   let tripkey = isTrip;
   let salt = tripkey + "H.";//未入力、又は1文字入れ用にH.を追加？？
   salt = salt.substr(1, 2);//2文字目と3文字目を切り出す
@@ -79,35 +79,29 @@ function tripCreate(isTrip){
 
 
 io.on('connection', function (socket) {
-  user[socket.id]= {
+  user[socket.id] = {
     userName: "名もなき名無し",
     AX: 410,
     AY: 80,
     DIR: 6,
   };
 
-  console.log("-----------------------------------------conect");
-  let keys = Object.keys(user);
-  keys.forEach(function (value) {
-    console.log("ID:" + value + "---" + "user[socketID].DIR:"+user[value].DIR);
-    console.log("-----------------------------------------");
-  });
-    
+
   socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
     socketID: socket.id,
   });
 
   socket.on("set", function () {
-    console.log("testID" + socket.id);
     io.to(socket.id).json.emit("mySocketID_from_server", {
       socketID: socket.id,
       user: user,
     });
   });
-  
+
   socket.on("join_room", function (data) {//部屋に入室した時
+
+    //トリップを作る
     data.userName = data.userName.replace(/◆/g, '■');
-  
     if (data.userName.match(/#/)) {
       let index = data.userName.indexOf("#");
       let tripStr = data.userName.slice(index + 1);
@@ -151,7 +145,7 @@ io.on('connection', function (socket) {
       msg: "[（　´∀｀）" + user[data.socketID].userName + "（´∀｀）]:" + data.msg,
       socketID: data.socketID,
       avaMsg: data.msg,
-      abonClass:user[data.socketID].socketID,//あとで考える！！！！！！！！！
+      abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
     });
   });
 
@@ -159,9 +153,9 @@ io.on('connection', function (socket) {
   socket.on("abonMsg", function (data) {
     let abonMsg;
     let abonAvaMsg;
-    if (user[data.socketID]==null) {
+    if (user[data.socketID] == null) {
       abonMsg = "その住民は退出済みです";
-    } else if(data.abonMsg) {
+    } else if (data.abonMsg) {
       abonMsg = user[data.socketID].userName + "をアボンしました。";
       abonAvaMsg = "アボン";//吹き出しをアボンにする。
     } else {
@@ -177,15 +171,16 @@ io.on('connection', function (socket) {
 
   //クリックイベント
   socket.on('clickMap', function (data) {
-    user[data.socketID].DIR = data.DIR;
     console.log("-----------------------------------------click");
-    console.log("ID:"+data.socketID);
-    console.log("TESTIDDIR: "+user);
-    keys = Object.keys(user);
-    keys.forEach(function (value) {
-      console.log("ID:"+value+"----user[socketID].DIR:"+user[value].DIR);
-    });
-    console.log("-----------------------------------------");
+    console.log("data.socketID:" + data.socketID);
+    console.log("user[data.socketID]:" + user[data.socketID]);
+    console.log("user[data.socketID].DIR:" + user[data.socketID].DIR);
+    console.log("data.DIR:" + data.DIR);
+    user[data.socketID].DIR = data.DIR;
+    console.log("----------------------------------------");
+    console.log("user[data.socketID].DIR2:" + user[data.socketID].DIR);
+    console.log("data.DIR2:" + data.DIR);
+    console.log("------------------------------------------end");
     user[data.socketID].AX = data.AX;
     user[data.socketID].AY = data.AY;
     io.to(room).emit("clickMap_from_server", {
@@ -210,7 +205,7 @@ io.on('connection', function (socket) {
     }
     function roomUserFunk(value) {
       io.to(room).emit("logout_from_server", {
-        socketID:socket.id,
+        socketID: socket.id,
         msg: user[socket.id].userName + "が退出しました。",
         roomUser: value,
       });

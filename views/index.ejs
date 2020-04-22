@@ -1,84 +1,88 @@
 <!-- set DEBUG=myapp2 & npm start -->
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-      <meta   http-equiv="content-type"
-  content="text/html; charset=UTF-8">
-  <title><%= title %></title>
-   <meta name ="description" content="チャットサイトproject街のver5のテストサバです。">
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
-    <link rel='stylesheet' href='/stylesheets/style.css'/>
-  </head>
-  <body>
 
-      <script type="text/javascript">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title><%= title %></title>
+  <meta name="description" content="チャットサイトproject街のver5のテストサバです。">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+</head>
+
+<body>
+
+  <script type="text/javascript">
     let type = "WebGL"
-    if(!PIXI.utils.isWebGLSupported()){
+    if (!PIXI.utils.isWebGLSupported()) {
       type = "canvas"
     }
-    
-    PIXI.utils.sayHello(type)
-    </script>
-    <div role="main">
-      <div id ="top">
-        <!--日付-->
-        <div id="box"></div>
-        <div id="title"><%= title %></div>
-      </div>
-      <!--プロ街の画面比率は11:8--> 
-      <div id="gamen">
-        <div id="graphic">
-          <button id="login" onclick="login()">LOGIN</button>
-        </div>
-        <form name="nameForm" onsubmit="checkName(); return false;" class="userForm" id="nameForm">
-          <input type="text" name="userName"  id="userName" maxlength='18' placeholder="名前を入力してください。">
-          <input type="submit" value="SEND">
-        </form>
-        <form name="msgForm"  onsubmit="checkMsg(); return false;" class="userForm" id="msgForm">
-          <input type="text" name="msg" id="msg" maxlength='250' placeholder="                                                                                                                      メッセージはこちらへ" required >
-          <input type="submit" value="SEND"><p id="users">0</p>
-        </form>
-        <p>※名前入れないと入れません。</p>
-      </div>
-      <span id ="chatLog">
-        <ul id="logs">
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-          <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
-        </ul>
-      </span>     
-    </div>
-    <ul>
-    </ul>
 
-   <svg width="40" height="40" class="pkun">
+    PIXI.utils.sayHello(type)
+  </script>
+  <div role="main">
+    <div id="top">
+      <!--日付-->
+      <div id="box"></div>
+      <div id="title"><%= title %></div>
+    </div>
+    <!--プロ街の画面比率は11:8-->
+    <div id="gamen">
+      <div id="graphic">
+        <button id="login" onclick="login()">LOGIN</button>
+      </div>
+      <form name="nameForm" onsubmit="checkName(); return false;" class="userForm" id="nameForm">
+        <input type="text" name="userName" id="userName" maxlength='18' placeholder="名前を入力してください。">
+        <input type="submit" value="SEND">
+      </form>
+      <form name="msgForm" onsubmit="checkMsg(); return false;" class="userForm" id="msgForm">
+        <input type="text" name="msg" id="msg" maxlength='250'
+          placeholder="                                                                                                                      メッセージはこちらへ"
+          required>
+        <input type="submit" value="SEND">
+        <p id="users">0</p>
+      </form>
+      <p>※名前入れないと入れません。</p>
+    </div>
+    <span id="chatLog">
+      <ul id="logs">
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+      </ul>
+    </span>
+  </div>
+  <ul>
+  </ul>
+
+  <svg width="40" height="40" class="pkun">
     <defs>
       <style>
-        .svgText{
+        .svgText {
           font-size: 40px;
           font-weight: bold;
           font-family: Arial;
@@ -87,13 +91,14 @@
         }
       </style>
     </defs>
-    <rect x="0" y="0" width="40" height="40" fill="skyblue"/>
+    <rect x="0" y="0" width="40" height="40" fill="skyblue" />
     <text x="20" y="35" class="svgText">
       P
     </text>
   </svg>
   <div id="kousinrireki">
     <p>更新履歴</p>
+    <p>2020/04/22 ごまねこ実装中(途中) 提供：ごまちゃん</p>
     <p>2020/04/16 アバター残像バグ修正</p>
     <p>2020/04/15 チャットログに背景画面を設定。提供：ごまちゃん</p>
     <p>2020/3/26 トリップ実装※2ch非準拠</p>
@@ -110,10 +115,11 @@
     <p>2020/2/29メッセージフォームおっきくした、ログの文字の大きさ調整、文字制限を250字に拡大</p>
     <p>2020/2/28 表示位置がちょいちょいおかしいの修正、背景色を街にした</p>
     <p>2020/2/27 テストサーバー公開</p>
-    <a href= "https://twitter.com/Project_MACHI">https://twitter.com/Project_MACHI</a>
+    <a href="https://twitter.com/Project_MACHI">https://twitter.com/Project_MACHI</a>
     <p>管理人ツイッター　全ての苦情、クレーム、要望はこちらへ</p>
   </div>
-      
-      <script type="text/javascript" src="/javascripts/index.js"></script>
-  </body>
+
+  <script type="text/javascript" src="/javascripts/index.js"></script>
+</body>
+
 </html>
