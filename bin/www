@@ -45,7 +45,7 @@ let user = {};
 let room;
 let entranceUser = 0;
 
-var crypto = require("crypto");//使い方は今から
+var crypto = require("crypto");
 // var cipers = crypto.getCiphers();
 // console.log(cipers);
 // var hashes = crypto.getHashes();
@@ -78,14 +78,21 @@ function tripCreate(isTrip) {
 }
 
 
+
 io.on('connection', function (socket) {
+
+  function saikiMsg() {
+    io.to(socket.id).json.emit("emit_msg_from_server", {
+      msg: "ブラウザを更新してください",
+    });
+  }
+
   user[socket.id] = {
     userName: "名もなき名無し",
     AX: 410,
     AY: 80,
     DIR: 6,
-  };
-
+  }
 
   socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
     socketID: socket.id,
@@ -99,102 +106,108 @@ io.on('connection', function (socket) {
   });
 
   socket.on("join_room", function (data) {//部屋に入室した時
+    if (user[data.socketID]) {//サバ起動後しばらくすれば必要のない処理なので他にやり方ないんか？？って気はする、サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      //トリップを作る
+      data.userName = data.userName.replace(/◆/g, '■');
+      if (data.userName.match(/#/)) {
+        let index = data.userName.indexOf("#");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      if (data.userName.match(/＃/)) {
+        let index = data.userName.indexOf("＃");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      user[data.socketID].userName = data.userName;//名前をサバに保存
+      room = data.room;
+      if (room == "entrance") {
+        user[data.socketID].room = "entrance";
+        entranceUser++;
+      }
 
-    //トリップを作る
-    data.userName = data.userName.replace(/◆/g, '■');
-    if (data.userName.match(/#/)) {
-      let index = data.userName.indexOf("#");
-      let tripStr = data.userName.slice(index + 1);
-      let tripName = data.userName.slice(0, index);
-      data.userName = tripName + tripCreate(tripStr);
-    }
-    if (data.userName.match(/＃/)) {
-      let index = data.userName.indexOf("＃");
-      let tripStr = data.userName.slice(index + 1);
-      let tripName = data.userName.slice(0, index);
-      data.userName = tripName + tripCreate(tripStr);
-    }
-    user[data.socketID].userName = data.userName;//名前をサバに保存
-    room = data.room;
-    if (room == "entrance") {
-      user[data.socketID].room = "entrance";
-      entranceUser++;
-    }
+      socket.join(room);
 
-    socket.join(room);
+      if (room == "entrance") {
+        io.to(socket.id).json.emit("join_me_from_server", {
+          user: user,
+          roomUser: entranceUser,
+          msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+        });
 
-    if (room == "entrance") {
-      io.to(socket.id).json.emit("join_me_from_server", {
-        user: user,
-        roomUser: entranceUser,
-        msg: user[data.socketID].userName + "が" + room + "に入室しました。",
-      });
-
-      socket.broadcast.to(room).emit("join_room_from_server", {
-        socketID: data.socketID,
-        userName: data.userName,
-        roomUser: entranceUser,
-        msg: user[data.socketID].userName + "が" + room + "に入室しました。",
-      });
+        socket.broadcast.to(room).emit("join_room_from_server", {
+          socketID: data.socketID,
+          userName: data.userName,
+          roomUser: entranceUser,
+          msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+        });
+      }
+    } else {
+      saikiMsg();//再起動メッセージを送る
     }
   });
 
   //メッセージを送信
   socket.on("emit_msg", function (data) {
-    io.to(room).emit("emit_msg_from_server", {
-      msg: "[（　´∀｀）" + user[data.socketID].userName + "（´∀｀）]:" + data.msg,
-      socketID: data.socketID,
-      avaMsg: data.msg,
-      abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
-    });
+    if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      io.to(room).emit("emit_msg_from_server", {
+        msg: "[（　´∀｀）" + user[data.socketID].userName + "（´∀｀）]:" + data.msg,
+        socketID: data.socketID,
+        avaMsg: data.msg,
+        abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
+      });
+    } else {
+      saikiMsg();
+    }
   });
 
   //アボンの時
   socket.on("abonMsg", function (data) {
-    let abonMsg;
-    let abonAvaMsg;
-    if (user[data.socketID] == null) {
-      abonMsg = "その住民は退出済みです";
-    } else if (data.abonMsg) {
-      abonMsg = user[data.socketID].userName + "をアボンしました。";
-      abonAvaMsg = "アボン";//吹き出しをアボンにする。
+    if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      let abonMsg;
+      let abonAvaMsg;
+      if (user[data.socketID] == null) {
+        abonMsg = "その住民は退出済みです";
+      } else if (data.abonMsg) {
+        abonMsg = user[data.socketID].userName + "をアボンしました。";
+        abonAvaMsg = "アボン";//吹き出しをアボンにする。
+      } else {
+        abonMsg = user[data.socketID].userName + "のあぼんをやめました";
+        abonAvaMsg = "";
+      }
+      io.to(socket.id).json.emit("abonMsg_from_server", {
+        msg: abonMsg,
+        socketID: data.socketID,
+        avaMsg: abonAvaMsg,
+      });
     } else {
-      abonMsg = user[data.socketID].userName + "のあぼんをやめました";
-      abonAvaMsg = "";
+      saikiMsg();//再起動メッセージを送る
     }
-    io.to(socket.id).json.emit("abonMsg_from_server", {
-      msg: abonMsg,
-      socketID: data.socketID,
-      avaMsg: abonAvaMsg,
-    });
   });
 
   //クリックイベント
   socket.on('clickMap', function (data) {
-    console.log("-----------------------------------------click");
-    console.log("data.socketID:" + data.socketID);
-    console.log("user[data.socketID]:" + user[data.socketID]);
-    console.log("user[data.socketID].DIR:" + user[data.socketID].DIR);
-    console.log("data.DIR:" + data.DIR);
-    user[data.socketID].DIR = data.DIR;
-    console.log("----------------------------------------");
-    console.log("user[data.socketID].DIR2:" + user[data.socketID].DIR);
-    console.log("data.DIR2:" + data.DIR);
-    console.log("------------------------------------------end");
-    user[data.socketID].AX = data.AX;
-    user[data.socketID].AY = data.AY;
-    io.to(room).emit("clickMap_from_server", {
-      DIR: data.DIR,
-      socketID: data.socketID,
-      moveX: data.moveX,
-      moveY: data.moveY,
-    });
+    if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      user[data.socketID].AX = data.AX;
+      user[data.socketID].AY = data.AY;
+      user[data.socketID].DIR = data.DIR;
+      
+      io.to(room).emit("clickMap_from_server", {
+        DIR: data.DIR,
+        socketID: data.socketID,
+        moveX: data.moveX,
+        moveY: data.moveY,
+      });
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
   });
 
   socket.on("AXYDIR", function (data) {
     user[data.socketID].AX = data.AX;
     user[data.socketID].AY = data.AY;
-    user[data.socketID].DIR = data.DIR;
   });
 
   //退出時

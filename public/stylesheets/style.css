@@ -11,24 +11,24 @@
 
 #title {
   text-align: right;
-  font-size: 40pt;
+  font-size: 50px;
   font-weight: bold;
   color: #eee;
   /* border:2px solid blue; */
 }
 body {
   color:#eee;
-  font-size:10pt;
+  font-size:14px;
   margin:5px;
   background-color: #333333;
 }
 p{
-  font-size: 12pt;
+  font-size: 16px;
   margin:0px 20px;
 }
 a{
   color:#ebd40e;
-  font-size: 12pt;
+  font-size: 12px;
   margin:0px 20px;
 }
 
@@ -62,7 +62,7 @@ li {
   font-weight: bold;
   border-style: none;
   color          : rgb(76, 76, 82);           /* 文字の色 */
-  font-size      : 18pt;               /* 文字のサイズ */
+  font-size      : 25px;               /* 文字のサイズ */
   letter-spacing : 4px;                /* 文字間 */
   text-shadow    : 
        2px  2px 5px #ffff1a,
@@ -99,18 +99,25 @@ li {
   background-color: #939393;
 }
 #userName{
+  line-height: 20px;
   /* width:250px; */
   background-color: #E1E1E1;
-}
 
+}
 #msgForm{
   display: none;
   background-color: #939393;
 }
 #msg{
+  line-height: 20px;
   width: 590px;
   background-color: #E1E1E1;
 }
+
+.input{
+  height: 21px;
+}
+
 
 #chatLog {
   display: inline-block;
