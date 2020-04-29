@@ -273,6 +273,8 @@ function setUp() {
   socket.emit("set", {});//サーバーに入ったことを伝える
   //エントランスの画像を追加
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
+  console.log("tsts"+typeof entrance);
+  entrance.sortableChildren = true;//エントランスの子要素のzIndexをonにする。
   // entrance.width = 660;
   // entrance.height = 480;
 
@@ -499,7 +501,6 @@ socket.on("mySocketID_from_server", function (data) {
   avaP[socketID].addChild(nameTag[socketID]);
   //ステージに追加
   app.stage.addChild(avaP[socketID]);
-  
 });
 
 
@@ -547,7 +548,7 @@ socket.on("join_me_from_server", function (data) {
     if (data.user[value].room == "entrance") {
       // アバターの親コンテナを作成
       avaP[value] = new PIXI.Container();
-      // entrance.addChild(avaP[value]);
+      
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
 
       //アバタークリックでアボン
@@ -602,7 +603,8 @@ socket.on("join_me_from_server", function (data) {
       msg[value].style.fill = "white";
       msg[value].style.fontSize = 18;
       avaP[value].addChild(msg[value]);
-      // app.stage.addChild(avaP[value]);
+     
+      avaP[value].zIndex = data.user[value].AY;
       entrance.addChild(avaP[value]);
     }
   });
@@ -651,11 +653,13 @@ socket.on("join_room_from_server", function (data) {
   msg[data.socketID].style.fill = "white";
   msg[data.socketID].style.fontSize = 18;
   // 画像とメッセージと名前を追加してステージに上げる
-  app.stage.addChild(avaP[data.socketID]);
+  avaP[data.socketID].zIndex = 200;
+  entrance.addChild(avaP[data.socketID]);
   avaC[data.socketID] = avaS[data.socketID];
   avaP[data.socketID].addChild(avaC[data.socketID]);
   avaP[data.socketID].addChild(nameTag[data.socketID]);
   avaP[data.socketID].addChild(msg[data.socketID]);
+  
 
   //入室時のメッセージを出す
   const li = document.createElement("li");
@@ -870,6 +874,7 @@ socket.on("clickMap_from_server", function (data) {
     anime(avaW, avaW1, avaW2, data.socketID);
   }
   moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
+  avaP[data.socketID].zIndex = AY;
 });
 
 
@@ -1062,18 +1067,20 @@ socket.on("logout_from_server", function (data) {
   ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
   //部屋人数の表記を変える
   document.getElementById('users').textContent = "users:" + data.roomUser;
-  app.stage.removeChild(avaP[data.socketID]);
+  //アバターを消す
+  // let DATAROOM = data.room;
+  // // console.log("logout:" + entrance);
+  // console.log("logout:" + data.room);
+  // console.log("logout2:" + typeof data.room);
+  // // new String(DATAROOM)
+  // // console.log("logout2:" + typeof DATAROOM);
+  // Number(DATAROOM).removeChild(avaP[data.socketID]);
+
+
+  entrance.removeChild(avaP[data.socketID]);
+
+  
 });
-
-// socket.on("emit_msg_from_server", function (data) {
-//   const li = document.createElement("li");
-//   li.textContent = data.msg;
-//   const ul = document.querySelector("ul");
-//   ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-// });
-
-
-
 
 //背景色を変える
 let uiColor = true;

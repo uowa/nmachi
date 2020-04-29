@@ -220,6 +220,7 @@ io.on('connection', function (socket) {
       io.to(room).emit("logout_from_server", {
         socketID: socket.id,
         msg: user[socket.id].userName + "が退出しました。",
+        room:room,
         roomUser: value,
       });
     }
