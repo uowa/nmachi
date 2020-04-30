@@ -91,7 +91,7 @@ io.on('connection', function (socket) {
     userName: "名もなき名無し",
     AX: 410,
     AY: 80,
-    DIR: 6,
+    DIR: "S",
   }
 
   socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
@@ -164,23 +164,26 @@ io.on('connection', function (socket) {
   });
 
   //アボンの時
-  socket.on("abonMsg", function (data) {
+  socket.on("abonSetting", function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       let abonMsg;
       let abonAvaMsg;
       if (user[data.socketID] == null) {
         abonMsg = "その住民は退出済みです";
-      } else if (data.abonMsg) {
+      } else if (data.setAbon) {
         abonMsg = user[data.socketID].userName + "をアボンしました。";
         abonAvaMsg = "アボン";//吹き出しをアボンにする。
       } else {
         abonMsg = user[data.socketID].userName + "のあぼんをやめました";
         abonAvaMsg = "";
       }
-      io.to(socket.id).json.emit("abonMsg_from_server", {
+      io.to(socket.id).json.emit("abonSetting_from_server", {
         msg: abonMsg,
         socketID: data.socketID,
         avaMsg: abonAvaMsg,
+        AX: user[data.socketID].AX,
+        AY: user[data.socketID].AY,
+        DIR: user[data.socketID].DIR,
       });
     } else {
       saikiMsg();//再起動メッセージを送る

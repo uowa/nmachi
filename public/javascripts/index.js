@@ -5,7 +5,7 @@ let socket = io.connect('153.127.33.40:3000');
 //アバターの初期位置
 let AX = 300;
 let AY = 200;
-let DIR = 6;
+let DIR = "S";
 
 let userName;
 
@@ -17,6 +17,9 @@ let avaP = [];
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
 let avaS1 = [], avaSW1 = [], avaW1 = [], avaNW1 = [], avaN1 = [], avaNE1 = [], avaE1 = [], avaSE1 = [];
 let avaS2 = [], avaSW2 = [], avaW2 = [], avaNW2 = [], avaN2 = [], avaNE2 = [], avaE2 = [], avaSE2 = [];
+let avaSleep = [];
+let avaAbon = [];
+
 let avaC = {};
 let nameTag = [];
 let msg = [];
@@ -40,7 +43,7 @@ let moveX, moveY;
 let rightY, leftY;
 
 let flag = false;
-let abonMsg = [];
+let setAbon = [];
 
 
 //日付
@@ -57,34 +60,7 @@ app.renderer.backgroundColor = 0X4C4C52;
 app.stage.interactive = true;//タップを可能にする
 // app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
-//  ブロックを配置
-// let block1 = new PIXI.Graphics();//ブロックを置く宣言
-// block1.beginFill("black");
-// block1.drawPolygon([
-//   321,250,
-//   690,251,
-//   690,322,
-//   400,323,
-//   320,276,
-// ]);
-// app.stage.addChild(block1);//実装
 
-
-// let block2 = new PIXI.Graphics();//ブロックを置く宣言
-// block2.beginFill("black");
-// block2.drawPolygon([
-//   0,0,
-//   465,1,
-//   460,91,
-//   437,90,
-//   436,21,
-//   388,20,
-//   386,91,
-//   290,90,
-//   76,198,
-//   1,138,
-// ]);
-// app.stage.addChild(block2);//実装
 
 
 // ブロックの頂点の座標をブロックごとに入れてく、最後に始点を入れてることに注意。
@@ -92,48 +68,6 @@ const block1X = [321, 690, 691, 400, 320, 321];
 const block1Y = [250, 252, 322, 323, 276, 250];
 const block2X = [0, 465, 460, 437, 436, 388, 386, 290, 76, 1, 0];
 const block2Y = [0, 1, 91, 90, 21, 20, 91, 90, 198, 138, 0];
-
-
-
-//アバターの画像
-//斜め右上から四方向に時計回り→上から四方向に時計回り
-// let direction = ['img/avaNE.png','img/avaSE.png', 
-// 'img/avaSW.png','img/avaNW.png',
-// 'img/avaN.png', 'img/avaS.png', 'img/avaW.png',
-// // 'images/upperRight2.png','images/lowerRight2.png', 'images/lowerLeft2.png','images/upperLeft2.png',
-// // 'images/upper2.png', 'images/Right2.png','images/lower2.png', 'images/left2.png'
-// ];
-
-// let directionS = ['images/upperRightS.png','images/lowerRightS.png',
-// 'images/lowerLeftS.png','images/upperLeftS.png',
-// 'images/upper2.png', 'images/RightS.png','images/lowerS.png', 'images/leftS.png',
-// 'images/upperRightS2.png','images/lowerRightS2.png', 'images/lowerLeftS2.png','images/upperLeftS.png',
-// 'images/upperS2.png', 'images/RightS2.png','images/lowerS2.png', 'images/leftS2.png'];
-
-
-//ここらへん、こんなことせずに普通に数値入れれば良いかも
-// アバター画像読みこみ
-// const img =[];//大きいほう
-// for(let i=0; i<direction.length; i++){
-//   img[i] = document.createElement('img');
-//   img[i].src = direction[i];
-// }
-
-// const imgS =[];//小さいほう
-// for(let i=0; i<direction.length; i++){
-//   imgS[i] = document.createElement('img');
-//   imgS[i].src = directionS[i];
-//     }
-// 画像の基準点を真ん中にするために、横幅半分と、高さの数値を取る
-// let aW = img[0].naturalWidth/2;
-// let aH = img[0].naturalHeight;//大きいほう
-// let aHS = imgS[0].height;//小さいほう
-// console.log("aW:" + aW);
-// console.log("aH:" + aH);
-
-
-let aW = 17.5;
-let aH = 0.75;
 
 
 let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
@@ -158,9 +92,13 @@ let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
 
 // レンダラーのviewをDOMに追加する
 document.getElementById("graphic").appendChild(app.view);
-PIXI.Loader.shared
+
+
+PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
   .add("gomaNeko", "img/gomaNeko.png")
-  .add("entrance", "img/entrance.jpg")
+  .add("gomaNekoSleep", "img/sleeping.png")
+  .add("abon", "img/abon.png")
+  .add("entrance", "img/green.png")
   .on("progress", loadProgressHandler)
   .load(setUp)
   .load(gameLoop);
@@ -175,7 +113,7 @@ function loadProgressHandler(Loader, resources) {
 }
 
 
-//新しい人がきたときにその次の人の画像を読みこんでおく※次の人のをやっておく必要性があるかはわからｎ
+//新しい人がきたときに画像を読み込む
 socket.on("loadNewUser", function (data) {
   avaS[data.socketID] = new PIXI.Sprite(gomaNekoS);
   avaS1[data.socketID] = new PIXI.Sprite(gomaNekoS1);
@@ -201,6 +139,8 @@ socket.on("loadNewUser", function (data) {
   avaSE[data.socketID] = new PIXI.Sprite(gomaNekoSE);
   avaSE1[data.socketID] = new PIXI.Sprite(gomaNekoSE1);
   avaSE2[data.socketID] = new PIXI.Sprite(gomaNekoSE2);
+  avaSleep[data.socketID] = new PIXI.Sprite(gomaNekoSleep);
+  avaAbon[data.socketID] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
 
   avaS[data.socketID].anchor.set(0.5, 1);
   avaS1[data.socketID].anchor.set(0.5, 1);
@@ -226,6 +166,8 @@ socket.on("loadNewUser", function (data) {
   avaSE[data.socketID].anchor.set(0.5, 1);
   avaSE1[data.socketID].anchor.set(0.5, 1);
   avaSE2[data.socketID].anchor.set(0.5, 1);
+  avaSleep[data.socketID].anchor.set(0.5, 1);
+  avaAbon[data.socketID].anchor.set(0.5, 1);
 });
 
 let gomaNekoS, gomaNekoS1, gomaNekoS2,
@@ -235,9 +177,12 @@ let gomaNekoS, gomaNekoS1, gomaNekoS2,
   gomaNekoN, gomaNekoN1, gomaNekoN2,
   gomaNekoNE, gomaNekoNE1, gomaNekoNE2,
   gomaNekoE, gomaNekoE1, gomaNekoE2,
-  gomaNekoSE, gomaNekoSE1, gomaNekoSE2;
+  gomaNekoSE, gomaNekoSE1, gomaNekoSE2,
+  gomaNekoSleep, gomaNekoSleep1, gomaNekoSleep2, gomaNekoSleep3;
+let abon;
 
 function setUp() {
+  //ベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
   gomaNekoS = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(0, 0, 40, 70));
   gomaNekoS1 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(40, 0, 40, 70));
   gomaNekoS2 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(120, 0, 40, 70));
@@ -270,11 +215,17 @@ function setUp() {
   gomaNekoSE1 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(40, 490, 40, 70));
   gomaNekoSE2 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(120, 490, 40, 70));
 
+  gomaNekoSleep= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(0, 0, 40, 20));
+  // gomaNekoSleep1= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(40, 0, 40, 70));
+  // gomaNekoSleep2= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(80, 0, 40, 70));
+  // abon= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(0, 0, 40, 70));
+  // abon = new PIXI.Texture(PIXI.BaseTexture.fromImage("avaAbon"));
+
   socket.emit("set", {});//サーバーに入ったことを伝える
   //エントランスの画像を追加
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
-  console.log("tsts"+typeof entrance);
   entrance.sortableChildren = true;//エントランスの子要素のzIndexをonにする。
+  console.log("entest:" + typeof entrance);
   // entrance.width = 660;
   // entrance.height = 480;
 
@@ -352,7 +303,7 @@ function setUp() {
 //メッセージを受け取って表示
 socket.on("emit_msg_from_server", function (data) {
   const li = document.createElement("li");
-  if (abonMsg[data.socketID] != true) {
+  if (setAbon[data.socketID] == false) {
     li.textContent = data.msg;
     const ul = document.querySelector("ul");
     ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
@@ -363,13 +314,13 @@ socket.on("emit_msg_from_server", function (data) {
     // const abonClass = document.getElementsByClassName(data.abonClass);
     // abonClass[0].addEventListener("click", function () {
     //   if (data.socketID != socketID) {//自テキストは省く
-    //     if (abonMsg[data.socketID]) {
-    //       abonMsg[data.socketID] = false;
+    //     if (setAbon[data.socketID]) {
+    //       setAbon[data.socketID] = false;
     //     } else {
-    //       abonMsg[data.socketID] = true;
+    //       setAbon[data.socketID] = true;
     //     }
-    //     socket.json.emit("abonMsg", {
-    //       abonMsg: abonMsg[data.socketID],
+    //     socket.json.emit("abonSetting", {
+    //       setAbon: setAbon[data.socketID],
     //       socketID: data.socketID,
     //     });
     //   }
@@ -378,18 +329,39 @@ socket.on("emit_msg_from_server", function (data) {
 });
 
 //アボンした時の処理
-socket.on("abonMsg_from_server", function (data) {
+socket.on("abonSetting_from_server", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  if (abonMsg[data.socketID] == true || data.msg == "その住民は退出済みです") {
+  if (setAbon[data.socketID] == true || data.msg == "その住民は退出済みです") {//アボンするときかアボン対象の住人が居ない時
     li.style.color = "red";
     ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
     msg[data.socketID].style.fill = "red";
-  } else {
+  } else {//アボンを解除する時
     li.style.color = "blue";
     ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
     msg[data.socketID].style.fill = "white";
+    avaP[data.socketID].x = data.AX;
+    avaP[data.socketID].y = data.AY;
+    avaP[data.socketID].removeChild(avaC[data.socketID]);
+    if (data.DIR == "N") {
+      avaC[data.socketID] = avaN[data.socketID];
+    } else if (data.DIR == "NE") {
+      avaC[data.socketID] = avaNE[data.socketID]
+    } else if (data.DIR == "E") {
+      avaC[data.socketID] = avaE[data.socketID]
+    } else if (data.DIR == "SE") {
+      avaC[data.socketID] = avaSE[data.socketID]
+    } else if (data.DIR == "S") {
+      avaC[data.socketID] = avaS[data.socketID]
+    } else if (data.DIR == "SW") {
+      avaC[data.socketID] = avaSW[data.socketID]
+    } else if (data.DIR == "W") {
+      avaC[data.socketID] = avaW[data.socketID]
+    } else if (data.DIR == "NW") {
+      avaC[data.socketID] = avaNW[data.socketID]
+    }
+    avaP[data.socketID].addChild(avaC[data.socketID]);
   }
   msg[data.socketID].text = data.avaMsg;
 });
@@ -424,6 +396,8 @@ socket.on("mySocketID_from_server", function (data) {
     avaSE[value] = new PIXI.Sprite(gomaNekoSE);
     avaSE1[value] = new PIXI.Sprite(gomaNekoSE1);
     avaSE2[value] = new PIXI.Sprite(gomaNekoSE2);
+    avaAbon[value] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
+
     // avaS[value].tint = 0xa1e6e6; //これで色変更ができるうううううううう！
     // avaSs1[value].tint = 0xa1e6e6;
     // avaSs2[value].tint = 0xa1e6e6;
@@ -488,6 +462,7 @@ socket.on("mySocketID_from_server", function (data) {
     avaSE[value].anchor.set(0.5, 1);
     avaSE1[value].anchor.set(0.5, 1);
     avaSE2[value].anchor.set(0.5, 1);
+    avaAbon[value].anchor.set(0.5, 1);
   });
 
   nameTag[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTagStyle);
@@ -509,6 +484,8 @@ socket.on("mySocketID_from_server", function (data) {
 
 //ログイン時の処理
 function login() {
+
+
   //userNameにフォームの内容を入れる
   userName = document.nameForm.userName.value;
   if (userName != "") {//名前が空だと移動しない//マップを切り替える
@@ -516,6 +493,38 @@ function login() {
     AY = 80;
     //エントランス画像を表示
     app.stage.addChild(entrance);
+    
+
+    //  ブロックを配置
+    let block1 = new PIXI.Graphics();//ブロックを置く宣言
+    block1.beginFill(0xf0f8ff);
+    block1.drawPolygon([
+      321, 250,
+      690, 251,
+      690, 322,
+      400, 323,
+      320, 276,
+    ]);
+    app.stage.addChild(block1);//実装
+
+
+    let block2 = new PIXI.Graphics();//ブロックを置く宣言
+    block2.beginFill(0x4682b4);
+    block2.drawPolygon([
+      0, 0,
+      465, 1,
+      460, 91,
+      437, 90,
+      436, 21,
+      388, 20,
+      386, 91,
+      290, 90,
+      76, 198,
+      1, 138,
+    ]);
+    app.stage.addChild(block2);//実装
+
+
     //ログイン画面のアバを一回消す
     app.stage.removeChild(avaP[socketID]);
     socket.json.emit("join_room", {//エントランスに入る
@@ -548,45 +557,48 @@ socket.on("join_me_from_server", function (data) {
     if (data.user[value].room == "entrance") {
       // アバターの親コンテナを作成
       avaP[value] = new PIXI.Container();
-      
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
-
       //アバタークリックでアボン
-      avaP[value].interactive = true;
-      abonMsg[value] = false;
+      avaP[value].interactive = true;//クリックイベントを有効化
+      setAbon[value] = false;
       avaP[value].on("click", function () {
         if (value != socketID) {//自アバターは省く 
-          if (abonMsg[value]) {
-            abonMsg[value] = false;
+          if (setAbon[value]) {
+            setAbon[value] = false;
+
+
           } else {
-            abonMsg[value] = true;
+            setAbon[value] = true;
+            avaP[value].removeChild(avaC[value]);
+            avaC[value] = avaAbon[value];
+            avaP[value].addChild(avaC[value]);
           }
-          socket.json.emit("abonMsg", {
-            abonMsg: abonMsg[value],
+          socket.json.emit("abonSetting", {
+            setAbon: setAbon[value],
             socketID: value,
           });
         }
       });
       // 画像とメッセージと名前を追加してステージに上げる
-      if (data.user[value].DIR == 0) {
+      if (data.user[value].DIR == "NE") {
         avaC[value] = avaNE[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 1) {
+      } else if (data.user[value].DIR == "SE") {
         avaC[value] = avaSE[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 2) {
+      } else if (data.user[value].DIR == "SW") {
         avaC[value] = avaSW[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 3) {
+      } else if (data.user[value].DIR == "NW") {
         avaC[value] = avaNW[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 4) {
+      } else if (data.user[value].DIR == "N") {
         avaC[value] = avaN[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 5) {
+      } else if (data.user[value].DIR == "E") {
         avaC[value] = avaE[value];
         avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == 6) {
+      } else if (data.user[value].DIR == "S") {
         avaC[value] = avaS[value];
         avaP[value].addChild(avaC[value]);
       } else {
@@ -603,7 +615,7 @@ socket.on("join_me_from_server", function (data) {
       msg[value].style.fill = "white";
       msg[value].style.fontSize = 18;
       avaP[value].addChild(msg[value]);
-     
+
       avaP[value].zIndex = data.user[value].AY;
       entrance.addChild(avaP[value]);
     }
@@ -630,15 +642,15 @@ socket.on("join_room_from_server", function (data) {
 
   // アバタークリックでアボン
   avaP[data.socketID].interactive = true;
-  abonMsg[data.socketID] = false;
+  setAbon[data.socketID] = false;
   avaP[data.socketID].on("click", function () {
-    if (abonMsg[data.socketID]) {
-      abonMsg[data.socketID] = false;
+    if (setAbon[data.socketID]) {
+      setAbon[data.socketID] = false;
     } else {
-      abonMsg[data.socketID] = true;
+      setAbon[data.socketID] = true;
     }
-    socket.json.emit("abonMsg", {
-      abonMsg: abonMsg[data.socketID],
+    socket.json.emit("abonSetting", {
+      setAbon: setAbon[data.socketID],
       socketID: data.socketID,
     });
   });
@@ -659,7 +671,7 @@ socket.on("join_room_from_server", function (data) {
   avaP[data.socketID].addChild(avaC[data.socketID]);
   avaP[data.socketID].addChild(nameTag[data.socketID]);
   avaP[data.socketID].addChild(msg[data.socketID]);
-  
+
 
   //入室時のメッセージを出す
   const li = document.createElement("li");
@@ -705,7 +717,7 @@ document.getElementById("graphic").addEventListener("click", function () {
 
 
 function moveEvent() {
-  let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX,2)  + Math.pow(MY - AY,2));
+  let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
   if (inRoom == 0) {
     if (sin <= -0.9239) {
       anime(avaN, avaN1, avaN2, socketID);
@@ -741,21 +753,21 @@ function moveEvent() {
   } else if (inRoom == 2) {
     // 方向に合わせて画像を変えて表示
     if (sin <= -0.9239) {
-      DIR = 4;//N
+      DIR = "N";
     } else if (0.9239 <= sin) {
-      DIR = 6;//S
+      DIR = "S";
     } else if (0.3827 <= sin && AX < MX) {
-      DIR = 1;//SE
+      DIR = "SE";
     } else if (0.3827 <= sin && MX < AX) {
-      DIR = 2;//SW
+      DIR = "SW";
     } else if (sin <= -0.3827 && AX < MX) {
-      DIR = 0;//NE
+      DIR = "NE";
     } else if (sin <= -0.3827 && MX < AX) {
-      DIR = 3;//NW
+      DIR = "NW";
     } else if (AX < MX) {
-      DIR = 5;//E
+      DIR = "E";
     } else if (MX < AX) {
-      DIR = 7;//W
+      DIR = "W";
     }
     if (room == "entrance") {
       entranceBlock();
@@ -853,28 +865,31 @@ socket.on("clickMap_from_server", function (data) {
     AX: AX,
     AY: AY,
   });
-  moveX = data.moveX;
-  moveY = data.moveY;
+  if (setAbon[data.socketID] == false) {
 
-  if (data.DIR == 0) {//子要素の画像を入れる
-    anime(avaNE, avaNE1, avaNE2, data.socketID);
-  } else if (data.DIR == 1) {
-    anime(avaSE, avaSE1, avaSE2, data.socketID);
-  } else if (data.DIR == 2) {
-    anime(avaSW, avaSW1, avaSW2, data.socketID);
-  } else if (data.DIR == 3) {
-    anime(avaNW, avaNW1, avaNW2, data.socketID);
-  } else if (data.DIR == 4) {
-    anime(avaN, avaN1, avaN2, data.socketID);
-  } else if (data.DIR == 5) {
-    anime(avaE, avaE1, avaE2, data.socketID);
-  } else if (data.DIR == 6) {
-    anime(avaS, avaS1, avaS2, data.socketID);
-  } else {
-    anime(avaW, avaW1, avaW2, data.socketID);
+    moveX = data.moveX;
+    moveY = data.moveY;
+
+    if (data.DIR == "NE") {//子要素の画像を入れる
+      anime(avaNE, avaNE1, avaNE2, data.socketID);
+    } else if (data.DIR == "SE") {
+      anime(avaSE, avaSE1, avaSE2, data.socketID);
+    } else if (data.DIR == "SW") {
+      anime(avaSW, avaSW1, avaSW2, data.socketID);
+    } else if (data.DIR == "NW") {
+      anime(avaNW, avaNW1, avaNW2, data.socketID);
+    } else if (data.DIR == "N") {
+      anime(avaN, avaN1, avaN2, data.socketID);
+    } else if (data.DIR == "E") {
+      anime(avaE, avaE1, avaE2, data.socketID);
+    } else if (data.DIR == "S") {
+      anime(avaS, avaS1, avaS2, data.socketID);
+    } else {
+      anime(avaW, avaW1, avaW2, data.socketID);
+    }
+    moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
+    avaP[data.socketID].zIndex = AY;
   }
-  moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
-  avaP[data.socketID].zIndex = AY;
 });
 
 
@@ -1075,11 +1090,13 @@ socket.on("logout_from_server", function (data) {
   // // new String(DATAROOM)
   // // console.log("logout2:" + typeof DATAROOM);
   // Number(DATAROOM).removeChild(avaP[data.socketID]);
+  // data.room= new PIXI.Container();
 
 
+  // data.room.removeChild(avaP[data.socketID]);
   entrance.removeChild(avaP[data.socketID]);
 
-  
+
 });
 
 //背景色を変える
