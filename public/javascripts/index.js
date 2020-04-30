@@ -17,7 +17,7 @@ let avaP = [];
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
 let avaS1 = [], avaSW1 = [], avaW1 = [], avaNW1 = [], avaN1 = [], avaNE1 = [], avaE1 = [], avaSE1 = [];
 let avaS2 = [], avaSW2 = [], avaW2 = [], avaNW2 = [], avaN2 = [], avaNE2 = [], avaE2 = [], avaSE2 = [];
-let avaSleep = [];
+let gomaNekoSleep = [];
 let avaAbon = [];
 
 let avaC = {};
@@ -139,7 +139,7 @@ socket.on("loadNewUser", function (data) {
   avaSE[data.socketID] = new PIXI.Sprite(gomaNekoSE);
   avaSE1[data.socketID] = new PIXI.Sprite(gomaNekoSE1);
   avaSE2[data.socketID] = new PIXI.Sprite(gomaNekoSE2);
-  avaSleep[data.socketID] = new PIXI.Sprite(gomaNekoSleep);
+  gomaNekoSleep[data.socketID] = new PIXI.Sprite(gomaNekoSleep);
   avaAbon[data.socketID] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
 
   avaS[data.socketID].anchor.set(0.5, 1);
@@ -166,7 +166,7 @@ socket.on("loadNewUser", function (data) {
   avaSE[data.socketID].anchor.set(0.5, 1);
   avaSE1[data.socketID].anchor.set(0.5, 1);
   avaSE2[data.socketID].anchor.set(0.5, 1);
-  avaSleep[data.socketID].anchor.set(0.5, 1);
+  gomaNekoSleep[data.socketID].anchor.set(0.5, 1);
   avaAbon[data.socketID].anchor.set(0.5, 1);
 });
 
@@ -178,7 +178,7 @@ let gomaNekoS, gomaNekoS1, gomaNekoS2,
   gomaNekoNE, gomaNekoNE1, gomaNekoNE2,
   gomaNekoE, gomaNekoE1, gomaNekoE2,
   gomaNekoSE, gomaNekoSE1, gomaNekoSE2,
-  gomaNekoSleep, gomaNekoSleep1, gomaNekoSleep2, gomaNekoSleep3;
+  gomaNekoSleep1, gomaNekoSleep2, gomaNekoSleep3;
 let abon;
 
 function setUp() {
@@ -215,17 +215,14 @@ function setUp() {
   gomaNekoSE1 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(40, 490, 40, 70));
   gomaNekoSE2 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(120, 490, 40, 70));
 
-  gomaNekoSleep= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(0, 0, 40, 20));
-  // gomaNekoSleep1= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(40, 0, 40, 70));
-  // gomaNekoSleep2= new PIXI.Texture(PIXI.BaseTexture.fromImage("avaSleep"), new PIXI.Rectangle(80, 0, 40, 70));
-  // abon= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(0, 0, 40, 70));
-  // abon = new PIXI.Texture(PIXI.BaseTexture.fromImage("avaAbon"));
+  gomaNekoSleep = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(0, 0, 40, 20));
+  // gomaNekoSleep1= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(40, 0, 40, 70));
+  // gomaNekoSleep2= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(80, 0, 40, 70));
 
   socket.emit("set", {});//サーバーに入ったことを伝える
   //エントランスの画像を追加
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
   entrance.sortableChildren = true;//エントランスの子要素のzIndexをonにする。
-  console.log("entest:" + typeof entrance);
   // entrance.width = 660;
   // entrance.height = 480;
 
@@ -493,7 +490,7 @@ function login() {
     AY = 80;
     //エントランス画像を表示
     app.stage.addChild(entrance);
-    
+
 
     //  ブロックを配置
     let block1 = new PIXI.Graphics();//ブロックを置く宣言
@@ -561,6 +558,8 @@ socket.on("join_me_from_server", function (data) {
       //アバタークリックでアボン
       avaP[value].interactive = true;//クリックイベントを有効化
       setAbon[value] = false;
+
+
       avaP[value].on("click", function () {
         if (value != socketID) {//自アバターは省く 
           if (setAbon[value]) {
@@ -579,6 +578,61 @@ socket.on("join_me_from_server", function (data) {
           });
         }
       });
+
+      //これだとうまくいかんなあ
+      //     function clickAvaC() {
+      //       if (value != socketID) {//自アバターは省く 
+      //         if (setAbon[value]) {
+      //           setAbon[value] = false;
+
+
+      //         } else {
+      //           setAbon[value] = true;
+      //           avaP[value].removeChild(avaC[value]);
+      //             avaC[value] = avaAbon[value];
+      //             avaP[value].addChild(avaC[value]);
+      //           }
+      //           socket.json.emit("abonSetting", {
+      //             setAbon: setAbon[value],
+      //             socketID: value,
+      //           });
+      //         }
+      //     }
+
+      //     avaN[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaNE[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaE[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaSE[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaS[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaSW[value].on("click", function () {
+      //       console.log("TEST");
+      //       clickAvaC();
+      //     });
+      //     avaW[value].on("click", function () {
+      //       clickAvaC();
+      //     });
+      //     avaNW[value].on("click", function () {
+      //       console.log("TEST");
+      //   clickAvaC();
+      // });
+
+
+
       // 画像とメッセージと名前を追加してステージに上げる
       if (data.user[value].DIR == "NE") {
         avaC[value] = avaNE[value];
@@ -888,7 +942,7 @@ socket.on("clickMap_from_server", function (data) {
       anime(avaW, avaW1, avaW2, data.socketID);
     }
     moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
-    avaP[data.socketID].zIndex = AY;
+    avaP[data.socketID].zIndex = data.moveY;
   }
 });
 
