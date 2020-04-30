@@ -281,9 +281,8 @@ function setUp() {
   //名前を出力
   checkName = function () {
     nameTag[socketID].text = (document.nameForm.userName.value);
-    socket.json.emit("emit_name", {
-      name: (document.nameForm.userName.value),
-    });
+    login();
+    inRoom = 2;
   }
 
   //メッセージ出力
