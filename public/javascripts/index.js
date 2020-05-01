@@ -300,27 +300,31 @@ function setUp() {
 socket.on("emit_msg_from_server", function (data) {
   const li = document.createElement("li");
   if (setAbon[data.socketID] == false) {
-    li.textContent = data.msg;
-    const ul = document.querySelector("ul");
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-    msg[data.socketID].text = data.avaMsg;
+    if (data.avaMsg == "") {
+      msg[data.socketID].text = data.avaMsg
+    } else {
+      li.textContent = data.msg;
+      const ul = document.querySelector("ul");
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+      msg[data.socketID].text = data.avaMsg;
 
-    // 発言したテキストをクリックした時アボンする
-    // li.className = data.abonClass;//アボンクラスを付与
-    // const abonClass = document.getElementsByClassName(data.abonClass);
-    // abonClass[0].addEventListener("click", function () {
-    //   if (data.socketID != socketID) {//自テキストは省く
-    //     if (setAbon[data.socketID]) {
-    //       setAbon[data.socketID] = false;
-    //     } else {
-    //       setAbon[data.socketID] = true;
-    //     }
-    //     socket.json.emit("abonSetting", {
-    //       setAbon: setAbon[data.socketID],
-    //       socketID: data.socketID,
-    //     });
-    //   }
-    // });
+      // 発言したテキストをクリックした時アボンする
+      // li.className = data.abonClass;//アボンクラスを付与
+      // const abonClass = document.getElementsByClassName(data.abonClass);
+      // abonClass[0].addEventListener("click", function () {
+      //   if (data.socketID != socketID) {//自テキストは省く
+      //     if (setAbon[data.socketID]) {
+      //       setAbon[data.socketID] = false;
+      //     } else {
+      //       setAbon[data.socketID] = true;
+      //     }
+      //     socket.json.emit("abonSetting", {
+      //       setAbon: setAbon[data.socketID],
+      //       socketID: data.socketID,
+      //     });
+      //   }
+      // });
+    }
   }
 });
 
@@ -548,23 +552,20 @@ function login() {
 
 //ルーム入室時に自分と他人のアバターを生成する
 socket.on("join_me_from_server", function (data) {
-  const keys = Object.keys(data.user);
+  const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {
     if (data.user[value].room == "entrance") {
       // アバターの親コンテナを作成
       avaP[value] = new PIXI.Container();
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
+      
       //アバタークリックでアボン
       avaP[value].interactive = true;//クリックイベントを有効化
       setAbon[value] = false;
-
-
       avaP[value].on("click", function () {
         if (value != socketID) {//自アバターは省く 
           if (setAbon[value]) {
             setAbon[value] = false;
-
-
           } else {
             setAbon[value] = true;
             avaP[value].removeChild(avaC[value]);
@@ -694,13 +695,16 @@ socket.on("join_room_from_server", function (data) {
   avaP[data.socketID].position.set(410, 80);
 
   // アバタークリックでアボン
-  avaP[data.socketID].interactive = true;
+  avaP[data.socketID].interactive = true;//クリックイベントを有効化
   setAbon[data.socketID] = false;
   avaP[data.socketID].on("click", function () {
     if (setAbon[data.socketID]) {
       setAbon[data.socketID] = false;
     } else {
       setAbon[data.socketID] = true;
+      avaP[data.socketID].removeChild(avaC[data.socketID]);
+            avaC[data.socketID] = avaAbon[data.socketID];
+            avaP[data.socketID].addChild(avaC[data.socketID]);
     }
     socket.json.emit("abonSetting", {
       setAbon: setAbon[data.socketID],
@@ -945,18 +949,19 @@ socket.on("clickMap_from_server", function (data) {
   }
 });
 
-
+let loginMX;
+let loginMY;
 function gameLoop() {
   requestAnimationFrame(gameLoop);
-  // MX = app.renderer.plugins.interaction.mouse.global.x;
-  // MY = app.renderer.plugins.interaction.mouse.global.y;
+  loginMX = app.renderer.plugins.interaction.mouse.global.x;
+  loginMY = app.renderer.plugins.interaction.mouse.global.y;
 
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
-  // if(0<=MX && app.renderer.plugins.interaction.mouse.global.x<=660 && 0<=MY && MY < 480){
-  // MtextX.text="mouX"+MX;
-  // MtextY.text="mouY"+MY;
-  // }
+  if(0<=loginMX && app.renderer.plugins.interaction.mouse.global.x<=660 && 0<=loginMY && loginMY < 480){
+  MtextX.text="mouX"+loginMX;
+  MtextY.text="mouY"+loginMY;
+  }
 }
 
 
