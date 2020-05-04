@@ -5,7 +5,8 @@
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title><%= title %></title>
-  <meta name="description" content="チャットサイトproject街のver5のテストサバです。">
+  <meta name="keywords" content="プロジェクト街,Project街,プロ街,p街,pro街,チャット,うぉわ">
+  <meta name="description" content="チャットサイトproject街の後継？テストサバです。">
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
@@ -13,8 +14,8 @@
 </head>
 
 <body>
-
   <script type="text/javascript">
+
     let type = "WebGL"
     if (!PIXI.utils.isWebGLSupported()) {
       type = "canvas"
@@ -22,6 +23,11 @@
 
     PIXI.utils.sayHello(type)
   </script>
+<div id="contextmenu">
+
+</div>
+
+
   <div role="main">
     <div id="top">
       <!--日付-->
@@ -34,7 +40,7 @@
         <button id="login" onclick="login()">LOGIN</button>
       </div>
       <form name="nameForm" onsubmit="checkName(); return false;" class="userForm" id="nameForm">
-        <input type="text" name="userName" id="userName" maxlength='18' placeholder="名前を入力してください。">
+        <span>お名前＃トリップキー</span><input type="text" name="userName" id="userName" maxlength='18' placeholder="名前を入れてね">
         <input type="submit" value="login">
       </form>
       <form name="msgForm" onsubmit="checkMsg(); return false;" class="userForm" id="msgForm">
@@ -98,7 +104,13 @@
   </svg>
   <div id="kousinrireki">
     <p>更新履歴</p>
+    <p>低脂肪はコンフレとコヒ牛乳。飲むだけなら普通の牛乳。ホットケーキミックスクスにはバナナ豆乳。何食べは調整豆乳を飲む</p>
     <p>2020/05/01 無入力で吹き出し消せるようにした</p>
+    <p>アボン画像差し替え</p>
+      <span>　　　</span>
+      <img src="img/abonBefore.png" alt="旧アボン" align="middle">
+      <div class="inlineBlock" >　→　</div>
+      <img src="img/abon.png" alt="新アボン" align="middle">
     <p>2020/04/30/アボンで藁人形になるようにした、アボンすると動きもわからなくなるようにした　提供：ごまちゃんが</p>
     <p>アバターの位置によってちゃんと手前や後ろになるようにした</p>
     <p>名前入力時にエンターでログインできるようにした</p>

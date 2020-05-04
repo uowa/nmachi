@@ -1,4 +1,5 @@
 'use strict';
+
 //ソケットIOをonにする
 let socket = io.connect('153.127.33.40:3000');
 
@@ -11,7 +12,6 @@ let userName;
 
 let socketID;
 
-let room = "entrance";
 
 let avaP = [];
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
@@ -36,7 +36,9 @@ let AtextX, AtextY, MtextX, MtextY;
 let nameTagX = -30;
 let nameTagY = -105;
 let inRoom = 0;
-let entrance;
+
+let room;
+let loginBack, entrance, ground, croud, bonfire;
 
 let moving = gsap.timeline();
 let moveX, moveY;
@@ -44,6 +46,19 @@ let rightY, leftY;
 
 let flag = false;
 let setAbon = [];
+
+
+// let TEST=0;
+// test();
+// test2();
+// function test2() {
+//   console.log("TEST" + TEST);
+// }
+//         function test() {
+//           TEST = 1;
+//         }
+
+
 
 
 //日付
@@ -56,18 +71,50 @@ let app = new PIXI.Application({
   height: 480,
 });
 //最初の背景画像
-app.renderer.backgroundColor = 0X4C4C52;
-app.stage.interactive = true;//タップを可能にする
+// app.renderer.backgroundColor = 0X4C4C52;
 // app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
 
 
 
-// ブロックの頂点の座標をブロックごとに入れてく、最後に始点を入れてることに注意。
-const block1X = [321, 690, 691, 400, 320, 321];
-const block1Y = [250, 252, 322, 323, 276, 250];
-const block2X = [0, 465, 460, 437, 436, 388, 386, 290, 76, 1, 0];
-const block2Y = [0, 1, 91, 90, 21, 20, 91, 90, 198, 138, 0];
+
+
+//  ブロックを配置
+// let block1 = new PIXI.Graphics();//ブロックを置く宣言
+// block1.beginFill(0xf0f8ff);
+// block1.drawPolygon([
+//   321, 250,
+//   690, 251,
+//   690, 322,
+//   400, 323,
+//   320, 276,
+// ]);
+// app.stage.addChild(block1);//実装
+
+
+// let block2 = new PIXI.Graphics();//ブロックを置く宣言
+// block2.beginFill(0x4682b4);
+// block2.drawPolygon([
+//   0, 0,
+//   465, 1,
+//   460, 91,
+//   437, 90,
+//   436, 21,
+//   388, 20,
+//   386, 91,
+//   290, 90,
+//   76, 198,
+//   1, 138,
+// ]);
+// app.stage.addChild(block2);//実装
+// app.stage.removeChild(block1);//ブロック１を消す
+// app.stage.removeChild(block2);//ブロック２を消す
+
+// // ブロックの頂点の座標をブロックごとに入れてく、最後に始点を入れてることに注意。
+// const block1X = [321, 690, 691, 400, 320, 321];
+// const block1Y = [250, 252, 322, 323, 276, 250];
+// const block2X = [0, 465, 460, 437, 436, 388, 386, 290, 76, 1, 0];
+// const block2Y = [0, 1, 91, 90, 21, 20, 91, 90, 198, 138, 0];
 
 
 let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
@@ -93,16 +140,17 @@ let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
 // レンダラーのviewをDOMに追加する
 document.getElementById("graphic").appendChild(app.view);
 
-
 PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
   .add("gomaNeko", "img/gomaNeko.png")
   .add("gomaNekoSleep", "img/sleeping.png")
   .add("abon", "img/abon.png")
-  .add("entrance", "img/green.png")
-  .on("progress", loadProgressHandler)
-  .load(setUp)
-  .load(gameLoop);
-
+  .add("loginBack", "img/loginBack.png")
+  .add("entrance", "img/sky.png")//ここでsky.pngをentranceに書き換えてるので注意
+  .add("ground", "img/ground.png")
+  .add("croud", "img/croud.png")
+  .add("bonfire", "img/bonfire.png")
+  .on("progress", loadProgressHandler)//プログラミングローダー
+  .load(setUp);//画像読み込み後の処理は基本ここに書いてく
 
 
 //プログラミングのローダー確認
@@ -111,64 +159,6 @@ function loadProgressHandler(Loader, resources) {
   // console.log("loading:"+resources.name);
   console.log("progress" + Loader.progress + "%");
 }
-
-
-//新しい人がきたときに画像を読み込む
-socket.on("loadNewUser", function (data) {
-  avaS[data.socketID] = new PIXI.Sprite(gomaNekoS);
-  avaS1[data.socketID] = new PIXI.Sprite(gomaNekoS1);
-  avaS2[data.socketID] = new PIXI.Sprite(gomaNekoS2);
-  avaSW[data.socketID] = new PIXI.Sprite(gomaNekoSW);
-  avaSW1[data.socketID] = new PIXI.Sprite(gomaNekoSW1);
-  avaSW2[data.socketID] = new PIXI.Sprite(gomaNekoSW2);
-  avaW[data.socketID] = new PIXI.Sprite(gomaNekoW);
-  avaW1[data.socketID] = new PIXI.Sprite(gomaNekoW1);
-  avaW2[data.socketID] = new PIXI.Sprite(gomaNekoW2);
-  avaNW[data.socketID] = new PIXI.Sprite(gomaNekoNW);
-  avaNW1[data.socketID] = new PIXI.Sprite(gomaNekoNW1);
-  avaNW2[data.socketID] = new PIXI.Sprite(gomaNekoNW2);
-  avaN[data.socketID] = new PIXI.Sprite(gomaNekoN);
-  avaN1[data.socketID] = new PIXI.Sprite(gomaNekoN1);
-  avaN2[data.socketID] = new PIXI.Sprite(gomaNekoN2);
-  avaNE[data.socketID] = new PIXI.Sprite(gomaNekoNE);
-  avaNE1[data.socketID] = new PIXI.Sprite(gomaNekoNE1);
-  avaNE2[data.socketID] = new PIXI.Sprite(gomaNekoNE2);
-  avaE[data.socketID] = new PIXI.Sprite(gomaNekoE);
-  avaE1[data.socketID] = new PIXI.Sprite(gomaNekoE1);
-  avaE2[data.socketID] = new PIXI.Sprite(gomaNekoE2);
-  avaSE[data.socketID] = new PIXI.Sprite(gomaNekoSE);
-  avaSE1[data.socketID] = new PIXI.Sprite(gomaNekoSE1);
-  avaSE2[data.socketID] = new PIXI.Sprite(gomaNekoSE2);
-  gomaNekoSleep[data.socketID] = new PIXI.Sprite(gomaNekoSleep);
-  avaAbon[data.socketID] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
-
-  avaS[data.socketID].anchor.set(0.5, 1);
-  avaS1[data.socketID].anchor.set(0.5, 1);
-  avaS2[data.socketID].anchor.set(0.5, 1);
-  avaSW[data.socketID].anchor.set(0.5, 1);
-  avaSW1[data.socketID].anchor.set(0.5, 1);
-  avaSW2[data.socketID].anchor.set(0.5, 1);
-  avaW[data.socketID].anchor.set(0.5, 1);
-  avaW1[data.socketID].anchor.set(0.5, 1);
-  avaW2[data.socketID].anchor.set(0.5, 1);
-  avaNW[data.socketID].anchor.set(0.5, 1);
-  avaNW1[data.socketID].anchor.set(0.5, 1);
-  avaNW2[data.socketID].anchor.set(0.5, 1);
-  avaN[data.socketID].anchor.set(0.5, 1);
-  avaN1[data.socketID].anchor.set(0.5, 1);
-  avaN2[data.socketID].anchor.set(0.5, 1);
-  avaNE[data.socketID].anchor.set(0.5, 1);
-  avaNE1[data.socketID].anchor.set(0.5, 1);
-  avaNE2[data.socketID].anchor.set(0.5, 1);
-  avaE[data.socketID].anchor.set(0.5, 1);
-  avaE1[data.socketID].anchor.set(0.5, 1);
-  avaE2[data.socketID].anchor.set(0.5, 1);
-  avaSE[data.socketID].anchor.set(0.5, 1);
-  avaSE1[data.socketID].anchor.set(0.5, 1);
-  avaSE2[data.socketID].anchor.set(0.5, 1);
-  gomaNekoSleep[data.socketID].anchor.set(0.5, 1);
-  avaAbon[data.socketID].anchor.set(0.5, 1);
-});
 
 let gomaNekoS, gomaNekoS1, gomaNekoS2,
   gomaNekoSW, gomaNekoSW1, gomaNekoSW2,
@@ -181,8 +171,8 @@ let gomaNekoS, gomaNekoS1, gomaNekoS2,
   gomaNekoSleep1, gomaNekoSleep2, gomaNekoSleep3;
 let abon;
 
-function setUp() {
-  //ベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
+function setUp() {//画像読み込み後の処理はここに書いていく
+  //アバターのベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
   gomaNekoS = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(0, 0, 40, 70));
   gomaNekoS1 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(40, 0, 40, 70));
   gomaNekoS2 = new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNeko"), new PIXI.Rectangle(120, 0, 40, 70));
@@ -219,10 +209,78 @@ function setUp() {
   // gomaNekoSleep1= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(40, 0, 40, 70));
   // gomaNekoSleep2= new PIXI.Texture(PIXI.BaseTexture.fromImage("gomaNekoSleep"), new PIXI.Rectangle(80, 0, 40, 70));
 
+  //新しい人がきたときに画像を読み込む
+  socket.on("loadNewUser", function (data) {
+    avaS[data.socketID] = new PIXI.Sprite(gomaNekoS);
+    avaS1[data.socketID] = new PIXI.Sprite(gomaNekoS1);
+    avaS2[data.socketID] = new PIXI.Sprite(gomaNekoS2);
+    avaSW[data.socketID] = new PIXI.Sprite(gomaNekoSW);
+    avaSW1[data.socketID] = new PIXI.Sprite(gomaNekoSW1);
+    avaSW2[data.socketID] = new PIXI.Sprite(gomaNekoSW2);
+    avaW[data.socketID] = new PIXI.Sprite(gomaNekoW);
+    avaW1[data.socketID] = new PIXI.Sprite(gomaNekoW1);
+    avaW2[data.socketID] = new PIXI.Sprite(gomaNekoW2);
+    avaNW[data.socketID] = new PIXI.Sprite(gomaNekoNW);
+    avaNW1[data.socketID] = new PIXI.Sprite(gomaNekoNW1);
+    avaNW2[data.socketID] = new PIXI.Sprite(gomaNekoNW2);
+    avaN[data.socketID] = new PIXI.Sprite(gomaNekoN);
+    avaN1[data.socketID] = new PIXI.Sprite(gomaNekoN1);
+    avaN2[data.socketID] = new PIXI.Sprite(gomaNekoN2);
+    avaNE[data.socketID] = new PIXI.Sprite(gomaNekoNE);
+    avaNE1[data.socketID] = new PIXI.Sprite(gomaNekoNE1);
+    avaNE2[data.socketID] = new PIXI.Sprite(gomaNekoNE2);
+    avaE[data.socketID] = new PIXI.Sprite(gomaNekoE);
+    avaE1[data.socketID] = new PIXI.Sprite(gomaNekoE1);
+    avaE2[data.socketID] = new PIXI.Sprite(gomaNekoE2);
+    avaSE[data.socketID] = new PIXI.Sprite(gomaNekoSE);
+    avaSE1[data.socketID] = new PIXI.Sprite(gomaNekoSE1);
+    avaSE2[data.socketID] = new PIXI.Sprite(gomaNekoSE2);
+    gomaNekoSleep[data.socketID] = new PIXI.Sprite(gomaNekoSleep);
+    avaAbon[data.socketID] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
+
+    avaS[data.socketID].anchor.set(0.5, 1);
+    avaS1[data.socketID].anchor.set(0.5, 1);
+    avaS2[data.socketID].anchor.set(0.5, 1);
+    avaSW[data.socketID].anchor.set(0.5, 1);
+    avaSW1[data.socketID].anchor.set(0.5, 1);
+    avaSW2[data.socketID].anchor.set(0.5, 1);
+    avaW[data.socketID].anchor.set(0.5, 1);
+    avaW1[data.socketID].anchor.set(0.5, 1);
+    avaW2[data.socketID].anchor.set(0.5, 1);
+    avaNW[data.socketID].anchor.set(0.5, 1);
+    avaNW1[data.socketID].anchor.set(0.5, 1);
+    avaNW2[data.socketID].anchor.set(0.5, 1);
+    avaN[data.socketID].anchor.set(0.5, 1);
+    avaN1[data.socketID].anchor.set(0.5, 1);
+    avaN2[data.socketID].anchor.set(0.5, 1);
+    avaNE[data.socketID].anchor.set(0.5, 1);
+    avaNE1[data.socketID].anchor.set(0.5, 1);
+    avaNE2[data.socketID].anchor.set(0.5, 1);
+    avaE[data.socketID].anchor.set(0.5, 1);
+    avaE1[data.socketID].anchor.set(0.5, 1);
+    avaE2[data.socketID].anchor.set(0.5, 1);
+    avaSE[data.socketID].anchor.set(0.5, 1);
+    avaSE1[data.socketID].anchor.set(0.5, 1);
+    avaSE2[data.socketID].anchor.set(0.5, 1);
+    gomaNekoSleep[data.socketID].anchor.set(0.5, 1);
+    avaAbon[data.socketID].anchor.set(0.5, 1);
+  });
+
   socket.emit("set", {});//サーバーに入ったことを伝える
-  //エントランスの画像を追加
+  //背景の画像を追加
+  loginBack = new PIXI.Sprite(PIXI.Loader.shared.resources["loginBack"].texture);
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
-  entrance.sortableChildren = true;//エントランスの子要素のzIndexをonにする。
+  ground = new PIXI.Sprite(PIXI.Loader.shared.resources["ground"].texture);
+  croud = new PIXI.Sprite(PIXI.Loader.shared.resources["croud"].texture);
+  bonfire = new PIXI.Sprite(PIXI.Loader.shared.resources["bonfire"].texture);
+
+
+  setMap(loginBack);
+  clickRange(loginBack);
+
+  // entrance.addChild(ground);
+
+
   // entrance.width = 660;
   // entrance.height = 480;
 
@@ -260,7 +318,6 @@ function setUp() {
   }
   //マウスX座標の位置
   MtextX.position.set(560, 450);
-  app.stage.addChild(MtextX);
 
   //マウスY座標の表示位置設定
   MtextY = new PIXI.Text("mouY");
@@ -271,10 +328,11 @@ function setUp() {
   }
   //マウスY座標の位置
   MtextY.position.set(560, 465);
-  app.stage.addChild(MtextY);
+
 
   //入った時に入力欄にフォーカスを合わせる
   document.querySelector('input').focus();
+
 
 
 
@@ -282,7 +340,6 @@ function setUp() {
   checkName = function () {
     nameTag[socketID].text = (document.nameForm.userName.value);
     login();
-    inRoom = 2;
   }
 
   //メッセージ出力
@@ -295,7 +352,217 @@ function setUp() {
     document.msgForm.msg.value = "";
     document.msgForm.msg.focus();
   }
+
+  //   //画面をタップした時の処理
+  // // document.getElementById("graphic").addEventListener("touchstart", function () {
+  //   app.stage.on('touchstart', function (event) {
+  //   // loginBack.touchstart = function(){
+  //     flag = true;
+  //     MX = event.data.getLocalPosition(event.target).x;
+  //     MY = event.data.getLocalPosition(event.target).y;
+  //     // MX = app.renderer.plugins.interaction.mouse.global.x;//使えない
+  //     // MY = app.renderer.plugins.interaction.mouse.global.y;
+  //     moveEvent();
+  //   });
+  // // });
+
+
+
+  gameLoop();
+
+
 }
+
+
+
+
+
+
+
+// croudBlock1配置
+let croudBlock1 = new PIXI.Graphics();
+croudBlock1.beginFill(0xf0f8ff);
+croudBlock1.alpha = 0;
+croudBlock1.drawPolygon([
+  111, 123,
+  123, 113,
+  133, 109,
+  133, 105,
+  142, 97,
+  151, 97,
+  151, 92,
+  160, 92,
+  173, 99,
+  173, 113,
+  185, 113,
+  196, 120,
+  198, 130,
+  194, 130,
+  194, 137,
+  184, 137,
+  184, 140,
+  176, 140,
+  176, 140,
+  176, 147,
+  173, 147,
+  173, 147,
+  171, 151,
+  159, 151,
+  159, 148,
+  151, 148,
+  145, 154,
+  122, 154,
+  111, 144,
+]);
+
+//croudBlock2配置
+let croudBlock2 = new PIXI.Graphics();
+croudBlock2.beginFill(0xf0f8ff);
+croudBlock2.alpha = 0;
+croudBlock2.drawPolygon([
+  421, 73,
+  443, 59,
+  443, 55,
+  452, 47,
+  461, 47,
+  461, 42,
+  470, 42,
+  483, 49,
+  483, 63,
+  495, 63,
+  506, 70,
+  508, 80,
+  504, 80,
+  504, 87,
+  494, 87,
+  494, 90,
+  486, 90,
+  486, 97,
+  483, 97,
+  483, 97,
+  481, 101,
+  469, 101,
+  469, 98,
+  461, 98,
+  455, 104,
+  432, 104,
+  421, 94,
+]);
+
+//groundBlock配置
+let groundBlock = new PIXI.Graphics();//ブロックを置く宣言
+groundBlock.beginFill(0xf0f8ff);
+groundBlock.drawPolygon([
+  0, 285,
+  3, 285,
+  23, 285,
+  69, 274,
+  197, 274,
+  280, 268,
+  302, 268,
+  358, 268,
+  462, 275,
+  556, 275,
+  660, 285,
+  660, 480,
+  0, 480,
+]);
+
+
+function entranceBlock() {
+  iniColPoint(bonfireBlockX);
+  checkColPoint(bonfireBlockX, bonfireBlockY);
+}
+
+const bonfireBlockX = [270, 349, 392, 320,270];
+const bonfireBlockY = [326,285,325,358,326];
+
+//画面をクリックした時の処理
+function setMap(value) {
+  value.sortableChildren = true;//子要素のzIndexをonにする。
+  app.stage.addChild(value);//画像を読みこむ
+}
+
+let alpha;
+function clickRange(value) {
+  value.interactive = true;//クリックイベントを有効化
+  value.click = function () {
+    
+    // alpha = ground.utils.hex2rgb ;
+    // console.log("alpha" + alpha);
+
+    // if (flag) {
+    // flag = false;
+    // } else {
+    MX = app.renderer.plugins.interaction.mouse.global.x;
+    MY = app.renderer.plugins.interaction.mouse.global.y;
+    // console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);//マウスの座標を取得
+    // console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
+    if (AX != MX || AY != MY) {
+      moveEvent();
+    }
+    document.msgForm.msg.focus();
+    // }
+  };
+}
+
+
+
+//ログイン時の処理
+function login() {
+  room = "entrance";
+
+
+  //userNameにフォームの内容を入れる
+  userName = document.nameForm.userName.value;
+  if (userName != "") {//名前が空だと移動しない//マップを切り替える
+
+
+    entrance.addChild(croudBlock1);
+    clickRange(croudBlock1);
+    entrance.addChild(croudBlock2);
+    clickRange(croudBlock2);
+
+    entrance.addChild(groundBlock);
+    clickRange(groundBlock);
+
+    entrance.addChild(croud);
+    entrance.addChild(ground);
+    bonfire.zIndex = 325;
+    entrance.addChild(bonfire);
+    setMap(entrance);
+
+    app.stage.addChild(MtextX);
+    app.stage.addChild(MtextY);
+
+    AX = 457;//座標を切り替える//ここらへんは後でsetMapに入れるか
+    AY = 80;
+
+    //ログイン画面の画像を消す
+    app.stage.removeChild(loginBack);//ここもsetMapに入れたい
+
+    socket.json.emit("join_room", {//エントランスに入る
+      room: "entrance",
+      socketID: socketID,//soket.id
+      userName: userName,//ユーザーネーム
+    });
+
+
+    //フォームを切り替える
+    document.getElementById("nameForm").style.display = "none";
+    document.getElementById("msgForm").style.display = "block";
+    document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
+    document.msgForm.msg.focus();
+    //座標を消す
+    // app.stage.removeChild(AtextX);
+    // app.stage.removeChild(AtextY);
+    // app.stage.removeChild(MtextX);
+    // app.stage.removeChild(MtextY);
+    inRoom = 1;
+  }
+}
+
+
 //メッセージを受け取って表示
 socket.on("emit_msg_from_server", function (data) {
   const li = document.createElement("li");
@@ -475,80 +742,14 @@ socket.on("mySocketID_from_server", function (data) {
   avaP[socketID].addChild(avaC[socketID]);
   avaP[socketID].addChild(nameTag[socketID]);
   //ステージに追加
-  app.stage.addChild(avaP[socketID]);
+  loginBack.addChild(avaP[socketID]);
 });
 
 
 
 
 
-//ログイン時の処理
-function login() {
 
-
-  //userNameにフォームの内容を入れる
-  userName = document.nameForm.userName.value;
-  if (userName != "") {//名前が空だと移動しない//マップを切り替える
-    AX = 410;//座標を切り替える
-    AY = 80;
-    //エントランス画像を表示
-    app.stage.addChild(entrance);
-
-
-    //  ブロックを配置
-    let block1 = new PIXI.Graphics();//ブロックを置く宣言
-    block1.beginFill(0xf0f8ff);
-    block1.drawPolygon([
-      321, 250,
-      690, 251,
-      690, 322,
-      400, 323,
-      320, 276,
-    ]);
-    app.stage.addChild(block1);//実装
-
-
-    let block2 = new PIXI.Graphics();//ブロックを置く宣言
-    block2.beginFill(0x4682b4);
-    block2.drawPolygon([
-      0, 0,
-      465, 1,
-      460, 91,
-      437, 90,
-      436, 21,
-      388, 20,
-      386, 91,
-      290, 90,
-      76, 198,
-      1, 138,
-    ]);
-    app.stage.addChild(block2);//実装
-
-
-    //ログイン画面のアバを一回消す
-    app.stage.removeChild(avaP[socketID]);
-    socket.json.emit("join_room", {//エントランスに入る
-      room: "entrance",
-      socketID: socketID,//soket.id
-      userName: userName,//ユーザーネーム
-    });
-
-
-    //フォームを切り替える
-    document.getElementById("nameForm").style.display = "none";
-    document.getElementById("msgForm").style.display = "block";
-    document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
-    document.msgForm.msg.focus();
-    // app.stage.removeChild(block1);//ブロック１を消す
-    // app.stage.removeChild(block2);//ブロック２を消す
-    //座標を消す
-    app.stage.removeChild(AtextX);
-    app.stage.removeChild(AtextY);
-    app.stage.removeChild(MtextX);
-    app.stage.removeChild(MtextY);
-    inRoom = 1;
-  }
-}
 
 //ルーム入室時に自分と他人のアバターを生成する
 socket.on("join_me_from_server", function (data) {
@@ -558,7 +759,7 @@ socket.on("join_me_from_server", function (data) {
       // アバターの親コンテナを作成
       avaP[value] = new PIXI.Container();
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
-      
+
       //アバタークリックでアボン
       avaP[value].interactive = true;//クリックイベントを有効化
       setAbon[value] = false;
@@ -692,7 +893,7 @@ socket.on("join_me_from_server", function (data) {
 socket.on("join_room_from_server", function (data) {
   // アバターの親コンテナを作成
   avaP[data.socketID] = new PIXI.Container();
-  avaP[data.socketID].position.set(410, 80);
+  avaP[data.socketID].position.set(457, 80);
 
   // アバタークリックでアボン
   avaP[data.socketID].interactive = true;//クリックイベントを有効化
@@ -703,8 +904,8 @@ socket.on("join_room_from_server", function (data) {
     } else {
       setAbon[data.socketID] = true;
       avaP[data.socketID].removeChild(avaC[data.socketID]);
-            avaC[data.socketID] = avaAbon[data.socketID];
-            avaP[data.socketID].addChild(avaC[data.socketID]);
+      avaC[data.socketID] = avaAbon[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
     }
     socket.json.emit("abonSetting", {
       setAbon: setAbon[data.socketID],
@@ -740,39 +941,6 @@ socket.on("join_room_from_server", function (data) {
 });
 
 
-
-//画面をタップした時の処理
-document.getElementById("graphic").addEventListener("touchstart", function () {
-  console.log("tes3");
-  app.stage.on('touchstart', function (event) {
-    flag = true;
-    console.log("tes");
-    MX = event.data.getLocalPosition(event.target).x;
-    MY = event.data.getLocalPosition(event.target).y;
-    console.log("MX" + event.data.getLocalPosition(event.target).x);
-    console.log("MY" + event.data.getLocalPosition(event.target).y);
-    moveEvent();
-    console.log("tes5");
-  });
-  console.log("tes4");
-});
-//画面をクリックした時の処理
-// entrance.interactive = true;
-// app.stage.on("click",function(){//こっちのが良いかも、一応置いとく
-document.getElementById("graphic").addEventListener("click", function () {
-  if (flag) {
-    flag = false;
-  } else {
-    MX = app.renderer.plugins.interaction.mouse.global.x;
-    MY = app.renderer.plugins.interaction.mouse.global.y;
-    console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);
-    console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
-    moveEvent();
-    document.msgForm.msg.focus();
-  }
-});
-
-
 function moveEvent() {
   let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
   if (inRoom == 0) {
@@ -805,9 +973,7 @@ function moveEvent() {
         AY = avaP[socketID].y;
       }
     });
-  } else if (inRoom == 1) {
-    inRoom = 2;
-  } else if (inRoom == 2) {
+  } else {
     // 方向に合わせて画像を変えて表示
     if (sin <= -0.9239) {
       DIR = "N";
@@ -958,9 +1124,9 @@ function gameLoop() {
 
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
-  if(0<=loginMX && app.renderer.plugins.interaction.mouse.global.x<=660 && 0<=loginMY && loginMY < 480){
-  MtextX.text="mouX"+loginMX;
-  MtextY.text="mouY"+loginMY;
+  if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY < 480) {
+    MtextX.text = "mouX" + loginMX;
+    MtextY.text = "mouY" + loginMY;
   }
 }
 
@@ -1077,7 +1243,7 @@ function colMove(cPA, jX, jY) {//ブロックと衝突時の動きの式
     //交点まで移動する
     moveX = cPA.LX;
     moveY = cPA.LY;
-    socket.json.emit("clicKMap", {
+    socket.json.emit("clickMap", {
       DIR: DIR,
       socketID: socketID,
       moveX: moveX,
@@ -1101,7 +1267,7 @@ function colMove(cPA, jX, jY) {//ブロックと衝突時の動きの式
     moveX = cPA.LX;
     moveY = cPA.LY;
 
-    socket.json.emit("clicKMap", {
+    socket.json.emit("clickMap", {
       DIR: DIR,
       socketID: socketID,
       moveX: moveX,
@@ -1124,12 +1290,12 @@ function colMove(cPA, jX, jY) {//ブロックと衝突時の動きの式
 
 
 
-function entranceBlock() {
-  iniColPoint(block1X);//block1XのcolPointを初期化
-  checkColPoint(block1X, block1Y);//block1のcollision pointを調べる
-  iniColPoint(block2X);//block2XのcolPointを初期化
-  checkColPoint(block2X, block2Y);//block2のcollision pointを調べる
-}
+// function entranceBlock() {
+//   iniColPoint(block1X);//block1XのcolPointを初期化
+//   checkColPoint(block1X, block1Y);//block1のcollision pointを調べる
+//   iniColPoint(block2X);//block2XのcolPointを初期化
+//   checkColPoint(block2X, block2Y);//block2のcollision pointを調べる
+// }
 
 
 //ログアウトした時の処理

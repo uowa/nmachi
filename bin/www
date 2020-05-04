@@ -89,7 +89,7 @@ io.on('connection', function (socket) {
 
   user[socket.id] = {
     userName: "名もなき名無し",
-    AX: 410,
+    AX: 457,
     AY: 80,
     DIR: "S",
   }
@@ -129,12 +129,13 @@ io.on('connection', function (socket) {
       }
 
       socket.join(room);
-
+      let time;
       if (room == "entrance") {
+        time=" -- "+new Date().getHours().toLocaleString() + ":"+new Date().getMinutes().toLocaleString()+"--";
         io.to(socket.id).json.emit("join_me_from_server", {
           user: user,
           roomUser: entranceUser,
-          msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+          msg:user[data.socketID].userName + "が" + room + "に入室しました。"+time,
         });
 
         socket.broadcast.to(room).emit("join_room_from_server", {
@@ -153,7 +154,7 @@ io.on('connection', function (socket) {
   socket.on("emit_msg", function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       io.to(room).emit("emit_msg_from_server", {
-        msg: "[（　´∀｀）" + user[data.socketID].userName + "（´∀｀）]:" + data.msg,
+        msg: "[（　´∀｀）" + user[data.socketID].userName +"]:" + data.msg,
         socketID: data.socketID,
         avaMsg: data.msg,
         abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
@@ -220,9 +221,10 @@ io.on('connection', function (socket) {
       roomUserFunk(entranceUser);
     }
     function roomUserFunk(value) {
+      time=" -- "+new Date().getHours().toLocaleString() + ":"+new Date().getMinutes().toLocaleString()+"--";
       io.to(room).emit("logout_from_server", {
         socketID: socket.id,
-        msg: user[socket.id].userName + "が退出しました。",
+        msg: user[socket.id].userName + "が退出しました。"+time,
         room:room,
         roomUser: value,
       });

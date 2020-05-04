@@ -1,3 +1,5 @@
+
+
 #top{
   position: relative;
 }
@@ -74,11 +76,12 @@ li {
       -2px  0px 5px #ffff1a,
        0px -2px 5px #ffff1a;        /* 文字の影 */
        
-  background-color: rgb(76, 76, 82);
+  background-color: rgb(76, 76, 82);transform: translateY(-50%) translateX(-50%); /*要素の大きさの半分ずつを戻す*/
+  -webkit-transform: translateY(-50%) translateX(-50%);
   top: 50%;
   left: 50%;
   transform: translateY(-50%) translateX(-50%);
-  -webkit- transform: translateY(-50%) translateX(-50%);
+  -webkit-transform: translateY(-50%) translateX(-50%);
   margin: auto;
 }
 
@@ -157,4 +160,8 @@ li {
   height: 100px;
   background-color: #333332;
   overflow: scroll;
+}
+
+.inlineBlock{
+  display: inline-block;
 }
