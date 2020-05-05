@@ -106,7 +106,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on("join_room", function (data) {//部屋に入室した時
-    if (user[data.socketID]) {//サバ起動後しばらくすれば必要のない処理なので他にやり方ないんか？？って気はする、サバ再起動前に開かれていたクライアントからの入力を阻止する。
+    if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       //トリップを作る
       data.userName = data.userName.replace(/◆/g, '■');
       if (data.userName.match(/#/)) {
@@ -194,25 +194,21 @@ io.on('connection', function (socket) {
   //クリックイベント
   socket.on('clickMap', function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      user[data.socketID].DIR = data.DIR;
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;
-      user[data.socketID].DIR = data.DIR;
       
-      io.to(room).emit("clickMap_from_server", {
+      socket.broadcast.to(room).emit("clickMap_from_server", {
         DIR: data.DIR,
         socketID: data.socketID,
-        moveX: data.moveX,
-        moveY: data.moveY,
+        AX: data.AX,
+        AY:data.AY,
       });
     } else {
       saikiMsg();//再起動メッセージを送る
     }
   });
 
-  socket.on("AXYDIR", function (data) {
-    user[data.socketID].AX = data.AX;
-    user[data.socketID].AY = data.AY;
-  });
 
   //退出時
   socket.on("disconnect", function () {

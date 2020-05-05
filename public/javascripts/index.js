@@ -42,6 +42,9 @@ let loginBack, entrance, ground, croud, bonfire;
 
 let moving = gsap.timeline();
 let moveX, moveY;
+let moveX1, moveY1;
+let moveX2, moveY2;
+let moveX3, moveY3;
 let rightY, leftY;
 
 let flag = false;
@@ -274,15 +277,13 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   croud = new PIXI.Sprite(PIXI.Loader.shared.resources["croud"].texture);
   bonfire = new PIXI.Sprite(PIXI.Loader.shared.resources["bonfire"].texture);
 
+  // entrance.width = 660;
+  // entrance.height = 480;
 
   setMap(loginBack);
   clickRange(loginBack);
 
-  // entrance.addChild(ground);
 
-
-  // entrance.width = 660;
-  // entrance.height = 480;
 
 
 
@@ -334,8 +335,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   document.querySelector('input').focus();
 
 
-
-
   //名前を出力
   checkName = function () {
     nameTag[socketID].text = (document.nameForm.userName.value);
@@ -372,11 +371,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
 }
-
-
-
-
-
 
 
 // croudBlock1配置
@@ -468,14 +462,14 @@ groundBlock.drawPolygon([
   0, 480,
 ]);
 
+const bonfireBlockX = [270, 349, 392, 320, 270];
+const bonfireBlockY = [326, 285, 325, 358, 326];
 
 function entranceBlock() {
-  iniColPoint(bonfireBlockX);
-  checkColPoint(bonfireBlockX, bonfireBlockY);
+  iniColPoint(bonfireBlockX);//colPointを初期化
+  checkColPoint(bonfireBlockX, bonfireBlockY);//bonFireのcolPointを調べる
 }
 
-const bonfireBlockX = [270, 349, 392, 320,270];
-const bonfireBlockY = [326,285,325,358,326];
 
 //画面をクリックした時の処理
 function setMap(value) {
@@ -483,13 +477,9 @@ function setMap(value) {
   app.stage.addChild(value);//画像を読みこむ
 }
 
-let alpha;
 function clickRange(value) {
   value.interactive = true;//クリックイベントを有効化
   value.click = function () {
-    
-    // alpha = ground.utils.hex2rgb ;
-    // console.log("alpha" + alpha);
 
     // if (flag) {
     // flag = false;
@@ -498,15 +488,239 @@ function clickRange(value) {
     MY = app.renderer.plugins.interaction.mouse.global.y;
     // console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);//マウスの座標を取得
     // console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
-    if (AX != MX || AY != MY) {
+    if (AX != MX || AY != MY) {//同一点なら移動しない//パターン１
       moveEvent();
     }
     document.msgForm.msg.focus();
     // }
   };
 }
+function moveEvent() {
+  let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
+  if (inRoom == 0) {
+    if (sin <= -0.9239) {
+      anime(avaN, avaN1, avaN2, socketID);
+    } else if (0.9239 <= sin) {
+      anime(avaS, avaS1, avaS2, socketID);
 
 
+    } else if (0.3827 <= sin && AX < MX) {
+      anime(avaSE, avaSE1, avaSE2, socketID);
+    } else if (0.3827 <= sin && MX < AX) {
+      anime(avaSW, avaSW1, avaSW2, socketID);
+
+    } else if (sin <= -0.3827 && AX < MX) {
+      anime(avaNE, avaNE1, avaNE2, socketID);
+    } else if (sin <= -0.3827 && MX < AX) {
+      anime(avaNW, avaNW1, avaNW2, socketID);
+
+    } else if (AX < MX) {
+      anime(avaE, avaE1, avaE2, socketID);
+    } else if (MX < AX) {
+      anime(avaW, avaW1, avaW2, socketID);
+    }
+
+    gsap.to(avaP[socketID], {
+      duration: 0.4, x: MX, y: MY,
+      onComplete: function () {
+        AX = avaP[socketID].x;
+        AY = avaP[socketID].y;
+      }
+    });
+  } else {
+    // 方向に合わせて画像を変えて表示
+    if (sin <= -0.9239) {
+      DIR = "N";
+    } else if (0.9239 <= sin) {
+      DIR = "S";
+    } else if (0.3827 <= sin && AX < MX) {
+      DIR = "SE";
+    } else if (0.3827 <= sin && MX < AX) {
+      DIR = "SW";
+    } else if (sin <= -0.3827 && AX < MX) {
+      DIR = "NE";
+    } else if (sin <= -0.3827 && MX < AX) {
+      DIR = "NW";
+    } else if (AX < MX) {
+      DIR = "E";
+    } else if (MX < AX) {
+      DIR = "W";
+    }
+    if (room == "entrance") {
+      entranceBlock();
+    }//別の部屋の場合でつき足す!!!!!!!!!!!!
+    if (colPointAll[0] == undefined) {//どこにもぶつからなかった場合//パターン２
+      AX = MX;
+      AY = MY;
+      clickedMove(DIR, AX, AY, socketID);
+      socket.json.emit("clickMap", {
+        DIR: DIR,
+        AX: AX,
+        AY: AY,
+        socketID: socketID,
+
+      });
+    } else {//ブロックと交わる場合
+      //distanceが最小値順になるようにcolPointAllを並び変える
+      colPointAll.sort(function (a, b) {
+        if (a.distance > b.distance) {
+          return 1;
+        } else {
+          return -1;
+        }
+      });
+      //衝突時の動き
+      if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].PY < colPointAll[0].TY) {
+        colMove(colPointAll[0], -1, -1);
+      } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].PY < colPointAll[0].TY) {
+        colMove(colPointAll[0], -1, 1);
+      } else if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].TY < colPointAll[0].PY) {
+        colMove(colPointAll[0], 1, -1);
+      } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].TY < colPointAll[0].PY) {
+        colMove(colPointAll[0], 1, 1);
+      }
+    }
+    // 初期化
+    colPointAll = [];
+  }
+}
+
+function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき、歩いてるとき２、socketID
+  gsap.to(avaP[value], 0, {
+    delay: 0.1,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava1[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.2,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava2[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.3,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava1[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.4,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava[value];
+      avaP[value].addChild(avaC[value]);
+      avaP[value].addChild(nameTag[value]);
+      avaP[value].addChild(msg[value]);
+    }
+  });
+}
+
+
+function iniColPoint(blockSize) {//checkColpointで設定したcolPointを初期化
+  colPoint = [];//一旦全部消す
+  for (let i = 0; i < blockSize.length - 1; i++) {//値を用意する
+    colPoint[i] = {
+      LX: "", LY: "", distance: "",
+    };
+  }
+}
+
+function checkColPoint(BX, BY) { //(collisionPointの略)
+  //移動前の点と移動後の点との直線で、最も近い物体の交点を求める
+  for (let i = 0; i < BX.length - 1; i++) {//このままだと壁に対して完全に平行な移動をしようとしたときに,colPoint.LXかLYがinfinityになって動かないってバグがあるな、どうすっかな
+    //まず、移動前と移動後を結ぶ直線とそれぞれの物体の辺を横切る直線との交点を全て得る
+    colPoint[i].LX = ((BY[i + 1] - AY) * (MX - AX) * (BX[i] - BX[i + 1])
+      - BX[i + 1] * (BY[i] - BY[i + 1]) * (MX - AX)
+      + AX * (MY - AY) * (BX[i] - BX[i + 1]))
+      / ((MY - AY) * (BX[i] - BX[i + 1])
+        - (BY[i] - BY[i + 1]) * (MX - AX));
+    colPoint[i].LY = (BY[i + 1] * (MY - AY) * (BX[i] - BX[i + 1])
+      + (MY - AY) * (AX - BX[i + 1]) * (BY[i] - BY[i + 1])
+      - AY * (BY[i] - BY[i + 1]) * (MX - AX))
+      / ((MY - AY) * (BX[i] - BX[i + 1])
+        - (BY[i] - BY[i + 1]) * (MX - AX));
+    //移動前の点から移動後の点への直線に物体との交点があるかどうかで絞り込む
+    if (
+      //辺の直線との交点が道中にあるかどうか、
+      ((MX <= colPoint[i].LX && colPoint[i].LX <= AX) || (AX <= colPoint[i].LX && colPoint[i].LX <= MX))
+      &&
+      //交点が物体の辺のＸ座標の間に収まってるかどうか
+      ((BX[i] <= colPoint[i].LX && colPoint[i].LX <= BX[i + 1]) || (BX[i + 1] <= colPoint[i].LX && colPoint[i].LX <= BX[i]))
+      &&
+      //交点が物体の辺のＹ座標の間に収まってるかどうか
+      ((BY[i] <= colPoint[i].LY && colPoint[i].LY <= BY[i + 1]) || (BY[i + 1] <= colPoint[i].LY && colPoint[i].LY <= BY[i]))) {
+      //交点の物体の辺の端点を配列に登録する
+      colPoint[i].TX = BX[i];
+      colPoint[i].TY = BY[i];
+      colPoint[i].PX = BX[i + 1];
+      colPoint[i].PY = BY[i + 1];
+
+      // それぞれの点の物体との距離の2乗を算出する ※大きさを比較するだけなので、2乗のままでおｋ
+      colPoint[i].distance = Math.pow((colPoint[i].LX - AX), 2) + Math.pow((colPoint[i].LY - AY), 2);
+      //衝突点を配列に纏める
+      colPointAll.push(colPoint[i]);
+    }
+  }
+}
+
+
+function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,CPAはcolPointALLの略、stopXとstopYはブロックの手前で止まってもらうための数字,バグ防止
+  //交点に位置に移動する
+  AX = CPA.LX + stopX;
+  AY = CPA.LY + stopY;
+  clickedMove(DIR, AX, AY, socketID);
+  socket.json.emit("clickMap", {
+    DIR: DIR,
+    socketID: socketID,
+    AX: AX,
+    AY: AY,
+  });
+}
+
+
+//移動時のソケット受け取り
+socket.on("clickMap_from_server", function (data) {
+  if (setAbon[data.socketID] == false) {
+    clickedMove(data.DIR,data.AX,data.AY,data.socketID);
+  }
+});
+
+//数値を取得後のアバターの動き
+function clickedMove(DIR,AX,AY,socketID) {
+  if (DIR == "NE") {//子要素の画像を入れる
+    anime(avaNE, avaNE1, avaNE2, socketID);
+  } else if (DIR == "SE") {
+    anime(avaSE, avaSE1, avaSE2, socketID);
+  } else if (DIR == "SW") {
+    anime(avaSW, avaSW1, avaSW2, socketID);
+  } else if (DIR == "NW") {
+    anime(avaNW, avaNW1, avaNW2, socketID);
+  } else if (DIR == "N") {
+    anime(avaN, avaN1, avaN2, socketID);
+  } else if (DIR == "E") {
+    anime(avaE, avaE1, avaE2, socketID);
+  } else if (DIR == "S") {
+    anime(avaS, avaS1, avaS2, socketID);
+  } else {
+    anime(avaW, avaW1, avaW2, socketID);
+  }
+  moving.to(avaP[socketID], { duration: 0.4, x: AX, y: AY });
+  avaP[socketID].zIndex = AY;//上に進むか下に進むかで処理位置決めたらいいんかな？　後で考える
+  
+}
 
 //ログイン時の処理
 function login() {
@@ -532,8 +746,14 @@ function login() {
     entrance.addChild(bonfire);
     setMap(entrance);
 
-    app.stage.addChild(MtextX);
-    app.stage.addChild(MtextY);
+    //マウス座標を表示
+    // app.stage.addChild(MtextX);
+    // app.stage.addChild(MtextY);
+    //座標を消す
+    // app.stage.removeChild(AtextX);
+    // app.stage.removeChild(AtextY);
+    // app.stage.removeChild(MtextX);
+    // app.stage.removeChild(MtextY);
 
     AX = 457;//座標を切り替える//ここらへんは後でsetMapに入れるか
     AY = 80;
@@ -553,11 +773,6 @@ function login() {
     document.getElementById("msgForm").style.display = "block";
     document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
     document.msgForm.msg.focus();
-    //座標を消す
-    // app.stage.removeChild(AtextX);
-    // app.stage.removeChild(AtextY);
-    // app.stage.removeChild(MtextX);
-    // app.stage.removeChild(MtextY);
     inRoom = 1;
   }
 }
@@ -941,187 +1156,19 @@ socket.on("join_room_from_server", function (data) {
 });
 
 
-function moveEvent() {
-  let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
-  if (inRoom == 0) {
-    if (sin <= -0.9239) {
-      anime(avaN, avaN1, avaN2, socketID);
-    } else if (0.9239 <= sin) {
-      anime(avaS, avaS1, avaS2, socketID);
-
-
-    } else if (0.3827 <= sin && AX < MX) {
-      anime(avaSE, avaSE1, avaSE2, socketID);
-    } else if (0.3827 <= sin && MX < AX) {
-      anime(avaSW, avaSW1, avaSW2, socketID);
-
-    } else if (sin <= -0.3827 && AX < MX) {
-      anime(avaNE, avaNE1, avaNE2, socketID);
-    } else if (sin <= -0.3827 && MX < AX) {
-      anime(avaNW, avaNW1, avaNW2, socketID);
-
-    } else if (AX < MX) {
-      anime(avaE, avaE1, avaE2, socketID);
-    } else if (MX < AX) {
-      anime(avaW, avaW1, avaW2, socketID);
-    }
-
-    gsap.to(avaP[socketID], {
-      duration: 0.4, x: MX, y: MY,
-      onComplete: function () {
-        AX = avaP[socketID].x;
-        AY = avaP[socketID].y;
-      }
-    });
-  } else {
-    // 方向に合わせて画像を変えて表示
-    if (sin <= -0.9239) {
-      DIR = "N";
-    } else if (0.9239 <= sin) {
-      DIR = "S";
-    } else if (0.3827 <= sin && AX < MX) {
-      DIR = "SE";
-    } else if (0.3827 <= sin && MX < AX) {
-      DIR = "SW";
-    } else if (sin <= -0.3827 && AX < MX) {
-      DIR = "NE";
-    } else if (sin <= -0.3827 && MX < AX) {
-      DIR = "NW";
-    } else if (AX < MX) {
-      DIR = "E";
-    } else if (MX < AX) {
-      DIR = "W";
-    }
-    if (room == "entrance") {
-      entranceBlock();
-    }//別の部屋の場合でつき足す!!!!!!!!!!!!
-    moveX = MX;
-    moveY = MY;
-    AX = MX;
-    AY = MY;
-    if (colPointAll[0] == undefined) {
-      socket.json.emit("clickMap", {
-        DIR: DIR,
-        AX: AX,
-        AY: AY,
-        socketID: socketID,
-        moveX: moveX,
-        moveY: moveY,
-      });
-    } else {//ブロックと交わる場合
-      //distanceが最小値順になるように並び変える
-      colPointAll.sort(function (a, b) {
-        if (a.distance > b.distance) {
-          return 1;
-        } else {
-          return -1;
-        }
-      });
-      //衝突時の動き
-      if (colPointAll[0].PX > colPointAll[0].TX && colPointAll[0].TY > colPointAll[0].PY) {
-        colMove(colPointAll[0], -1, -1);
-      } else if (colPointAll[0].TX > colPointAll[0].PX && colPointAll[0].TY > colPointAll[0].PY) {
-        colMove(colPointAll[0], -1, 1);
-      } else if (colPointAll[0].PX > colPointAll[0].TX && colPointAll[0].PY > colPointAll[0].TY) {
-        colMove(colPointAll[0], 1, -1);
-      } else if (colPointAll[0].TX > colPointAll[0].PX && colPointAll[0].PY > colPointAll[0].TY) {
-        colMove(colPointAll[0], 1, 1);
-      }
-    }
-    // 初期化
-    colPointAll = [];
-    //メッセージにフォーカスを当てる
-  }
-}
 
 
 
-function anime(ava, ava1, ava2, value) {
-  gsap.to(avaP[value], 0, {
-    delay: 0.1,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava1[value];
-      avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.2,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava2[value];
-      avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.3,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava1[value];
-      avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.4,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava[value];
-      avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
-    }
-  });
-}
 
 
-//移動時のソケット受け取り
-socket.on("clickMap_from_server", function (data) {
-  socket.emit("AXYDIR", {//あれ、これいらんくない？って思ったが要るっぽい、もはや忘れた
-    DIR: DIR,
-    socketID: socketID,
-    AX: AX,
-    AY: AY,
-  });
-  if (setAbon[data.socketID] == false) {
 
-    moveX = data.moveX;
-    moveY = data.moveY;
-
-    if (data.DIR == "NE") {//子要素の画像を入れる
-      anime(avaNE, avaNE1, avaNE2, data.socketID);
-    } else if (data.DIR == "SE") {
-      anime(avaSE, avaSE1, avaSE2, data.socketID);
-    } else if (data.DIR == "SW") {
-      anime(avaSW, avaSW1, avaSW2, data.socketID);
-    } else if (data.DIR == "NW") {
-      anime(avaNW, avaNW1, avaNW2, data.socketID);
-    } else if (data.DIR == "N") {
-      anime(avaN, avaN1, avaN2, data.socketID);
-    } else if (data.DIR == "E") {
-      anime(avaE, avaE1, avaE2, data.socketID);
-    } else if (data.DIR == "S") {
-      anime(avaS, avaS1, avaS2, data.socketID);
-    } else {
-      anime(avaW, avaW1, avaW2, data.socketID);
-    }
-    moving.to(avaP[data.socketID], { duration: 0.4, x: moveX, y: moveY });
-    avaP[data.socketID].zIndex = data.moveY;
-  }
-});
-
+//アバター位置とマウス位置の表示
 let loginMX;
 let loginMY;
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   loginMX = app.renderer.plugins.interaction.mouse.global.x;
   loginMY = app.renderer.plugins.interaction.mouse.global.y;
-
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
   if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY < 480) {
@@ -1133,169 +1180,11 @@ function gameLoop() {
 
 
 
-function checkColPoint(bX, bY) { //(collisionPointの略)
-  //移動前の点と移動後の点との直線で、最も近い物体の交点を求める
-  for (let i = 0; i < bX.length - 1; i++) {
-    //まず、移動前と移動後を結ぶ直線とそれぞれの物体の辺を横切る直線との交点を全て得る
-    colPoint[i].LX = ((bY[i + 1] - AY) * (MX - AX) * (bX[i] - bX[i + 1])
-      - bX[i + 1] * (bY[i] - bY[i + 1]) * (MX - AX)
-      + AX * (MY - AY) * (bX[i] - bX[i + 1]))
-      / ((MY - AY) * (bX[i] - bX[i + 1])
-        - (bY[i] - bY[i + 1]) * (MX - AX));
-    colPoint[i].LY = (bY[i + 1] * (MY - AY) * (bX[i] - bX[i + 1])
-      + (MY - AY) * (AX - bX[i + 1]) * (bY[i] - bY[i + 1])
-      - AY * (bY[i] - bY[i + 1]) * (MX - AX))
-      / ((MY - AY) * (bX[i] - bX[i + 1])
-        - (bY[i] - bY[i + 1]) * (MX - AX));
-    //移動前の点から移動後の点への直線に物体との交点があるかどうかで絞り込む
-    if (
-      //辺の直線との交点が道中にあるかどうか、
-      ((MX >= colPoint[i].LX && colPoint[i].LX >= AX) || (AX >= colPoint[i].LX && colPoint[i].LX >= MX))
-      &&
-      //交点が物体の辺のＸ座標の間に収まってるかどうか
-      ((colPoint[i].LX >= bX[i] && colPoint[i].LX <= bX[i + 1]) || (colPoint[i].LX <= bX[i] && colPoint[i].LX >= bX[i + 1]))
-      &&
-      //交点が物体の辺のＹ座標の間に収まってるかどうか
-      ((colPoint[i].LY >= bY[i] && colPoint[i].LY <= bY[i + 1]) || (colPoint[i].LY <= bY[i] && colPoint[i].LY >= bY[i + 1]))) {
-      //交点の物体の辺の端点を配列に登録する
-      colPoint[i].TX = bX[i];
-      colPoint[i].TY = bY[i];
-      colPoint[i].PX = bX[i + 1];
-      colPoint[i].PY = bY[i + 1];
-
-      // それぞれの点の物体との距離の2乗を算出する ※大きさを比較するだけなので、2乗のままでおｋ
-      colPoint[i].distance = Math.pow((colPoint[i].LX - AX), 2) + Math.pow((colPoint[i].LY - AY), 2);
-      //衝突点を配列に纏める
-      colPointAll.push(colPoint[i]);
-    }
-  }
-}
 
 
 
-function iniColPoint(blockSize) {//checkColpointで設定したcolPointを初期化
-  colPoint = [];
-  for (let i = 0; i < blockSize.length - 1; i++) {
-    colPoint[i] = {
-      LX: "", LY: "", distance: "",
-    };
-  }
-}
 
 
-function colMove(cPA, jX, jY) {//ブロックと衝突時の動きの式
-  // //座標MX,MYから垂直の点の座標
-  // VX=((MX*(cPA.TX-cPA.PX)**2+cPA.TX*(cPA.TY-cPA.PY)**2+(MY-cPA.TY)*(cPA.TY-cPA.PY)*(cPA.TX-cPA.PX))/((cPA.TX-cPA.PX)**2+(cPA.PY-cPA.TY)**2));
-
-  // VY=(((cPA.TX-MX)*(cPA.PX-cPA.TX)*(cPA.TY-cPA.PY)+(cPA.TY-MY)*(cPA.TX-cPA.PX)**2)/((cPA.TX-cPA.PX)**2+(cPA.PY-cPA.TY)**2)+MY);
-
-
-  // //接する辺の式
-  // lineY=(cPA.TY-cPA.PY)*MX/(cPA.TX-cPA.PX)+(cPA.TX*cPA.PY-cPA.PX*cPA.TY)/(cPA.TX-cPA.PX);
-  // //lineYの傾き
-  // lineYa=(cPA.TY-cPA.PY)/(cPA.TX-cPA.PX);
-
-
-  //辺の右側に垂直な式を得る
-  rightY = (MX * (cPA.PX - cPA.TX) + (Math.pow(cPA.TX, 2) + Math.pow(cPA.TY, 2) - cPA.PX * cPA.TX - cPA.TY * cPA.PY)) / (cPA.TY - cPA.PY);
-  //辺の左側に垂直な式を得る
-  leftY = (MX * (cPA.PX - cPA.TX) - (Math.pow(cPA.PX, 2) + Math.pow(cPA.PY, 2) - cPA.TX * cPA.PX - cPA.TY * cPA.PY)) / (cPA.TY - cPA.PY);
-
-
-
-  if ((leftY > MY && MY > rightY) || (leftY < MY && MY < rightY)) {
-    //途中で止まる時//パターン２
-    console.log("col2-1");
-    //交点まで1/3ずつ移動する
-    moveX = cPA.LX;
-    moveY = cPA.LY;
-    socket.json.emit("clickMap", {
-      DIR: DIR,
-      socketID: socketID,
-      moveX: moveX,
-      moveY: moveY,
-    });
-
-
-    //垂直点まで1/3ずつ移動する
-    moveX = ((MX * Math.pow((cPA.TX - cPA.PX), 2) + cPA.TX * Math.pow((cPA.TY - cPA.PY), 2)
-      + (MY - cPA.TY) * (cPA.TY - cPA.PY) * (cPA.TX - cPA.PX))
-      / (Math.pow((cPA.TX - cPA.PX), 2)
-        + Math.pow((cPA.PY - cPA.TY), 2)));
-    moveY = (((cPA.TX - MX) * (cPA.PX - cPA.TX) * (cPA.TY - cPA.PY)
-      + (cPA.TY - MY) * Math.pow((cPA.TX - cPA.PX), 2))
-      / (Math.pow((cPA.TX - cPA.PX), 2) + Math.pow((cPA.PY - cPA.TY), 2))
-      + MY);
-
-
-    AX = (MX * Math.pow((cPA.TX - cPA.PX), 2) + cPA.TX * Math.pow((cPA.TY - cPA.PY), 2)
-      + (MY - cPA.TY) * (cPA.TY - cPA.PY) * (cPA.TX - cPA.PX))
-      / (Math.pow((cPA.TX - cPA.PX), 2)
-        + Math.pow((cPA.PY - cPA.TY), 2)) + jX;
-    AY = ((cPA.TX - MX) * (cPA.PX - cPA.TX) * (cPA.TY - cPA.PY)
-      + (cPA.TY - MY) * Math.pow((cPA.TX - cPA.PX), 2))
-      / (Math.pow((cPA.TX - cPA.PX), 2) + Math.pow((cPA.PY - cPA.TY), 2))
-      + MY + jY;
-
-  } else if ((rightY > MY && cPA.PY > cPA.TY) || (rightY < MY && cPA.TY > cPA.PY)) {
-    //辺の右側に移動するとき//パターン３
-    console.log("col2-2");
-    //交点まで移動する
-    moveX = cPA.LX;
-    moveY = cPA.LY;
-    socket.json.emit("clickMap", {
-      DIR: DIR,
-      socketID: socketID,
-      moveX: moveX,
-      moveY: moveY,
-    });
-    //辺の右端に移動する
-    moveX = cPA.TX;
-    moveY = cPA.TY;
-    socket.json.emit("clickMap", {
-      DIR: DIR,
-      socketID: socketID,
-      moveX: moveX,
-      moveY: moveY,
-    });
-    AX = cPA.TX + jX;
-    AY = cPA.TY + jY;
-  } else if ((MY > leftY && cPA.PY > cPA.TY) || (leftY > MY && cPA.TY > cPA.PY)) {
-    //辺の左側に移動するとき//パターン４
-    console.log("col2-3");
-    //交点まで移動する
-    moveX = cPA.LX;
-    moveY = cPA.LY;
-
-    socket.json.emit("clickMap", {
-      DIR: DIR,
-      socketID: socketID,
-      moveX: moveX,
-      moveY: moveY,
-    });
-
-    //辺の左端に移動する
-    moveX = cPA.PX;
-    moveY = cPA.PY;
-    socket.json.emit("clickMap", {
-      DIR: DIR,
-      socketID: socketID,
-      moveX: moveX,
-      moveY: moveY,
-    });
-    AX = cPA.PX + jX;
-    AY = cPA.PY + jY;
-  }
-}
-
-
-
-// function entranceBlock() {
-//   iniColPoint(block1X);//block1XのcolPointを初期化
-//   checkColPoint(block1X, block1Y);//block1のcollision pointを調べる
-//   iniColPoint(block2X);//block2XのcolPointを初期化
-//   checkColPoint(block2X, block2Y);//block2のcollision pointを調べる
-// }
 
 
 //ログアウトした時の処理
