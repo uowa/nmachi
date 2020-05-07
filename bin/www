@@ -73,13 +73,17 @@ function tripCreate(isTrip) {
   cipher.update(tripkey, 'utf-8', 'base64');
   let cipheredText = cipher.final('base64');
   let trip = cipheredText.substr(-10);
+  trip = trip.replace(/=/g, "");//なんかよくわからんけど、高確率で後ろに==が付くので消す
   trip = "◆" + trip;
   return trip;
 }
 
 
 
+
 io.on('connection', function (socket) {
+    //フォント切り替え
+    
 
   function saikiMsg() {
     io.to(socket.id).json.emit("emit_msg_from_server", {
@@ -108,7 +112,7 @@ io.on('connection', function (socket) {
   socket.on("join_room", function (data) {//部屋に入室した時
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       //トリップを作る
-      data.userName = data.userName.replace(/◆/g, '■');
+      data.userName = data.userName.replace(/◆/g, '□');
       if (data.userName.match(/#/)) {
         let index = data.userName.indexOf("#");
         let tripStr = data.userName.slice(index + 1);
@@ -131,11 +135,11 @@ io.on('connection', function (socket) {
       socket.join(room);
       let time;
       if (room == "entrance") {
-        time=" -- "+new Date().getHours().toLocaleString() + ":"+new Date().getMinutes().toLocaleString()+"--";
+        time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
         io.to(socket.id).json.emit("join_me_from_server", {
           user: user,
           roomUser: entranceUser,
-          msg:user[data.socketID].userName + "が" + room + "に入室しました。"+time,
+          msg: user[data.socketID].userName + "が" + room + "に入室しました。" + time,
         });
 
         socket.broadcast.to(room).emit("join_room_from_server", {
@@ -150,11 +154,13 @@ io.on('connection', function (socket) {
     }
   });
 
+
+
   //メッセージを送信
   socket.on("emit_msg", function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       io.to(room).emit("emit_msg_from_server", {
-        msg: "[（　´∀｀）" + user[data.socketID].userName +"]:" + data.msg,
+        msg: "[（　´∀｀）" + user[data.socketID].userName + "]:" + data.msg,
         socketID: data.socketID,
         avaMsg: data.msg,
         abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
@@ -197,12 +203,12 @@ io.on('connection', function (socket) {
       user[data.socketID].DIR = data.DIR;
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;
-      
+
       socket.broadcast.to(room).emit("clickMap_from_server", {
         DIR: data.DIR,
         socketID: data.socketID,
         AX: data.AX,
-        AY:data.AY,
+        AY: data.AY,
       });
     } else {
       saikiMsg();//再起動メッセージを送る
@@ -217,11 +223,11 @@ io.on('connection', function (socket) {
       roomUserFunk(entranceUser);
     }
     function roomUserFunk(value) {
-      time=" -- "+new Date().getHours().toLocaleString() + ":"+new Date().getMinutes().toLocaleString()+"--";
+      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
       io.to(room).emit("logout_from_server", {
         socketID: socket.id,
-        msg: user[socket.id].userName + "が退出しました。"+time,
-        room:room,
+        msg: user[socket.id].userName + "が退出しました。" + time,
+        room: room,
         roomUser: value,
       });
     }

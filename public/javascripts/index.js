@@ -21,6 +21,7 @@ let gomaNekoSleep = [];
 let avaAbon = [];
 
 let avaC = {};
+let hukidashi;
 let nameTag = [];
 let msg = [];
 let checkName, checkMsg;
@@ -51,22 +52,76 @@ let flag = false;
 let setAbon = [];
 
 
-// let TEST=0;
-// test();
-// test2();
-// function test2() {
-//   console.log("TEST" + TEST);
-// }
-//         function test() {
-//           TEST = 1;
-//         }
-
-
-
 
 //日付
 let day = new Date().toLocaleString();
-document.getElementById('box').innerHTML = day;
+document.getElementById('day').innerHTML = day;
+
+//フォントを切り替える
+let fontName;
+let obj;
+let index;
+let fontSize;
+document.getElementById("titleFont").options[5].selected  = true;
+document.getElementById("chatFont").options[2].selected  = true;
+document.getElementById("sonotaFont").options[2].selected  = true;
+function fontChenge(value) {
+  switch (value) {
+    case "chatLog":
+      obj = document.fontForm.chatFont;
+      break;
+    case "title":
+      obj = document.fontForm.titleFont;
+      break;
+    case "sonota":
+      obj = document.fontForm.sonotaFont;
+      break;
+  }
+  index = obj.selectedIndex;
+  switch (index) {
+    case 0:
+      fontName = "鉄瓶ゴシック";
+      fontSize = 16;
+      break;
+    case 1:
+      fontName = "JKゴシックM";
+      fontSize = 17;
+      break;
+    case 2:
+      fontName = "kosugiMaru";
+      fontSize = 17;
+      break;
+    case 3:
+      fontName = "チカラヅヨク";
+      fontSize = 18;
+      break;
+    case 4:
+      fontName = "チカラヨワク";
+      fontSize = 18;
+      break;
+    case 5:
+      fontName = "ピグモ00";
+      fontSize = 18;
+      break;
+  }
+  switch (value) {
+    case "chatLog":
+      document.getElementById("chatLog").style.fontFamily = fontName,"游ゴシック", "Yu Gothic","MS ゴシック",'メイリオ','Meiryo',"monospace";
+      document.getElementById("chatLog").style.fontSize = fontSize + "px";
+      document.getElementById("chatFont").style.fontFamily = fontName;
+      break;
+      case "title":
+        document.getElementById("title").style.fontFamily = fontName;
+        document.getElementById("title").style.fontSize = fontSize +37+ "px";
+        document.getElementById("titleFont").style.fontFamily = fontName;
+        break;
+        case "sonota":
+          document.querySelector("body").style.fontFamily = fontName;
+          document.getElementById("sonotaFont").style.fontFamily = fontName;
+      break;
+  }
+};
+
 
 //webGL(Canvasの設定)
 let app = new PIXI.Application({
@@ -123,6 +178,7 @@ let app = new PIXI.Application({
 let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
   fontSize: 20,
   fill: "blue",
+  trim: true,
 });
 
 
@@ -273,6 +329,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   //背景の画像を追加
   loginBack = new PIXI.Sprite(PIXI.Loader.shared.resources["loginBack"].texture);
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
+  entrance.name = "entrance";
   ground = new PIXI.Sprite(PIXI.Loader.shared.resources["ground"].texture);
   croud = new PIXI.Sprite(PIXI.Loader.shared.resources["croud"].texture);
   bonfire = new PIXI.Sprite(PIXI.Loader.shared.resources["bonfire"].texture);
@@ -371,6 +428,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
 }
+
+
 
 
 // croudBlock1配置
@@ -694,12 +753,12 @@ function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,C
 //移動時のソケット受け取り
 socket.on("clickMap_from_server", function (data) {
   if (setAbon[data.socketID] == false) {
-    clickedMove(data.DIR,data.AX,data.AY,data.socketID);
+    clickedMove(data.DIR, data.AX, data.AY, data.socketID);
   }
 });
 
 //数値を取得後のアバターの動き
-function clickedMove(DIR,AX,AY,socketID) {
+function clickedMove(DIR, AX, AY, socketID) {
   if (DIR == "NE") {//子要素の画像を入れる
     anime(avaNE, avaNE1, avaNE2, socketID);
   } else if (DIR == "SE") {
@@ -719,7 +778,7 @@ function clickedMove(DIR,AX,AY,socketID) {
   }
   moving.to(avaP[socketID], { duration: 0.4, x: AX, y: AY });
   avaP[socketID].zIndex = AY;//上に進むか下に進むかで処理位置決めたらいいんかな？　後で考える
-  
+
 }
 
 //ログイン時の処理
@@ -1075,9 +1134,13 @@ socket.on("join_me_from_server", function (data) {
         avaC[value] = avaW[value];
         avaP[value].addChild(avaC[value]);
       }
-      // //名前タグを追加
+
+      //名前を追加
       nameTag[value] = new PIXI.Text(data.user[value].userName, nameTagStyle);
+      // hukidashi[value] = new PIXI.Rectangle(-nameTag[value].width / 2, -nameTag[value].width / 2, nameTag[value].width / 2, nameTag[value].width / 2);
+      // hukidashi[value].position.set(nameTagX, nameTagY);
       nameTag[value].position.set(nameTagX, nameTagY);
+      // avaP[value].addChild(hukidashi[value]);
       avaP[value].addChild(nameTag[value]);
       // アバターのメッセージを追加する
       msg[value] = new PIXI.Text("");
@@ -1196,21 +1259,20 @@ socket.on("logout_from_server", function (data) {
   //部屋人数の表記を変える
   document.getElementById('users').textContent = "users:" + data.roomUser;
   //アバターを消す
-  // let DATAROOM = data.room;
-  // // console.log("logout:" + entrance);
-  // console.log("logout:" + data.room);
-  // console.log("logout2:" + typeof data.room);
-  // // new String(DATAROOM)
-  // // console.log("logout2:" + typeof DATAROOM);
-  // Number(DATAROOM).removeChild(avaP[data.socketID]);
-  // data.room= new PIXI.Container();
+
+
+  app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
 
 
   // data.room.removeChild(avaP[data.socketID]);
-  entrance.removeChild(avaP[data.socketID]);
+  // entrance.removeChild(avaP[data.socketID]);
 
 
 });
+
+
+
+
 
 //背景色を変える
 let uiColor = true;
@@ -1255,6 +1317,8 @@ document.getElementById('title').addEventListener("click", function () {
     }
   }
 });
+
+console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
 
 
 

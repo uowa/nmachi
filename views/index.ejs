@@ -5,7 +5,7 @@
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title><%= title %></title>
-  <meta name="keywords" content="プロジェクト街,Project街,プロ街,p街,pro街,チャット,うぉわ">
+  <meta name="keywords" content="プロジェクト街,Project街,プロ街,p街,pro街,チャット,牛丼、うぉわ">
   <meta name="description" content="チャットサイトproject街の後継？テストサバです。">
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
@@ -23,15 +23,17 @@
 
     PIXI.utils.sayHello(type)
   </script>
-<div id="contextmenu">
+  <div id="contextmenu">
 
-</div>
+  </div>
 
 
   <div role="main">
     <div id="top">
       <!--日付-->
-      <div id="box"></div>
+      <div id="dayBox">
+        <span id="day"></span>
+      </div>
       <div id="title"><%= title %></div>
     </div>
     <!--プロ街の画面比率は11:8-->
@@ -40,20 +42,67 @@
         <button id="login" onclick="login()">LOGIN</button>
       </div>
       <form name="nameForm" onsubmit="checkName(); return false;" class="userForm" id="nameForm">
-        <span>お名前＃トリップキー</span><input type="text" name="userName" id="userName" maxlength='18' placeholder="名前を入れてね">
+        <span>お名前＃トリップキー</span><input type="text" name="userName" id="userName" maxlength='18'
+          placeholder="名前を入れてね　※必須だょ">
         <input type="submit" value="login">
       </form>
       <form name="msgForm" onsubmit="checkMsg(); return false;" class="userForm" id="msgForm">
         <input type="text" name="msg" id="msg" maxlength='250'
-          placeholder="                                                                                                                      メッセージはこちらへ" autocomplete="off">
+          placeholder="                                                                                                                      メッセージはこちらへ"
+          autocomplete="off">
         <input type="submit" value="SEND">
         <p id="users">0</p>
       </form>
-      <p>※名前入れないと入れません。</p>
-      <p>入力後enterでログインできるようにしたよ！！！</p>
+
+
+      <form name="fontForm">
+      <p>フォント総選挙</p>
+      <span>　チャット欄</span>
+        <span class="selectForm">
+          <select class = "kosugiMaru" id="chatFont"  name="chatFont" onchange="fontChenge('chatLog')">
+            <option  class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+            <option  class="JKゴシックM">JKゴシックM</option>
+            <option  class = kosugiMaru>kosugiMaru</option>
+            <option  class="チカラヅヨク">チカラヅヨク</option>
+            <option  class="チカラヨワク">チカラヨワク</option>
+            <option  class="ピグモ00">ピグモ00</option>
+          </select>
+        </span>
+      <span>　たいとる</span>
+        <span class="selectForm">
+          <select class = "ピグモ00" id="titleFont" name="titleFont" onchange="fontChenge('title')">
+            <option  class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+            <option  class="JKゴシックM">JKゴシックM</option>
+            <option  class = kosugiMaru>kosugiMaru</option>
+            <option  class="チカラヅヨク">チカラヅヨク</option>
+            <option  class="チカラヨワク">チカラヨワク</option>
+            <option  class="ピグモ00">ピグモ00</option>
+          </select>
+        </span>
+      <span>　その他</span>
+        <span class="selectForm">
+          <select class = "kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChenge('sonota')">
+            <option  class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+            <option  class="JKゴシックM">JKゴシックM</option>
+            <option  class = kosugiMaru>kosugiMaru</option>
+            <option  class="チカラヅヨク">チカラヅヨク</option>
+            <option  class="チカラヨワク">チカラヨワク</option>
+            <option  class="ピグモ00">ピグモ00</option>
+          </select>
+        </span>
+      </form>
     </div>
     <span id="chatLog">
       <ul id="logs">
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
+        <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
         <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
         <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
         <li>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　</li>
@@ -105,15 +154,19 @@
   <!-- <a href="/views/kousinrireki.html" target="_blank">TEST</a> -->
   <div id="kousinrireki">
     <p>更新履歴</p>
+    <p>2020/05/08 フォント選定開始、そのうち統一する、重くなるので選択式にはしない</p>
     <p>2020/05/05 エントランスの画像差し替え</p>
-    <p>低脂肪はコンフレとコヒ牛乳。飲むだけなら普通の牛乳。ホットケーキミックスクスにはバナナ豆乳。何食べは調整豆乳を飲む</p>
+    <p>若干軽くなった</p>
+    <p>低脂肪はコンフレとコヒ牛乳。飲むだけなら普通の牛乳。ホットケーキミックスクスにはバナナ豆乳。何食べは調整豆乳を飲む。
+      ごまちゃｎは料理とかコーヒーに混ぜるときは無調整、そのまま飲むときは低脂肪
+    </p>
     <p>2020/05/04 入退場時に時間が表示されるようにした</p>
     <p>2020/05/01 無入力で吹き出し消せるようにした</p>
     <p>アボン画像差し替え</p>
-      <span>　　　</span>
-      <img src="img/abonBefore.png" alt="旧アボン" align="middle">
-      <div class="inlineBlock" >　→　</div>
-      <img src="img/abon.png" alt="新アボン" align="middle">
+    <span>　　　</span>
+    <img src="img/abonBefore.png" alt="旧アボン" align="middle">
+    <div class="inlineBlock">　→　</div>
+    <img src="img/abon.png" alt="新アボン" align="middle">
     <p>2020/04/30/アボンで藁人形になるようにした、アボンすると動きもわからなくなるようにした　提供：ごまちゃんが</p>
     <p>アバターの位置によってちゃんと手前や後ろになるようにした</p>
     <p>名前入力時にエンターでログインできるようにした</p>
