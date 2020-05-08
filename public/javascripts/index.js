@@ -651,8 +651,6 @@ function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき�
       avaP[value].removeChild(avaC[value]);
       avaC[value] = ava1[value];
       avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
     }
   });
   gsap.to(avaP[value], 0, {
@@ -661,8 +659,6 @@ function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき�
       avaP[value].removeChild(avaC[value]);
       avaC[value] = ava2[value];
       avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
     }
   });
   gsap.to(avaP[value], 0, {
@@ -671,8 +667,6 @@ function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき�
       avaP[value].removeChild(avaC[value]);
       avaC[value] = ava1[value];
       avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
     }
   });
   gsap.to(avaP[value], 0, {
@@ -681,8 +675,6 @@ function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき�
       avaP[value].removeChild(avaC[value]);
       avaC[value] = ava[value];
       avaP[value].addChild(avaC[value]);
-      avaP[value].addChild(nameTag[value]);
-      avaP[value].addChild(msg[value]);
     }
   });
 }
@@ -1005,15 +997,19 @@ socket.on("mySocketID_from_server", function (data) {
     avaSE2[value].anchor.set(0.5, 1);
     avaAbon[value].anchor.set(0.5, 1);
   });
-
-  nameTag[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTagStyle);
-  nameTag[socketID].position.set(nameTagX, nameTagY);//名前の位置
   //アバターの親コンテナを設定
   avaP[socketID] = new PIXI.Container();
+  avaP[socketID].sortableChildren = true;//子要素のzIndexをonにする
   avaP[socketID].position.set(320, 200);
-  //名前と画像を追加
+
+  //画像を追加
   avaC[socketID] = avaS[socketID];
   avaP[socketID].addChild(avaC[socketID]);
+
+  //名前タグを生成//後で吹き出しやらアンカーどうにかする
+  nameTag[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTagStyle);
+  nameTag[socketID].position.set(nameTagX, nameTagY);//名前の位置
+  nameTag[socketID].zIndex = 1;
   avaP[socketID].addChild(nameTag[socketID]);
   //ステージに追加
   loginBack.addChild(avaP[socketID]);
@@ -1032,7 +1028,57 @@ socket.on("join_me_from_server", function (data) {
     if (data.user[value].room == "entrance") {
       // アバターの親コンテナを作成
       avaP[value] = new PIXI.Container();
+      avaP[value].zIndex = data.user[value].AY;
+      avaP[value].sortableChildren = true;//子要素のzIndexをonにする
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
+      entrance.addChild(avaP[value]);
+
+            // 画像とメッセージと名前を追加してステージに上げる
+            if (data.user[value].DIR == "NE") {
+              avaC[value] = avaNE[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "SE") {
+              avaC[value] = avaSE[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "SW") {
+              avaC[value] = avaSW[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "NW") {
+              avaC[value] = avaNW[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "N") {
+              avaC[value] = avaN[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "E") {
+              avaC[value] = avaE[value];
+              avaP[value].addChild(avaC[value]);
+            } else if (data.user[value].DIR == "S") {
+              avaC[value] = avaS[value];
+              avaP[value].addChild(avaC[value]);
+            } else {
+              avaC[value] = avaW[value];
+              avaP[value].addChild(avaC[value]);
+            }
+      
+            // hukidashi[value] = new PIXI.Rectangle(1, 1, 10, 10);
+            // hukidashi[value] = new PIXI.Rectangle(-nameTag[value].width / 2, -nameTag[value].width / 2, nameTag[value].width / 2, nameTag[value].width / 2);
+            // hukidashi[value].position.set(nameTagX, nameTagY);
+            // avaP[value].addChild(hukidashi[value]);
+            //名前を追加
+            nameTag[value] = new PIXI.Text(data.user[value].userName, nameTagStyle);
+            nameTag[value].zIndex = 10;
+            nameTag[value].anchor.set(0.5);
+            nameTag[value].position.set(0,-avaC[value].height-15);
+            avaP[value].addChild(nameTag[value]);
+            // アバターのメッセージを追加する
+            msg[value] = new PIXI.Text("");
+            msg[value].zIndex = 20;
+            msg[value].position.set(0,-avaC[value].height-5);
+            msg[value].style.fill = "white";
+            msg[value].style.fontSize = 18;
+            avaP[value].addChild(msg[value]);
+      
+       
 
       //アバタークリックでアボン
       avaP[value].interactive = true;//クリックイベントを有効化
@@ -1054,7 +1100,7 @@ socket.on("join_me_from_server", function (data) {
         }
       });
 
-      //これだとうまくいかんなあ
+      //画像をクリックしたときだけにアボンする処理を書こうとしたんやけど、これだとうまくいかんなあ
       //     function clickAvaC() {
       //       if (value != socketID) {//自アバターは省く 
       //         if (setAbon[value]) {
@@ -1108,49 +1154,7 @@ socket.on("join_me_from_server", function (data) {
 
 
 
-      // 画像とメッセージと名前を追加してステージに上げる
-      if (data.user[value].DIR == "NE") {
-        avaC[value] = avaNE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "SE") {
-        avaC[value] = avaSE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "SW") {
-        avaC[value] = avaSW[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "NW") {
-        avaC[value] = avaNW[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "N") {
-        avaC[value] = avaN[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "E") {
-        avaC[value] = avaE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "S") {
-        avaC[value] = avaS[value];
-        avaP[value].addChild(avaC[value]);
-      } else {
-        avaC[value] = avaW[value];
-        avaP[value].addChild(avaC[value]);
-      }
 
-      //名前を追加
-      nameTag[value] = new PIXI.Text(data.user[value].userName, nameTagStyle);
-      // hukidashi[value] = new PIXI.Rectangle(-nameTag[value].width / 2, -nameTag[value].width / 2, nameTag[value].width / 2, nameTag[value].width / 2);
-      // hukidashi[value].position.set(nameTagX, nameTagY);
-      nameTag[value].position.set(nameTagX, nameTagY);
-      // avaP[value].addChild(hukidashi[value]);
-      avaP[value].addChild(nameTag[value]);
-      // アバターのメッセージを追加する
-      msg[value] = new PIXI.Text("");
-      msg[value].position.set(-30, -95);
-      msg[value].style.fill = "white";
-      msg[value].style.fontSize = 18;
-      avaP[value].addChild(msg[value]);
-
-      avaP[value].zIndex = data.user[value].AY;
-      entrance.addChild(avaP[value]);
     }
   });
 
@@ -1171,7 +1175,30 @@ socket.on("join_me_from_server", function (data) {
 socket.on("join_room_from_server", function (data) {
   // アバターの親コンテナを作成
   avaP[data.socketID] = new PIXI.Container();
+  avaP[data.socketID].sortableChildren = true;//子要素のzIndexをonにする
+  avaP[data.socketID].zIndex = 200;
   avaP[data.socketID].position.set(457, 80);
+  entrance.addChild(avaP[data.socketID]);
+  
+  
+  //画像をあげる
+  avaC[data.socketID] = avaS[data.socketID];
+  avaP[data.socketID].addChild(avaC[data.socketID]);
+  //名前タグを追加
+  nameTag[data.socketID] = new PIXI.Text(data.userName, nameTagStyle);
+  nameTag[data.socketID].zIndex=10;
+  nameTag[data.socketID].anchor.set(0.5);
+  nameTag[data.socketID].position.set(0, -avaC[data.socketID].height-15);
+  avaP[data.socketID].addChild(nameTag[data.socketID]);
+  
+  // アバターのメッセージを追加する
+  msg[data.socketID] = new PIXI.Text("");
+  msg[data.socketID].zIndex = 20;
+  msg[data.socketID].position.set(0,-avaC[data.socketID].height-5);
+  msg[data.socketID].style.fill = "white";
+  msg[data.socketID].style.fontSize = 18;
+  avaP[data.socketID].addChild(msg[data.socketID]);
+  
 
   // アバタークリックでアボン
   avaP[data.socketID].interactive = true;//クリックイベントを有効化
@@ -1191,24 +1218,6 @@ socket.on("join_room_from_server", function (data) {
     });
   });
 
-  // //名前タグを追加
-  nameTag[data.socketID] = new PIXI.Text(data.userName, nameTagStyle);
-  nameTag[data.socketID].position.set(nameTagX, nameTagY);
-
-  // アバターのメッセージを追加する
-  msg[data.socketID] = new PIXI.Text("");
-  msg[data.socketID].position.set(-30, -60);
-  msg[data.socketID].style.fill = "white";
-  msg[data.socketID].style.fontSize = 18;
-  // 画像とメッセージと名前を追加してステージに上げる
-  avaP[data.socketID].zIndex = 200;
-  entrance.addChild(avaP[data.socketID]);
-  avaC[data.socketID] = avaS[data.socketID];
-  avaP[data.socketID].addChild(avaC[data.socketID]);
-  avaP[data.socketID].addChild(nameTag[data.socketID]);
-  avaP[data.socketID].addChild(msg[data.socketID]);
-
-
   //入室時のメッセージを出す
   const li = document.createElement("li");
   li.textContent = data.msg;
@@ -1217,9 +1226,6 @@ socket.on("join_room_from_server", function (data) {
   //部屋人数の表記を変える
   document.getElementById('users').textContent = "users:" + data.roomUser;
 });
-
-
-
 
 
 

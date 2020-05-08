@@ -146,7 +146,7 @@ io.on('connection', function (socket) {
           socketID: data.socketID,
           userName: data.userName,
           roomUser: entranceUser,
-          msg: user[data.socketID].userName + "が" + room + "に入室しました。",
+          msg: user[data.socketID].userName + "が" + room + "に入室しました。"+time,
         });
       }
     } else {
