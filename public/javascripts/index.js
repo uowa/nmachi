@@ -124,13 +124,13 @@ function fontChenge(value) {
       document.querySelector("body").style.fontFamily = fontName;
       document.getElementById("sonotaFont").style.fontFamily = fontName;
       break;
-    case "nameText":    
-    nameText[socketID].style = {
-      fontFamily: fontName,
-      fontSize: 18,
-      fill: "white",
-      trim: true,
-    }
+    case "nameText":
+      nameText[socketID].style = {
+        fontFamily: fontName,
+        fontSize: 18,
+        fill: "white",
+        trim: true,
+      }
       break;
   }
 };
@@ -1081,14 +1081,14 @@ socket.on("join_me_from_server", function (data) {
       nameText[value].anchor.set(0.5);
       nameText[value].position.set(0, -avaC[value].height - 15);
       avaP[value].addChild(nameText[value]);
-      
+
       nameTag[value] = new PIXI.Graphics();
       nameTag[value].lineStyle(1, 0x000000, 0.5);
       nameTag[value].beginFill(0x000000);
       nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
       nameTag[value].endFill();
-      nameTag[value].x = -nameText[value].width/2;
-      nameTag[value].y = -avaC[value].height - 15-nameText[value].height/2;
+      nameTag[value].x = -nameText[value].width / 2;
+      nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
       nameTag[value].alpha = 0.3;
 
       avaP[value].addChild(nameTag[value]);
@@ -1206,12 +1206,22 @@ socket.on("join_room_from_server", function (data) {
   //画像をあげる
   avaC[data.socketID] = avaS[data.socketID];
   avaP[data.socketID].addChild(avaC[data.socketID]);
-  //名前タグを追加
+
+  //名前を追加
   nameText[data.socketID] = new PIXI.Text(data.userName, nameTextStyle);
   nameText[data.socketID].zIndex = 10;
   nameText[data.socketID].anchor.set(0.5);
   nameText[data.socketID].position.set(0, -avaC[data.socketID].height - 15);
   avaP[data.socketID].addChild(nameText[data.socketID]);
+
+  nameTag[data.socketID] = new PIXI.Graphics();
+  nameTag[data.socketID].lineStyle(1, 0x000000, 0.5);
+  nameTag[data.socketID].beginFill(0x000000);
+  nameTag[data.socketID].drawRect(0, 0, nameText[data.socketID].width, nameText[data.socketID].height);
+  nameTag[data.socketID].endFill();
+  nameTag[data.socketID].x = -nameText[data.socketID].width / 2;
+  nameTag[data.socketID].y = -avaC[data.socketID].height - 15 - nameText[data.socketID].height / 2;
+  nameTag[data.socketID].alpha = 0.3;
 
   // アバターのメッセージを追加する
   msg[data.socketID] = new PIXI.Text("");
