@@ -6,6 +6,9 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 
+var kousinrireki = require("./routes/kousinrireki");//更新履歴へのルーティング
+var QandA = require("./routes/Q-A");//Q-Aへのルーティング
+
 var session = require("express-session");
 
 var app = express();
@@ -20,7 +23,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+app.use("/kousinrireki", kousinrireki);
+app.use("/Q-A", QandA);
 
 
 var session_opt={

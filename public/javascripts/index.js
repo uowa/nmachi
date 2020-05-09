@@ -21,8 +21,9 @@ let gomaNekoSleep = [];
 let avaAbon = [];
 
 let avaC = {};
-let hukidashi;
+let nameText = [];
 let nameTag = [];
+let hukidashi = [];
 let msg = [];
 let checkName, checkMsg;
 
@@ -34,8 +35,8 @@ let wallCount = 0;
 
 
 let AtextX, AtextY, MtextX, MtextY;
-let nameTagX = -30;
-let nameTagY = -105;
+let nameTextX = -30;
+let nameTextY = -105;
 let inRoom = 0;
 
 let room;
@@ -62,9 +63,10 @@ let fontName;
 let obj;
 let index;
 let fontSize;
-document.getElementById("titleFont").options[5].selected  = true;
-document.getElementById("chatFont").options[2].selected  = true;
-document.getElementById("sonotaFont").options[2].selected  = true;
+document.getElementById("nameTextFont").options[5].selected = true;
+document.getElementById("chatFont").options[2].selected = true;
+document.getElementById("titleFont").options[5].selected = true;
+document.getElementById("sonotaFont").options[2].selected = true;
 function fontChenge(value) {
   switch (value) {
     case "chatLog":
@@ -75,6 +77,9 @@ function fontChenge(value) {
       break;
     case "sonota":
       obj = document.fontForm.sonotaFont;
+      break;
+    case "nameText":
+      obj = document.fontForm.nameTextFont;
       break;
   }
   index = obj.selectedIndex;
@@ -106,18 +111,26 @@ function fontChenge(value) {
   }
   switch (value) {
     case "chatLog":
-      document.getElementById("chatLog").style.fontFamily = fontName,"游ゴシック", "Yu Gothic","MS ゴシック",'メイリオ','Meiryo',"monospace";
+      document.getElementById("chatLog").style.fontFamily = fontName, "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
       document.getElementById("chatLog").style.fontSize = fontSize + "px";
       document.getElementById("chatFont").style.fontFamily = fontName;
       break;
-      case "title":
-        document.getElementById("title").style.fontFamily = fontName;
-        document.getElementById("title").style.fontSize = fontSize +37+ "px";
-        document.getElementById("titleFont").style.fontFamily = fontName;
-        break;
-        case "sonota":
-          document.querySelector("body").style.fontFamily = fontName;
-          document.getElementById("sonotaFont").style.fontFamily = fontName;
+    case "title":
+      document.getElementById("title").style.fontFamily = fontName;
+      document.getElementById("title").style.fontSize = fontSize + 37 + "px";
+      document.getElementById("titleFont").style.fontFamily = fontName;
+      break;
+    case "sonota":
+      document.querySelector("body").style.fontFamily = fontName;
+      document.getElementById("sonotaFont").style.fontFamily = fontName;
+      break;
+    case "nameText":    
+    nameText[socketID].style = {
+      fontFamily: fontName,
+      fontSize: 18,
+      fill: "white",
+      trim: true,
+    }
       break;
   }
 };
@@ -175,9 +188,11 @@ let app = new PIXI.Application({
 // const block2Y = [0, 1, 91, 90, 21, 20, 91, 90, 198, 138, 0];
 
 
-let nameTagStyle = new PIXI.TextStyle({//名前のスタイル
-  fontSize: 20,
-  fill: "blue",
+let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
+  fontFamily: "ピグモ00",
+  // fontFamily: "鉄瓶ゴシック",
+  fontSize: 18,
+  fill: "white",
   trim: true,
 });
 
@@ -394,7 +409,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
   //名前を出力
   checkName = function () {
-    nameTag[socketID].text = (document.nameForm.userName.value);
+    nameText[socketID].text = (document.nameForm.userName.value);
     login();
   }
 
@@ -1007,10 +1022,10 @@ socket.on("mySocketID_from_server", function (data) {
   avaP[socketID].addChild(avaC[socketID]);
 
   //名前タグを生成//後で吹き出しやらアンカーどうにかする
-  nameTag[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTagStyle);
-  nameTag[socketID].position.set(nameTagX, nameTagY);//名前の位置
-  nameTag[socketID].zIndex = 1;
-  avaP[socketID].addChild(nameTag[socketID]);
+  nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
+  nameText[socketID].position.set(nameTextX, nameTextY);//名前の位置
+  nameText[socketID].zIndex = 1;
+  avaP[socketID].addChild(nameText[socketID]);
   //ステージに追加
   loginBack.addChild(avaP[socketID]);
 });
@@ -1033,52 +1048,59 @@ socket.on("join_me_from_server", function (data) {
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
       entrance.addChild(avaP[value]);
 
-            // 画像とメッセージと名前を追加してステージに上げる
-            if (data.user[value].DIR == "NE") {
-              avaC[value] = avaNE[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "SE") {
-              avaC[value] = avaSE[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "SW") {
-              avaC[value] = avaSW[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "NW") {
-              avaC[value] = avaNW[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "N") {
-              avaC[value] = avaN[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "E") {
-              avaC[value] = avaE[value];
-              avaP[value].addChild(avaC[value]);
-            } else if (data.user[value].DIR == "S") {
-              avaC[value] = avaS[value];
-              avaP[value].addChild(avaC[value]);
-            } else {
-              avaC[value] = avaW[value];
-              avaP[value].addChild(avaC[value]);
-            }
+      // 画像とメッセージと名前を追加してステージに上げる
+      if (data.user[value].DIR == "NE") {
+        avaC[value] = avaNE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "SE") {
+        avaC[value] = avaSE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "SW") {
+        avaC[value] = avaSW[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "NW") {
+        avaC[value] = avaNW[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "N") {
+        avaC[value] = avaN[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "E") {
+        avaC[value] = avaE[value];
+        avaP[value].addChild(avaC[value]);
+      } else if (data.user[value].DIR == "S") {
+        avaC[value] = avaS[value];
+        avaP[value].addChild(avaC[value]);
+      } else {
+        avaC[value] = avaW[value];
+        avaP[value].addChild(avaC[value]);
+      }
+
+      //名前を追加
+      nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
+      nameText[value].zIndex = 10;
+      nameText[value].anchor.set(0.5);
+      nameText[value].position.set(0, -avaC[value].height - 15);
+      avaP[value].addChild(nameText[value]);
       
-            // hukidashi[value] = new PIXI.Rectangle(1, 1, 10, 10);
-            // hukidashi[value] = new PIXI.Rectangle(-nameTag[value].width / 2, -nameTag[value].width / 2, nameTag[value].width / 2, nameTag[value].width / 2);
-            // hukidashi[value].position.set(nameTagX, nameTagY);
-            // avaP[value].addChild(hukidashi[value]);
-            //名前を追加
-            nameTag[value] = new PIXI.Text(data.user[value].userName, nameTagStyle);
-            nameTag[value].zIndex = 10;
-            nameTag[value].anchor.set(0.5);
-            nameTag[value].position.set(0,-avaC[value].height-15);
-            avaP[value].addChild(nameTag[value]);
-            // アバターのメッセージを追加する
-            msg[value] = new PIXI.Text("");
-            msg[value].zIndex = 20;
-            msg[value].position.set(0,-avaC[value].height-5);
-            msg[value].style.fill = "white";
-            msg[value].style.fontSize = 18;
-            avaP[value].addChild(msg[value]);
-      
-       
+      nameTag[value] = new PIXI.Graphics();
+      nameTag[value].lineStyle(1, 0x000000, 0.5);
+      nameTag[value].beginFill(0x000000);
+      nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
+      nameTag[value].endFill();
+      nameTag[value].x = -nameText[value].width/2;
+      nameTag[value].y = -avaC[value].height - 15-nameText[value].height/2;
+      nameTag[value].alpha = 0.3;
+
+      avaP[value].addChild(nameTag[value]);
+      // アバターのメッセージを追加する
+      msg[value] = new PIXI.Text("");
+      msg[value].zIndex = 20;
+      msg[value].position.set(0, -avaC[value].height - 5);
+      msg[value].style.fill = "white";
+      msg[value].style.fontSize = 18;
+      avaP[value].addChild(msg[value]);
+
+
 
       //アバタークリックでアボン
       avaP[value].interactive = true;//クリックイベントを有効化
@@ -1179,26 +1201,26 @@ socket.on("join_room_from_server", function (data) {
   avaP[data.socketID].zIndex = 200;
   avaP[data.socketID].position.set(457, 80);
   entrance.addChild(avaP[data.socketID]);
-  
-  
+
+
   //画像をあげる
   avaC[data.socketID] = avaS[data.socketID];
   avaP[data.socketID].addChild(avaC[data.socketID]);
   //名前タグを追加
-  nameTag[data.socketID] = new PIXI.Text(data.userName, nameTagStyle);
-  nameTag[data.socketID].zIndex=10;
-  nameTag[data.socketID].anchor.set(0.5);
-  nameTag[data.socketID].position.set(0, -avaC[data.socketID].height-15);
-  avaP[data.socketID].addChild(nameTag[data.socketID]);
-  
+  nameText[data.socketID] = new PIXI.Text(data.userName, nameTextStyle);
+  nameText[data.socketID].zIndex = 10;
+  nameText[data.socketID].anchor.set(0.5);
+  nameText[data.socketID].position.set(0, -avaC[data.socketID].height - 15);
+  avaP[data.socketID].addChild(nameText[data.socketID]);
+
   // アバターのメッセージを追加する
   msg[data.socketID] = new PIXI.Text("");
   msg[data.socketID].zIndex = 20;
-  msg[data.socketID].position.set(0,-avaC[data.socketID].height-5);
+  msg[data.socketID].position.set(0, -avaC[data.socketID].height - 5);
   msg[data.socketID].style.fill = "white";
   msg[data.socketID].style.fontSize = 18;
   avaP[data.socketID].addChild(msg[data.socketID]);
-  
+
 
   // アバタークリックでアボン
   avaP[data.socketID].interactive = true;//クリックイベントを有効化

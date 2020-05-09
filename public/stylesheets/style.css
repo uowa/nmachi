@@ -1,167 +1,261 @@
-
-
-#top{
-  position: relative;
+#top {
+    position: relative;
 }
 
-#box{
-  float: left;
-  position: absolute;
-  bottom:0;
+#dayBox {
+    font-size: 17px;
+    float: left;
+    position: absolute;
+    bottom: 0;
 }
-
 
 #title {
-  text-align: right;
-  font-size: 50px;
-  font-weight: bold;
-  color: #eee;
-  /* border:2px solid blue; */
+    font-family: ピグモ00;
+    text-align: right;
+    font-size: 50px;
+    font-weight: bold;
+    /* border:2px solid blue; */
 }
+
+@font-face {
+    font-family: ピグモ00;
+    src: url("/stylesheets/Pigmo-00.otf") format("opentype");
+}
+
+@font-face {
+    font-family: 鉄瓶ゴシック;
+    src: url("/stylesheets/07鉄瓶ゴシック.otf") format("opentype"), url("/stylesheets/JKG-L_3.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: JKゴシックM;
+    src: url("/stylesheets/JKG-L_3.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: kosugiMaru;
+    src: url("/stylesheets/KosugiMaru-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: チカラヅヨク;
+    src: url("/stylesheets/851CHIKARA-DZUYOKU_kanaA_004.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: チカラヨワク;
+    src: url("/stylesheets/851CHIKARA-YOWAKU_002.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: Q-A;
+    src: url("/stylesheets/Q-A.ttf") format("truetype");
+}
+
+select {
+    font-family: "鉄瓶ゴシック", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    background-color: #ffffffb9;
+}
+
+.鉄瓶ゴシック {
+    font-family: "鉄瓶ゴシック";
+}
+
+.JKゴシックM {
+    font-family: "JKゴシックM";
+}
+
+.kosugiMaru {
+    font-family: "kosugiMaru";
+}
+
+.チカラヅヨク {
+    font-family: "チカラヅヨク";
+}
+
+.チカラヨワク {
+    font-family: "チカラヨワク";
+}
+
+.ピグモ00 {
+    font-family: "ピグモ00";
+}
+
 body {
-  color:#eee;
-  font-size:14px;
-  margin:5px;
-  background-color: #333333;
-}
-p{
-  font-size: 16px;
-  margin:0px 20px;
-}
-a{
-  color:#ebd40e;
-  font-size: 12px;
-  margin:0px 20px;
+    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    color: #eee;
+    font-size: 14px;
+    margin: 5px;
+    background-color: #333333;
 }
 
-
-ul {
-  list-style: none;
-  background-color: #fff;
-  padding: 3px 10px;
-  background-image: url(../img/chatscroll.png);
-}
-li {
-  color: #000000;
+p {
+    margin: 0px 20px;
 }
 
-#gamen{
-  display: inline-block;
-  width:660px;
+a {
+    color: #ebd40e;
 }
 
-#graphic{
-  display: inline-block;
-  position: relative;
-  /* width: 660px;
-  height:480px; */
-  /* background-color: rgb(76, 76, 82); */
-  /* background-size: cover; */
+#gamen {
+    display: inline-block;
+    width: 660px;
 }
 
-#login{
-  position: absolute;
-  font-weight: bold;
-  border-style: none;
-  color          : rgb(76, 76, 82);           /* 文字の色 */
-  font-size      : 25px;               /* 文字のサイズ */
-  letter-spacing : 4px;                /* 文字間 */
-  text-shadow    : 
-       2px  2px 5px #ffff1a,
-      -2px  2px 5px #ffff1a,
-       2px -2px 5px #ffff1a,
-      -2px -2px 5px #ffff1a,
-       2px  0px 5px #ffff1a,
-       0px  2px 5px #ffff1a,
-      -2px  0px 5px #ffff1a,
-       0px -2px 5px #ffff1a;        /* 文字の影 */
-       
-  background-color: rgb(76, 76, 82);transform: translateY(-50%) translateX(-50%); /*要素の大きさの半分ずつを戻す*/
-  -webkit-transform: translateY(-50%) translateX(-50%);
-  top: 50%;
-  left: 50%;
-  transform: translateY(-50%) translateX(-50%);
-  -webkit-transform: translateY(-50%) translateX(-50%);
-  margin: auto;
+#graphic {
+    display: inline-block;
+    position: relative;
+    /* width: 660px;
+        height:480px; */
+    /* background-color: rgb(76, 76, 82); */
+    /* background-size: cover; */
 }
 
-#login:hover{
-  text-shadow    : 
-       2px  2px 5px red,
-      -2px  2px 5px red,
-       2px -2px 5px red,
-      -2px -2px 5px red,
-       2px  0px 5px red,
-       0px  2px 5px red,
-      -2px  0px 5px red,
-       0px -2px 5px red;
+#login {
+    position: absolute;
+    font-weight: bold;
+    border-style: none;
+    color: rgb(76, 76, 82);
+    /* 文字の色 */
+    font-size: 25px;
+    /* 文字のサイズ */
+    letter-spacing: 4px;
+    /* 文字間 */
+    text-shadow: 2px 2px 5px #ffff1a, -2px 2px 5px #ffff1a, 2px -2px 5px #ffff1a, -2px -2px 5px #ffff1a, 2px 0px 5px #ffff1a, 0px 2px 5px #ffff1a, -2px 0px 5px #ffff1a, 0px -2px 5px #ffff1a;
+    /* 文字の影 */
+    background-color: rgb(76, 76, 82);
+    transform: translateY(-50%) translateX(-50%);
+    /*要素の大きさの半分ずつを戻す*/
+    -webkit-transform: translateY(-50%) translateX(-50%);
+    top: 50%;
+    left: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    -webkit-transform: translateY(-50%) translateX(-50%);
+    margin: auto;
 }
 
-.userForm{
-  text-align: right;
-  background-color: #939393;
-}
-#userName{
-  line-height: 20px;
-  /* width:250px; */
-  background-color: #E1E1E1;
-
-}
-#msgForm{
-  display: none;
-  background-color: #939393;
-}
-#msg{
-  line-height: 20px;
-  width: 590px;
-  background-color: #E1E1E1;
+#login:hover {
+    text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
 }
 
-.input{
-  height: 21px;
+.userForm {
+    text-align: right;
+    background-color: #939393;
 }
 
+#userName {
+    line-height: 20px;
+    width: 250px;
+    background-color: #E1E1E1;
+}
+
+#msgForm {
+    display: none;
+    background-color: #939393;
+}
+
+#msg {
+    line-height: 20px;
+    width: 590px;
+    background-color: #E1E1E1;
+}
+
+.input {
+    height: 21px;
+}
 
 #chatLog {
-  display: inline-block;
-  width: 660px;
-  height: 573px;
-  background-color: rgb(76, 76, 82);
-  color:#999;
-  overflow: scroll;
+    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    font-size: 17px;
+    display: inline-block;
+    width: 660px;
+    height: 520px;
+    background-color: rgb(76, 76, 82);
+    color: #999;
+    overflow: scroll;
+}
+
+ul {
+    list-style: none;
+    background-color: #fff;
+    padding: 3px 10px;
+    background-image: url(../img/chatscroll.png);
+}
+
+li {
+    color: #000000;
+}
+
+.pkun {
+    cursor: pointer;
+    stroke-linecap: round;
+}
+
+.pkun.moved {
+    animation-name: spin;
+    animation-duration: 2s;
+    /* animation-iteration-count: infinite; */
+    animation-timing-function: ease-in-out;
+    /* animation-direction: alternate; */
+    animation-fill-mode: forwards;
+}
+
+@keyframes spin {
+    0% {
+        transform: none;
+    }
+    20% {
+        transform: rotate(100deg) scale(1.8);
+    }
+    30% {
+        transform: rotate(270deg) scale(1.8) translateX(-80px);
+        border-radius: 25%;
+        width: 250px;
+    }
+    50% {
+        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        border-radius: 50%;
+    }
+    80% {
+        transform: rotate(640deg) scale(5.8) translateX(100px);
+    }
+    100% {
+        transform: rotate(720deg) scale(1.8) translateX(8px);
+        border-radius: 20%;
+    }
+}
+
+#Q-AURL {
+    color: yellow;
+    font-size: 30px;
 }
 
 
+#Q-A {
+    font-size: 20px;
 
-.pkun { 
-      cursor: pointer;
-      stroke-linecap:round ;
-    }
-    .pkun.moved {
-      animation-name: spin;
-      animation-duration: 2s;
-      /* animation-iteration-count: infinite; */
-      animation-timing-function: ease-in-out;
-      /* animation-direction: alternate; */
-      animation-fill-mode: forwards;
-    }
-    @keyframes spin {
-      0% { transform: none; }
-      20% { transform: rotate(100deg) scale(1.8);}
-      30% { transform: rotate(270deg) scale(1.8) translateX(-80px); border-radius: 25%;width: 250px;}
-      50% { transform: rotate(-200deg) scale(1.8) translateX(30px); border-radius: 50%;}
-      80% { transform: rotate(640deg) scale(5.8) translateX(100px);}
-      100% { transform: rotate(720deg) scale(1.8) translateX(8px);border-radius: 20%;}
-    }
-
-#kousinrireki{
-  font-size: 10px;
-  width:660px;
-  height: 100px;
-  background-color: #333332;
-  overflow: scroll;
 }
 
-.inlineBlock{
-  display: inline-block;
+#kousinrirekiURL {
+    font-size: 20px;
+    width: 660px;
+    height: 100px;
+    background-color: #333332;
+}
+
+#kousinrireki {
+    font-size: 16px;
+    width: 660px;
+    height: 100px;
+    overflow: scroll;
+    background-color: #333332;
+}
+
+#kousinrireki a {
+    font-size: 16px;
+    margin: 0px 20px;
+}
+
+.inlineBlock {
+    display: inline-block;
 }

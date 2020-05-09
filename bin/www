@@ -36,6 +36,8 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 
+
+
 /**
  * ADDED!! Socket.IO Connection.
  */
@@ -77,8 +79,6 @@ function tripCreate(isTrip) {
   trip = "◆" + trip;
   return trip;
 }
-
-
 
 
 io.on('connection', function (socket) {
