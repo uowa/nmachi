@@ -10,17 +10,13 @@
 }
 
 #title {
-    font-family: ピグモ00;
+    font-family: "microsoft jhenghei UI light";
     text-align: right;
     font-size: 50px;
     font-weight: bold;
     /* border:2px solid blue; */
 }
 
-@font-face {
-    font-family: ピグモ00;
-    src: url("/stylesheets/Pigmo-00.otf") format("opentype");
-}
 
 @font-face {
     font-family: 鉄瓶ゴシック;
@@ -77,8 +73,17 @@ select {
     font-family: "チカラヨワク";
 }
 
-.ピグモ00 {
-    font-family: "ピグモ00";
+.MSゴシック {
+    font-family: "MSゴシック";
+}
+.UDDigiKyokashoN-R{
+    font-family: "UD Digi Kyokasho N-R";
+}
+.游ゴシック{
+    font-family: "游ゴシック";
+}
+.microsoftjhengheiUIlight{
+    font-family: "microsoft jhenghei UI light";
 }
 
 body {
@@ -165,7 +170,7 @@ a {
 }
 
 #chatLog {
-    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    font-family: "教科書体","MS ゴシック","kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
     font-size: 17px;
     display: inline-block;
     width: 660px;

@@ -52,6 +52,8 @@ let rightY, leftY;
 let flag = false;
 let setAbon = [];
 
+let daikokubasira
+
 
 
 //日付
@@ -105,7 +107,19 @@ function fontChenge(value) {
       fontSize = 18;
       break;
     case 5:
-      fontName = "ピグモ00";
+      fontName = "MSゴシック";
+      fontSize = 18;
+      break;
+    case 6:
+      fontName = "UD Digi Kyokasho N-R";
+      fontSize = 18;
+      break;
+    case 7:
+      fontName = "游ゴシック";
+      fontSize = 18;
+      break;
+    case 8:
+      fontName = "microsoft jhenghei UI light";
       fontSize = 18;
       break;
   }
@@ -223,6 +237,7 @@ PIXI.Loader.shared//画像を読みこんでから処理を始める為のロー
   .add("ground", "img/ground.png")
   .add("croud", "img/croud.png")
   .add("bonfire", "img/bonfire.png")
+  .add("daikokubasira", "img/daikokubasira.png")
   .on("progress", loadProgressHandler)//プログラミングローダー
   .load(setUp);//画像読み込み後の処理は基本ここに書いてく
 
@@ -348,6 +363,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   ground = new PIXI.Sprite(PIXI.Loader.shared.resources["ground"].texture);
   croud = new PIXI.Sprite(PIXI.Loader.shared.resources["croud"].texture);
   bonfire = new PIXI.Sprite(PIXI.Loader.shared.resources["bonfire"].texture);
+  daikokubasira = new PIXI.Sprite(PIXI.Loader.shared.resources["daikokubasira"].texture);
+
 
   // entrance.width = 660;
   // entrance.height = 480;
@@ -416,10 +433,20 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   //メッセージ出力
   checkMsg = function () {
     msg.text = (document.msgForm.msg.value);
-    socket.json.emit("emit_msg", {
-      socketID: socketID,
-      msg: (document.msgForm.msg.value),
-    });
+    // document.addEventListener("keypress", (event) => {
+    //   if (event.shiftKey) {
+    //     socket.json.emit("emit_msg", {
+    //       socketID: socketID,
+    //       msg: (document.msgForm.msg.value),
+    //       kanban: true,
+    //     });
+    //   } else {
+        socket.json.emit("emit_msg", {
+          socketID: socketID,
+          msg: (document.msgForm.msg.value),
+        });
+      // }
+    // })
     document.msgForm.msg.value = "";
     document.msgForm.msg.focus();
   }
@@ -437,15 +464,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   //   });
   // // });
 
-
-
   gameLoop();
-
-
 }
-
-
-
 
 // croudBlock1配置
 let croudBlock1 = new PIXI.Graphics();
@@ -797,6 +817,8 @@ function login() {
   userName = document.nameForm.userName.value;
   if (userName != "") {//名前が空だと移動しない//マップを切り替える
 
+   
+
 
     entrance.addChild(croudBlock1);
     clickRange(croudBlock1);
@@ -841,6 +863,8 @@ function login() {
     document.msgForm.msg.focus();
     inRoom = 1;
   }
+  daikokubasira.position.set(350, 360);
+  entrance.addChild(daikokubasira);
 }
 
 
@@ -848,13 +872,17 @@ function login() {
 socket.on("emit_msg_from_server", function (data) {
   const li = document.createElement("li");
   if (setAbon[data.socketID] == false) {
-    if (data.avaMsg == "") {
+    if (data.avaMsg == "") {//未入力メッセージなら吹き出しを消す
       msg[data.socketID].text = data.avaMsg
     } else {
       li.textContent = data.msg;
       const ul = document.querySelector("ul");
       ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
-      msg[data.socketID].text = data.avaMsg;
+      if (data.kanban) {
+
+      } else {
+        msg[data.socketID].text = data.avaMsg;
+      }
 
       // 発言したテキストをクリックした時アボンする
       // li.className = data.abonClass;//アボンクラスを付与
@@ -1222,6 +1250,7 @@ socket.on("join_room_from_server", function (data) {
   nameTag[data.socketID].x = -nameText[data.socketID].width / 2;
   nameTag[data.socketID].y = -avaC[data.socketID].height - 15 - nameText[data.socketID].height / 2;
   nameTag[data.socketID].alpha = 0.3;
+  avaP[data.socketID].addChild(nameTag[data.socketID]);
 
   // アバターのメッセージを追加する
   msg[data.socketID] = new PIXI.Text("");
