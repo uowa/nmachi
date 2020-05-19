@@ -12,7 +12,6 @@ let userName;
 
 let socketID;
 
-
 let avaP = [];
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
 let avaS1 = [], avaSW1 = [], avaW1 = [], avaNW1 = [], avaN1 = [], avaNE1 = [], avaE1 = [], avaSE1 = [];
@@ -25,7 +24,6 @@ let nameText = [];
 let nameTag = [];
 let hukidashi = [];
 let msg = [];
-let checkName, checkMsg;
 
 let colPoint = [];
 let colPointAll = [];
@@ -65,9 +63,9 @@ let fontName;
 let obj;
 let index;
 let fontSize;
-document.getElementById("nameTextFont").options[5].selected = true;
+document.getElementById("nameTextFont").options[1].selected = true;
 document.getElementById("chatFont").options[2].selected = true;
-document.getElementById("titleFont").options[5].selected = true;
+document.getElementById("titleFont").options[8].selected = true;
 document.getElementById("sonotaFont").options[2].selected = true;
 function fontChenge(value) {
   switch (value) {
@@ -156,7 +154,7 @@ let app = new PIXI.Application({
   height: 480,
 });
 //最初の背景画像
-// app.renderer.backgroundColor = 0X4C4C52;
+// app.renderer.backgroundColor = 0x4C4C52;
 // app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
 
@@ -203,8 +201,7 @@ let app = new PIXI.Application({
 
 
 let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
-  fontFamily: "ピグモ00",
-  // fontFamily: "鉄瓶ゴシック",
+  fontFamily: "JKゴシックM",
   fontSize: 18,
   fill: "white",
   trim: true,
@@ -425,31 +422,54 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
   //名前を出力
-  checkName = function () {
-    nameText[socketID].text = (document.nameForm.userName.value);
+  document.querySelector("#nameForm").addEventListener("submit", function (e) {
+    nameText[socketID].text = (document.nameForm.userName.value);;
+    e.preventDefault();
     login();
-  }
+  });
 
-  //メッセージ出力
-  checkMsg = function () {
-    msg.text = (document.msgForm.msg.value);
-    // document.addEventListener("keypress", (event) => {
-    //   if (event.shiftKey) {
-    //     socket.json.emit("emit_msg", {
-    //       socketID: socketID,
-    //       msg: (document.msgForm.msg.value),
-    //       kanban: true,
-    //     });
-    //   } else {
-        socket.json.emit("emit_msg", {
-          socketID: socketID,
-          msg: (document.msgForm.msg.value),
-        });
-      // }
-    // })
-    document.msgForm.msg.value = "";
-    document.msgForm.msg.focus();
+
+  
+  // 読み込み      
+  function readCookie() {
+    // let tmp = document.cookie;
+    let cookieValue = document.cookie.replace(/(?:(?:^|.*;\s*)mycookie\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+    document.nameForm.userName.value = cookieValue;
   }
+  
+  readCookie();
+
+
+
+  let isDownedShift = false;
+  document.querySelector("#msgForm").addEventListener("keydown", function (e) {
+    isDownedShift = e.shiftKey;
+  });
+  document.querySelector("#msgForm").addEventListener("keyup", function (e) {
+    isDownedShift = e.shiftKey;
+  });
+  document.querySelector("#msgForm").addEventListener("submit", function (e) {
+    if (isDownedShift) {
+      socket.json.emit("emit_msg", {
+        socketID: socketID,
+        msg: (document.msgForm.msg.value),
+        kanban: true,
+      });
+      document.msgForm.msg.value = "";
+      document.msgForm.msg.focus();
+    } else {
+      socket.json.emit("emit_msg", {
+        socketID: socketID,
+        msg: (document.msgForm.msg.value),
+        kanban: false,
+      });
+      document.msgForm.msg.value = "";
+      document.msgForm.msg.focus();
+    }
+    e.preventDefault();
+  });
+
+
 
   //   //画面をタップした時の処理
   // // document.getElementById("graphic").addEventListener("touchstart", function () {
@@ -810,15 +830,15 @@ function clickedMove(DIR, AX, AY, socketID) {
 
 //ログイン時の処理
 function login() {
+  //userNameにフォームの内容を入れる
+  userName = document.nameForm.userName.value;
+
+  //クッキー書き込み
+  document.cookie = "mycookie=" + userName;
   room = "entrance";
 
 
-  //userNameにフォームの内容を入れる
-  userName = document.nameForm.userName.value;
   if (userName != "") {//名前が空だと移動しない//マップを切り替える
-
-   
-
 
     entrance.addChild(croudBlock1);
     clickRange(croudBlock1);
@@ -875,14 +895,18 @@ socket.on("emit_msg_from_server", function (data) {
     if (data.avaMsg == "") {//未入力メッセージなら吹き出しを消す
       msg[data.socketID].text = data.avaMsg
     } else {
-      li.textContent = data.msg;
-      const ul = document.querySelector("ul");
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
       if (data.kanban) {
-
+        msg[data.socketID].text = data.avaMsg;
+        msg[data.socketID].style.fill = "0x1e90ff";
+        li.style.color = "white";
+        li.style.background = "rgba(0,0,205,0.3)";
       } else {
         msg[data.socketID].text = data.avaMsg;
+        msg[data.socketID].style.fill = "white";
       }
+      li.textContent = "[（　´∀｀）" + data.userName + "]:" + data.msg;
+      const ul = document.querySelector("ul");
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
 
       // 発言したテキストをクリックした時アボンする
       // li.className = data.abonClass;//アボンクラスを付与
@@ -1049,11 +1073,23 @@ socket.on("mySocketID_from_server", function (data) {
   avaC[socketID] = avaS[socketID];
   avaP[socketID].addChild(avaC[socketID]);
 
-  //名前タグを生成//後で吹き出しやらアンカーどうにかする
+  //名前タグを生成
   nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
-  nameText[socketID].position.set(nameTextX, nameTextY);//名前の位置
-  nameText[socketID].zIndex = 1;
+  nameText[socketID].zIndex = 10;
+      nameText[socketID].anchor.set(0.5);
+      nameText[socketID].position.set(0, -avaC[socketID].height - 15);
   avaP[socketID].addChild(nameText[socketID]);
+
+  nameTag[socketID] = new PIXI.Graphics();
+  nameTag[socketID].lineStyle(1, 0x000000, 0.5);
+  nameTag[socketID].beginFill(0x000000);
+  nameTag[socketID].drawRect(0, 0, nameText[socketID].width, nameText[socketID].height);
+  nameTag[socketID].endFill();
+  nameTag[socketID].x = -nameText[socketID].width / 2;
+  nameTag[socketID].y = -avaC[socketID].height - 15 - nameText[socketID].height / 2;
+  nameTag[socketID].alpha = 0.3;
+
+  avaP[socketID].addChild(nameTag[socketID]);
   //ステージに追加
   loginBack.addChild(avaP[socketID]);
 });
@@ -1066,6 +1102,14 @@ socket.on("mySocketID_from_server", function (data) {
 
 //ルーム入室時に自分と他人のアバターを生成する
 socket.on("join_me_from_server", function (data) {
+  //入室時のメッセージを出す
+  const li = document.createElement("li");
+  li.textContent = data.msg;
+  const ul = document.querySelector("ul");
+  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+
+  //部屋人数の表記を変える
+  document.getElementById('users').textContent = data.roomUser;
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {
     if (data.user[value].room == "entrance") {
@@ -1121,12 +1165,23 @@ socket.on("join_me_from_server", function (data) {
 
       avaP[value].addChild(nameTag[value]);
       // アバターのメッセージを追加する
-      msg[value] = new PIXI.Text("");
+      msg[value] = new PIXI.Text(data.user[value].msg);
       msg[value].zIndex = 20;
       msg[value].position.set(0, -avaC[value].height - 5);
-      msg[value].style.fill = "white";
       msg[value].style.fontSize = 18;
+      msg[value].style.fill = "0x1e90ff";
       avaP[value].addChild(msg[value]);
+
+      if (data.user[value].msg != "") {
+        const liKanban = document.createElement("li");
+        liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;
+        liKanban.style.color = "white";
+        liKanban.style.background = "rgba(0,0,205,0.3)";
+        const ulKanban = document.querySelector("ul");
+
+        ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[0]);
+      }
+
 
 
 
@@ -1208,14 +1263,7 @@ socket.on("join_me_from_server", function (data) {
     }
   });
 
-  //入室時のメッセージを出す
-  const li = document.createElement("li");
-  li.textContent = data.msg;
-  const ul = document.querySelector("ul");
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
 
-  //部屋人数の表記を変える
-  document.getElementById('users').textContent = "users:" + data.roomUser;
 });
 
 
@@ -1285,7 +1333,7 @@ socket.on("join_room_from_server", function (data) {
   const ul = document.querySelector("ul");
   ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = "users:" + data.roomUser;
+  document.getElementById('users').textContent = data.roomUser;
 });
 
 
@@ -1324,7 +1372,7 @@ socket.on("logout_from_server", function (data) {
   const ul = document.querySelector("ul");
   ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = "users:" + data.roomUser;
+  document.getElementById('users').textContent = data.roomUser;
   //アバターを消す
 
 
@@ -1385,7 +1433,22 @@ document.getElementById('title').addEventListener("click", function () {
   }
 });
 
+//再起動用メッセージ
+socket.on("emitSaikiMsg", function (data) {
+  const li = document.createElement("li");
+  li.textContent = data.msg;
+  const ul = document.querySelector("ul");
+  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+});
+
 console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
+
+
+
+
+
+
+
 
 
 
@@ -1394,6 +1457,7 @@ console.log("ごまねこ裏設定集：高いところが好きな高所恐怖�
   document.querySelector('svg').addEventListener("click", function () {
     document.querySelectorAll('.pkun').forEach(function (pkun) {
       pkun.classList.add('moved');
+      console.log("プロ街&飴ちゃん");
     });
   });
 

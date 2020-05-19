@@ -17,6 +17,9 @@
     /* border:2px solid blue; */
 }
 
+.right {
+    float: right;
+}
 
 @font-face {
     font-family: 鉄瓶ゴシック;
@@ -143,7 +146,7 @@ a {
     text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
 }
 
-.userForm {
+#nameForm {
     text-align: right;
     background-color: #939393;
 }
@@ -172,7 +175,7 @@ a {
 #chatLog {
     font-family: "教科書体","MS ゴシック","kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
     font-size: 17px;
-    display: inline-block;
+    /* display: inline-block; */
     width: 660px;
     height: 560px;
     background-color: rgb(76, 76, 82);
@@ -263,4 +266,14 @@ li {
 
 .inlineBlock {
     display: inline-block;
+}
+
+
+#dominion p,a{
+    font-size: 17px;
+}
+
+#tyui{
+    font-size: 25px;
+    color: red;
 }

@@ -43,7 +43,7 @@ server.on('listening', onListening);
  */
 
 let user = {};
-// user={socketID:{userName,socketID,room,AX,AY,DIR}};
+// user={socketID:{userName,msg,socketID,room,AX,AY,DIR}};
 let room;
 let entranceUser = 0;
 
@@ -82,20 +82,21 @@ function tripCreate(isTrip) {
 
 
 io.on('connection', function (socket) {
-    //フォント切り替え
-    
+  //フォント切り替え
 
   function saikiMsg() {
-    io.to(socket.id).json.emit("emit_msg_from_server", {
+    io.to(socket.id).json.emit("emitSaikiMsg", {
       msg: "ブラウザを更新してください",
     });
   }
+
 
   user[socket.id] = {
     userName: "名もなき名無し",
     AX: 457,
     AY: 80,
     DIR: "S",
+    msg:"",
   }
 
   socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
@@ -146,7 +147,7 @@ io.on('connection', function (socket) {
           socketID: data.socketID,
           userName: data.userName,
           roomUser: entranceUser,
-          msg: user[data.socketID].userName + "が" + room + "に入室しました。"+time,
+          msg: user[data.socketID].userName + "が" + room + "に入室しました。" + time,
         });
       }
     } else {
@@ -156,14 +157,21 @@ io.on('connection', function (socket) {
 
 
 
-  //メッセージを送信
+  //クライアントからメッセージを受け取って送信
   socket.on("emit_msg", function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      if (data.kanban) {
+        user[data.socketID].msg = data.msg;
+      } else {
+        user[data.socketID].msg = "";
+      }
       io.to(room).emit("emit_msg_from_server", {
-        msg: "[（　´∀｀）" + user[data.socketID].userName + "]:" + data.msg,
+        userName:user[data.socketID].userName,
+        msg: data.msg,
         socketID: data.socketID,
         avaMsg: data.msg,
         abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
+        kanban:data.kanban,
       });
     } else {
       saikiMsg();

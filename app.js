@@ -6,10 +6,10 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 
-var kousinrireki = require("./routes/kousinrireki");//更新履歴へのルーティング
+// var kousinrireki = require("./routes/kousinrireki");//更新履歴へのルーティング
 var QandA = require("./routes/Q-A");//Q-Aへのルーティング
+var dominionrule = require("./routes/dominionrule");
 
-var session = require("express-session");
 
 var app = express();
 
@@ -23,17 +23,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use("/kousinrireki", kousinrireki);
-app.use("/Q-A", QandA);
 
 
-var session_opt={
-  secret:"keyboard cat",
-  resave:false,
-  saveUninitialized:false,
-  cookie:{maxAge: 60*60*1000}
-};
-app.use(session(session_opt));
+// app.use("/kousinrireki", kousinrireki);//更新履歴へのルーティング?
+app.use("/Q-A", QandA);//Q-Aへのルーティング?
+app.use("/dominionrule", dominionrule);
+
 
 app.use('/', indexRouter);
 
