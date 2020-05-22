@@ -50,7 +50,10 @@ let rightY, leftY;
 let flag = false;
 let setAbon = [];
 
-let daikokubasira
+let daikokubasira;
+
+//エイリアス
+let chatLog = document.getElementById("chatLog");
 
 
 
@@ -123,8 +126,8 @@ function fontChenge(value) {
   }
   switch (value) {
     case "chatLog":
-      document.getElementById("chatLog").style.fontFamily = fontName, "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
-      document.getElementById("chatLog").style.fontSize = fontSize + "px";
+      chatLog.style.fontFamily = fontName, "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+      chatLog.style.fontSize = fontSize + "px";
       document.getElementById("chatFont").style.fontFamily = fontName;
       break;
     case "title":
@@ -429,14 +432,14 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   });
 
 
-  
+
   // 読み込み      
   function readCookie() {
     // let tmp = document.cookie;
     let cookieValue = document.cookie.replace(/(?:(?:^|.*;\s*)mycookie\s*\=\s*([^;]*).*$)|^.*$/, "$1");
     document.nameForm.userName.value = cookieValue;
   }
-  
+
   readCookie();
 
 
@@ -611,13 +614,11 @@ function clickRange(value) {
 }
 function moveEvent() {
   let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
-  if (inRoom == 0) {
+  if (inRoom == 0) {//ログイン画面に居るとき
     if (sin <= -0.9239) {
       anime(avaN, avaN1, avaN2, socketID);
     } else if (0.9239 <= sin) {
       anime(avaS, avaS1, avaS2, socketID);
-
-
     } else if (0.3827 <= sin && AX < MX) {
       anime(avaSE, avaSE1, avaSE2, socketID);
     } else if (0.3827 <= sin && MX < AX) {
@@ -641,7 +642,7 @@ function moveEvent() {
         AY = avaP[socketID].y;
       }
     });
-  } else {
+  } else {//ログイン画面以外に居るとき
     // 方向に合わせて画像を変えて表示
     if (sin <= -0.9239) {
       DIR = "N";
@@ -672,7 +673,6 @@ function moveEvent() {
         AX: AX,
         AY: AY,
         socketID: socketID,
-
       });
     } else {//ブロックと交わる場合
       //distanceが最小値順になるようにcolPointAllを並び変える
@@ -761,7 +761,7 @@ function checkColPoint(BX, BY) { //(collisionPointの略)
     //移動前の点から移動後の点への直線に物体との交点があるかどうかで絞り込む
     if (
       //辺の直線との交点が道中にあるかどうか、
-      ((MX <= colPoint[i].LX && colPoint[i].LX <= AX) || (AX <= colPoint[i].LX && colPoint[i].LX <= MX))
+      ((MX < colPoint[i].LX && colPoint[i].LX < AX) || (AX < colPoint[i].LX && colPoint[i].LX < MX))
       &&
       //交点が物体の辺のＸ座標の間に収まってるかどうか
       ((BX[i] <= colPoint[i].LX && colPoint[i].LX <= BX[i + 1]) || (BX[i + 1] <= colPoint[i].LX && colPoint[i].LX <= BX[i]))
@@ -806,22 +806,31 @@ socket.on("clickMap_from_server", function (data) {
 
 //数値を取得後のアバターの動き
 function clickedMove(DIR, AX, AY, socketID) {
-  if (DIR == "NE") {//子要素の画像を入れる
-    anime(avaNE, avaNE1, avaNE2, socketID);
-  } else if (DIR == "SE") {
-    anime(avaSE, avaSE1, avaSE2, socketID);
-  } else if (DIR == "SW") {
-    anime(avaSW, avaSW1, avaSW2, socketID);
-  } else if (DIR == "NW") {
-    anime(avaNW, avaNW1, avaNW2, socketID);
-  } else if (DIR == "N") {
-    anime(avaN, avaN1, avaN2, socketID);
-  } else if (DIR == "E") {
-    anime(avaE, avaE1, avaE2, socketID);
-  } else if (DIR == "S") {
-    anime(avaS, avaS1, avaS2, socketID);
-  } else {
-    anime(avaW, avaW1, avaW2, socketID);
+  switch (DIR) {//子要素の画像を入れる
+    case "NE":
+      anime(avaNE, avaNE1, avaNE2, socketID);
+      break;
+    case "SE":
+      anime(avaSE, avaSE1, avaSE2, socketID);
+      break;
+    case "SW":
+      anime(avaSW, avaSW1, avaSW2, socketID);
+      break;
+    case "NW":
+      anime(avaNW, avaNW1, avaNW2, socketID);
+      break;
+    case "N":
+      anime(avaN, avaN1, avaN2, socketID);
+      break;
+    case "E":
+      anime(avaE, avaE1, avaE2, socketID);
+      break;
+    case "S":
+      anime(avaS, avaS1, avaS2, socketID);
+      break;
+    default:
+      anime(avaW, avaW1, avaW2, socketID);
+      break;
   }
   moving.to(avaP[socketID], { duration: 0.4, x: AX, y: AY });
   avaP[socketID].zIndex = AY;//上に進むか下に進むかで処理位置決めたらいいんかな？　後で考える
@@ -884,6 +893,7 @@ function login() {
     inRoom = 1;
   }
   daikokubasira.position.set(350, 360);
+  // daikokubasira.zIndex = 360;
   entrance.addChild(daikokubasira);
 }
 
@@ -895,7 +905,7 @@ socket.on("emit_msg_from_server", function (data) {
     if (data.avaMsg == "") {//未入力メッセージなら吹き出しを消す
       msg[data.socketID].text = data.avaMsg
     } else {
-      if (data.kanban) {
+      if (data.kanban) {//看板機能
         msg[data.socketID].text = data.avaMsg;
         msg[data.socketID].style.fill = "0x1e90ff";
         li.style.color = "white";
@@ -904,9 +914,26 @@ socket.on("emit_msg_from_server", function (data) {
         msg[data.socketID].text = data.avaMsg;
         msg[data.socketID].style.fill = "white";
       }
-      li.textContent = "[（　´∀｀）" + data.userName + "]:" + data.msg;
+
+      //、Ｂって文字列が含まれてたら
+      let msgText = data.msg;
+      let regexp = /、b|、ｂ/i
+      if (regexp.test(msgText)) {
+        msgText += "　ちゃりーｎ、りーん";
+        console.log(regexp.test(msgText));
+      }
+
+      li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+
+
+      //メッセージを出力
+      if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+        ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+        chatLog.scrollTop = chatLog.scrollHeight;
+      } else {
+        ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      }
 
       // 発言したテキストをクリックした時アボンする
       // li.className = data.abonClass;//アボンクラスを付与
@@ -935,31 +962,54 @@ socket.on("abonSetting_from_server", function (data) {
   const ul = document.querySelector("ul");
   if (setAbon[data.socketID] == true || data.msg == "その住民は退出済みです") {//アボンするときかアボン対象の住人が居ない時
     li.style.color = "red";
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+
+    //メッセージを出力
+    if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    } else {
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    }
     msg[data.socketID].style.fill = "red";
   } else {//アボンを解除する時
     li.style.color = "blue";
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+    //メッセージを出力
+    if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    } else {
+      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    }
     msg[data.socketID].style.fill = "white";
     avaP[data.socketID].x = data.AX;
     avaP[data.socketID].y = data.AY;
     avaP[data.socketID].removeChild(avaC[data.socketID]);
-    if (data.DIR == "N") {
-      avaC[data.socketID] = avaN[data.socketID];
-    } else if (data.DIR == "NE") {
-      avaC[data.socketID] = avaNE[data.socketID]
-    } else if (data.DIR == "E") {
-      avaC[data.socketID] = avaE[data.socketID]
-    } else if (data.DIR == "SE") {
-      avaC[data.socketID] = avaSE[data.socketID]
-    } else if (data.DIR == "S") {
-      avaC[data.socketID] = avaS[data.socketID]
-    } else if (data.DIR == "SW") {
-      avaC[data.socketID] = avaSW[data.socketID]
-    } else if (data.DIR == "W") {
-      avaC[data.socketID] = avaW[data.socketID]
-    } else if (data.DIR == "NW") {
-      avaC[data.socketID] = avaNW[data.socketID]
+
+    switch (data.DIR) {
+      case "N":
+        avaC[data.socketID] = avaN[data.socketID];
+        break;
+      case "NE":
+        avaC[data.socketID] = avaNE[data.socketID]
+        break;
+      case "E":
+        avaC[data.socketID] = avaE[data.socketID]
+        break;
+      case "SE":
+        avaC[data.socketID] = avaSE[data.socketID]
+        break;
+      case "S":
+        avaC[data.socketID] = avaS[data.socketID]
+        break;
+      case "SW":
+        avaC[data.socketID] = avaSW[data.socketID]
+        break;
+      case "W":
+        avaC[data.socketID] = avaW[data.socketID]
+        break;
+      case "NW":
+        avaC[data.socketID] = avaNW[data.socketID]
+        break;
     }
     avaP[data.socketID].addChild(avaC[data.socketID]);
   }
@@ -1076,8 +1126,8 @@ socket.on("mySocketID_from_server", function (data) {
   //名前タグを生成
   nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
   nameText[socketID].zIndex = 10;
-      nameText[socketID].anchor.set(0.5);
-      nameText[socketID].position.set(0, -avaC[socketID].height - 15);
+  nameText[socketID].anchor.set(0.5);
+  nameText[socketID].position.set(0, -avaC[socketID].height - 15);
   avaP[socketID].addChild(nameText[socketID]);
 
   nameTag[socketID] = new PIXI.Graphics();
@@ -1106,7 +1156,13 @@ socket.on("join_me_from_server", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+  //メッセージを出力
+  if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+  }
 
   //部屋人数の表記を変える
   document.getElementById('users').textContent = data.roomUser;
@@ -1121,30 +1177,40 @@ socket.on("join_me_from_server", function (data) {
       entrance.addChild(avaP[value]);
 
       // 画像とメッセージと名前を追加してステージに上げる
-      if (data.user[value].DIR == "NE") {
-        avaC[value] = avaNE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "SE") {
-        avaC[value] = avaSE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "SW") {
-        avaC[value] = avaSW[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "NW") {
-        avaC[value] = avaNW[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "N") {
-        avaC[value] = avaN[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "E") {
-        avaC[value] = avaE[value];
-        avaP[value].addChild(avaC[value]);
-      } else if (data.user[value].DIR == "S") {
-        avaC[value] = avaS[value];
-        avaP[value].addChild(avaC[value]);
-      } else {
-        avaC[value] = avaW[value];
-        avaP[value].addChild(avaC[value]);
+      switch (data.user[value].DIR) {
+        case "NE":
+          avaC[value] = avaNE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SE":
+          avaC[value] = avaSE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SW":
+          avaC[value] = avaSW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "NW":
+          avaC[value] = avaNW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "N":
+          avaC[value] = avaN[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "E":
+          avaC[value] = avaE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "S":
+          avaC[value] = avaS[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        default:
+          avaC[value] = avaW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        
       }
 
       //名前を追加
@@ -1179,7 +1245,7 @@ socket.on("join_me_from_server", function (data) {
         liKanban.style.background = "rgba(0,0,205,0.3)";
         const ulKanban = document.querySelector("ul");
 
-        ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[0]);
+        ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[li.length]);
       }
 
 
@@ -1331,7 +1397,13 @@ socket.on("join_room_from_server", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+  //メッセージを出力
+  if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+  }
   //部屋人数の表記を変える
   document.getElementById('users').textContent = data.roomUser;
 });
@@ -1370,7 +1442,13 @@ socket.on("logout_from_server", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;//退出ログを入れる
   const ul = document.querySelector("ul");
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+  //メッセージを出力
+  if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+  }
   //部屋人数の表記を変える
   document.getElementById('users').textContent = data.roomUser;
   //アバターを消す
@@ -1395,18 +1473,11 @@ let uiColor = true;
 document.getElementById("title").addEventListener("touchstart", function (event) {
   flag = true;
   if (uiColor == true) {
-    document.querySelector('title').style.color = "#5F5F64";
-    document.querySelector('body').style.color = "black";
-    document.querySelector('body').style.backgroundColor = "white";
-    document.querySelector('ul').style.backgroundColor = "#999";
-    document.querySelector('input').style.backgroundColor = "rgb(25, 85, 85)";
+    document.querySelector('body').style.backgroundColor = "skyblue";
+
     uiColor = false;
   } else {
-    document.querySelector('title').style.color = "#eee";
-    document.querySelector('body').style.color = "#eee";
     document.querySelector('body').style.backgroundColor = "#333333";
-    document.querySelector('ul').style.backgroundColor = "#fff";
-    document.querySelector('input').style.backgroundColor = "#eee";
     uiColor = true;
   }
 });
@@ -1416,40 +1487,59 @@ document.getElementById('title').addEventListener("click", function () {
     flag = false;
   } else {
     if (uiColor == true) {
-      document.querySelector('title').style.color = "#5F5F64";
-      document.querySelector('body').style.color = "black";
-      document.querySelector('body').style.backgroundColor = "white";
-      document.querySelector('ul').style.backgroundColor = "#999";
-      document.querySelector('input').style.backgroundColor = "rgb(25, 85, 85)";
+      document.querySelector('body').style.backgroundColor = "skyblue";
       uiColor = false;
     } else {
-      document.querySelector('title').style.color = "#eee";
-      document.querySelector('body').style.color = "#eee";
       document.querySelector('body').style.backgroundColor = "#333333";
-      document.querySelector('ul').style.backgroundColor = "#fff";
-      document.querySelector('input').style.backgroundColor = "#eee";
       uiColor = true;
     }
   }
 });
+
+
+
+//画面サイズが変わった時にチャットのスクロールバーを動かす////なんかなんでこのコードで900のライン超えずに動かしたときにスクロールバー動かないのか謎やけど、まあ別に問題ないのでよし
+let windowSize = window.innerWidth;
+window.addEventListener('resize', function () {
+  if (windowSize <= 900 && chatLog.scrollTop == 0) {//windowsizeが900以下から900以上になって、スクロールバーが一番上にある時
+    chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
+  } else if (windowSize > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windousizeが900以上から900以下になってかつスクロールが一番下にある時
+    chatLog.scrollTop = 0;//スクロールを一番上にする
+  }
+  windowSize = window.innerWidth;
+}, false);
+
+
+//   window.addEventListener('resize', function () {
+
+//     if (window.innerWidth > 900) {//windowsizeが900以上になったらスクロールバーを一番下にする
+//     }
+//   }, false);
+// }
+if (window.innerWidth >= 900) {//windowsizeが900以上の時かつスクロールバーが一番上にある時
+  window.addEventListener('resize', function () {
+    if (window.innerWidth < 900) {//windowsizeが900以上の時かつスクロールバーが一番上にある時
+      console.log("test");
+    }
+  }, false);
+}
+
 
 //再起動用メッセージ
 socket.on("emitSaikiMsg", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
-  ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[0]);
+  //メッセージを出力
+  if (window.innerWidth > 900 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが900以下の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+  }
 });
 
 console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
-
-
-
-
-
-
-
-
 
 
 //Pくん

@@ -1,24 +1,231 @@
-#top {
-    position: relative;
+body {
+    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    color: #eee;
+    font-size: 14px;
+    /* margin: 5px; */
+    background-color: #333333;
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
 }
 
-#dayBox {
+p {
+    margin: 0px;
+}
+
+a {
+    color: #ebd40e;
+}
+
+.flexContainer {
+    display: -webkit-flex;
+    display: flex;
+}
+
+.flexContainerColumn {
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
+}
+
+#day {
     font-size: 17px;
-    float: left;
-    position: absolute;
-    bottom: 0;
+    flex: 1;
+    margin-top: auto;
 }
 
 #title {
     font-family: "microsoft jhenghei UI light";
-    text-align: right;
     font-size: 50px;
     font-weight: bold;
-    /* border:2px solid blue; */
+}
+
+#graphic {
+    display: inline-block;
+    position: relative;
+    /* background-color: rgb(76, 76, 82); */
+    /* background-size: cover; */
+    width: 660px;
+}
+
+#login {
+    position: absolute;
+    margin: auto;
+    font-weight: bold;
+    border-style: none;
+    color: rgb(76, 76, 82);
+    /* 文字の色 */
+    font-size: 25px;
+    /* 文字のサイズ */
+    letter-spacing: 4px;
+    /* 文字間 */
+    text-shadow: 2px 2px 5px #ffff1a, -2px 2px 5px #ffff1a, 2px -2px 5px #ffff1a, -2px -2px 5px #ffff1a, 2px 0px 5px #ffff1a, 0px 2px 5px #ffff1a, -2px 0px 5px #ffff1a, 0px -2px 5px #ffff1a;
+    /* 文字の影 */
+    background-color: rgb(76, 76, 82);
+    transform: translateY(-50%) translateX(-50%);
+    /*要素の大きさの半分ずつを戻す*/
+    -webkit-transform: translateY(-50%) translateX(-50%);
+    top: 50%;
+    left: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    -webkit-transform: translateY(-50%) translateX(-50%);
+}
+
+#login:hover {
+    text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
+}
+
+#nameForm {
+    width: 660px;
+    text-align: right;
+    background-color: #939393;
+}
+
+#userName {
+    line-height: 20px;
+    width: 400px;
+    background-color: #E1E1E1;
+}
+
+#msgForm {
+    width: 660px;
+    display: none;
+    background-color: #939393;
+}
+
+#msg {
+    line-height: 20px;
+    width: 590px;
+    background-color: #E1E1E1;
+}
+
+.input {
+    height: 21px;
+}
+
+#chatLog {
+    /* margin-left: 0.1px; */
+    font-family: "教科書体", "MS ゴシック", "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    background-color: rgb(76, 76, 82);
+    color: #999;
+    overflow: scroll;
+    width: 100%;
+    max-width: 1000px;
+    height: 550px;
+    padding: 0px;
+    /* background-image: url(../img/chatscroll.png);
+    background-size: cover; */
+}
+
+#chatLog ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background-image: url(../img/chatscroll.png);
+    background-repeat: repeat-y;
+    background-size: 100% auto;
+}
+
+#chatLog li {
+    color: black;
+    font-size: 20px;
+}
+
+/* #chatLog img{
+    position: absolute;
+    width: 100%;
+    height: 200%;
+} */
+
+.inlineBlock {
+    display: inline-block;
 }
 
 .right {
     float: right;
+}
+
+.pkun {
+    cursor: pointer;
+    stroke-linecap: round;
+}
+
+.pkun.moved {
+    animation-name: spin;
+    animation-duration: 2s;
+    /* animation-iteration-count: infinite; */
+    animation-timing-function: ease-in-out;
+    /* animation-direction: alternate; */
+    animation-fill-mode: forwards;
+}
+
+@keyframes spin {
+    0% {
+        transform: none;
+    }
+    20% {
+        transform: rotate(100deg) scale(1.8);
+    }
+    30% {
+        transform: rotate(270deg) scale(1.8) translateX(-80px);
+        border-radius: 25%;
+        width: 250px;
+    }
+    50% {
+        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        border-radius: 50%;
+    }
+    80% {
+        transform: rotate(640deg) scale(5.8) translateX(100px);
+    }
+    100% {
+        transform: rotate(720deg) scale(1.8) translateX(8px);
+        border-radius: 20%;
+    }
+}
+
+#Q-AURL {
+    color: yellow;
+    font-size: 30px;
+}
+
+#Q-A {
+    font-size: 20px;
+}
+
+#kousinrirekiURL {
+    font-size: 20px;
+    background-color: #333332;
+}
+
+#kousinrireki {
+    font-size: 18px;
+    max-width: 1660px;
+    height: 120px;
+    overflow: scroll;
+    background-color: #333332;
+}
+
+#kousinrireki a {
+    font-size: 16px;
+    margin: 0px 20px;
+}
+
+#dominion p, a {
+    font-size: 17px;
+}
+
+#tyui {
+    font-size: 25px;
+    color: red;
+}
+#senburahaihu{
+    flex-wrap: wrap;
+    margin: 0 0 0 30px;
+    
+}
+#senburahaihu p,a{
+    font-size: 20px;
 }
 
 @font-face {
@@ -79,201 +286,31 @@ select {
 .MSゴシック {
     font-family: "MSゴシック";
 }
-.UDDigiKyokashoN-R{
+
+.UDDigiKyokashoN-R {
     font-family: "UD Digi Kyokasho N-R";
 }
-.游ゴシック{
+
+.游ゴシック {
     font-family: "游ゴシック";
 }
-.microsoftjhengheiUIlight{
+
+.microsoftjhengheiUIlight {
     font-family: "microsoft jhenghei UI light";
 }
 
-body {
-    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
-    color: #eee;
-    font-size: 14px;
-    margin: 5px;
-    background-color: #333333;
-}
-
-p {
-    margin: 0px 20px;
-}
-
-a {
-    color: #ebd40e;
-}
-
-#gamen {
-    display: inline-block;
-    width: 660px;
-}
-
-#graphic {
-    display: inline-block;
-    position: relative;
-    /* width: 660px;
-        height:480px; */
-    /* background-color: rgb(76, 76, 82); */
-    /* background-size: cover; */
-}
-
-#login {
-    position: absolute;
-    font-weight: bold;
-    border-style: none;
-    color: rgb(76, 76, 82);
-    /* 文字の色 */
-    font-size: 25px;
-    /* 文字のサイズ */
-    letter-spacing: 4px;
-    /* 文字間 */
-    text-shadow: 2px 2px 5px #ffff1a, -2px 2px 5px #ffff1a, 2px -2px 5px #ffff1a, -2px -2px 5px #ffff1a, 2px 0px 5px #ffff1a, 0px 2px 5px #ffff1a, -2px 0px 5px #ffff1a, 0px -2px 5px #ffff1a;
-    /* 文字の影 */
-    background-color: rgb(76, 76, 82);
-    transform: translateY(-50%) translateX(-50%);
-    /*要素の大きさの半分ずつを戻す*/
-    -webkit-transform: translateY(-50%) translateX(-50%);
-    top: 50%;
-    left: 50%;
-    transform: translateY(-50%) translateX(-50%);
-    -webkit-transform: translateY(-50%) translateX(-50%);
-    margin: auto;
-}
-
-#login:hover {
-    text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
-}
-
-#nameForm {
-    text-align: right;
-    background-color: #939393;
-}
-
-#userName {
-    line-height: 20px;
-    width: 250px;
-    background-color: #E1E1E1;
-}
-
-#msgForm {
-    display: none;
-    background-color: #939393;
-}
-
-#msg {
-    line-height: 20px;
-    width: 590px;
-    background-color: #E1E1E1;
-}
-
-.input {
-    height: 21px;
-}
-
-#chatLog {
-    font-family: "教科書体","MS ゴシック","kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
-    font-size: 17px;
-    /* display: inline-block; */
-    width: 660px;
-    height: 560px;
-    background-color: rgb(76, 76, 82);
-    color: #999;
-    overflow: scroll;
-}
-
-ul {
-    list-style: none;
-    background-color: #fff;
-    padding: 3px 10px;
-    background-image: url(../img/chatscroll.png);
-}
-
-li {
-    color: #000000;
-}
-
-.pkun {
-    cursor: pointer;
-    stroke-linecap: round;
-}
-
-.pkun.moved {
-    animation-name: spin;
-    animation-duration: 2s;
-    /* animation-iteration-count: infinite; */
-    animation-timing-function: ease-in-out;
-    /* animation-direction: alternate; */
-    animation-fill-mode: forwards;
-}
-
-@keyframes spin {
-    0% {
-        transform: none;
+@media(max-width: 900px) {
+    body {
+        background: skyblue;
     }
-    20% {
-        transform: rotate(100deg) scale(1.8);
+    #titleBar {
+        order: 1;
+        flex-wrap: wrap;
     }
-    30% {
-        transform: rotate(270deg) scale(1.8) translateX(-80px);
-        border-radius: 25%;
-        width: 250px;
+    #Pmachi {
+        flex-wrap: wrap;
     }
-    50% {
-        transform: rotate(-200deg) scale(1.8) translateX(30px);
-        border-radius: 50%;
+    #logs {
+        flex-direction: column-reverse;
     }
-    80% {
-        transform: rotate(640deg) scale(5.8) translateX(100px);
-    }
-    100% {
-        transform: rotate(720deg) scale(1.8) translateX(8px);
-        border-radius: 20%;
-    }
-}
-
-#Q-AURL {
-    color: yellow;
-    font-size: 30px;
-}
-
-
-#Q-A {
-    font-size: 20px;
-
-}
-
-#kousinrirekiURL {
-    font-size: 20px;
-    width: 660px;
-    height: 100px;
-    background-color: #333332;
-}
-
-#kousinrireki {
-    font-size: 16px;
-    width: 660px;
-    height: 100px;
-    overflow: scroll;
-    background-color: #333332;
-}
-
-#kousinrireki a {
-    font-size: 16px;
-    margin: 0px 20px;
-}
-
-.inlineBlock {
-    display: inline-block;
-}
-
-
-#dominion p,a{
-    font-size: 17px;
-}
-
-#tyui{
-    font-size: 25px;
-    color: red;
 }
