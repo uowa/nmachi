@@ -2,8 +2,8 @@ body {
     font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
     color: #eee;
     font-size: 14px;
-    /* margin: 5px; */
-    background-color: #333333;
+    margin: 0 0 0 2px;
+    background-color: #222424;
     display: -webkit-flex;
     display: flex;
     flex-direction: column;
@@ -27,30 +27,45 @@ a {
     display: flex;
     flex-direction: column;
 }
+.spaceBetween{
+    justify-content: space-between;
+}
+.flexShrink0{
+    flex-shrink: 0;
+}
+
+.rightSpace {
+    /* IE11でも空白を使えるようにするための処置 */
+    display:inline-block;
+    padding-right:15px;/*お好きなサイズで*/
+  }
+
+
 
 #day {
-    font-size: 17px;
-    flex: 1;
+    font-size: 14px;
+    flex: 1 0 auto;
+    align-self: flex-end;
     margin-top: auto;
 }
 
 #title {
     font-family: "microsoft jhenghei UI light";
-    font-size: 50px;
+    font-size: 40px;
     font-weight: bold;
 }
 
 #graphic {
     display: inline-block;
     position: relative;
+    width: 660px;
     /* background-color: rgb(76, 76, 82); */
     /* background-size: cover; */
-    width: 660px;
+    /* flex-basis: 10000px; */
 }
 
-#login {
+#login { 
     position: absolute;
-    margin: auto;
     font-weight: bold;
     border-style: none;
     color: rgb(76, 76, 82);
@@ -66,13 +81,32 @@ a {
     /*要素の大きさの半分ずつを戻す*/
     -webkit-transform: translateY(-50%) translateX(-50%);
     top: 50%;
-    left: 50%;
+    left: 61%;/*ここで左右調整*/
     transform: translateY(-50%) translateX(-50%);
     -webkit-transform: translateY(-50%) translateX(-50%);
 }
 
 #login:hover {
     text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
+}
+
+
+
+#Pmain {
+    /* 画面サイズ大き過ぎたから80%にするための処理 */
+    /* -webkit-transform: scale(0.8);
+    -moz-transform: scale(0.8);
+    -ms-transform: scale(0.8);
+    -o-transform: scale(0.8);
+    transform: scale(0.8); */
+
+    -moz-transform-origin: 0px 0px;
+    -webkit-transform-origin: 0px 0px;
+    -o-transform-origin: 0px 0px;
+    -ms-transform-origin: 0px 0px;
+    transform-origin: 0px 0px;
+    /* width: 528px; */
+    /* height: 480px; */
 }
 
 #nameForm {
@@ -104,17 +138,16 @@ a {
 }
 
 #chatLog {
-    /* margin-left: 0.1px; */
     font-family: "教科書体", "MS ゴシック", "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
     background-color: rgb(76, 76, 82);
     color: #999;
     overflow: scroll;
     width: 100%;
+    height: 460px;
     max-width: 1000px;
-    height: 550px;
     padding: 0px;
-    /* background-image: url(../img/chatscroll.png);
-    background-size: cover; */
+
+    
 }
 
 #chatLog ul {
@@ -128,7 +161,7 @@ a {
 
 #chatLog li {
     color: black;
-    font-size: 20px;
+    font-size: 17px;
 }
 
 /* #chatLog img{
@@ -186,7 +219,7 @@ a {
 
 #Q-AURL {
     color: yellow;
-    font-size: 30px;
+    font-size: 25px;
 }
 
 #Q-A {
@@ -199,15 +232,15 @@ a {
 }
 
 #kousinrireki {
-    font-size: 18px;
-    max-width: 1660px;
-    height: 120px;
+    font-size: 14px;
+    max-width: 1528px;/*PMeinの幅とchatLogの幅の合計値に合わせる*/
+    height: 100px;
     overflow: scroll;
-    background-color: #333332;
+    background-color: #414952;
 }
 
 #kousinrireki a {
-    font-size: 16px;
+    font-size: 14px;
     margin: 0px 20px;
 }
 
@@ -216,16 +249,17 @@ a {
 }
 
 #tyui {
-    font-size: 25px;
+    font-size: 15px;
     color: red;
 }
-#senburahaihu{
+
+#senburahaihu {
     flex-wrap: wrap;
     margin: 0 0 0 30px;
-    
 }
-#senburahaihu p,a{
-    font-size: 20px;
+
+#senburahaihu p, a {
+    font-size: 15px;
 }
 
 @font-face {
@@ -299,7 +333,7 @@ select {
     font-family: "microsoft jhenghei UI light";
 }
 
-@media(max-width: 900px) {
+@media(max-width: 700px) {
     body {
         background: skyblue;
     }

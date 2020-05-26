@@ -16,10 +16,6 @@
 
 </head>
 
-<head>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-</head>
-
 <body>
 
   <script type="text/javascript">
@@ -33,7 +29,7 @@
   </div>
 
 
-  <div role="main" class="flexContainerColumn">
+  <div role="main" id="main" class="flexContainerColumn">
     <div id="titleBar" class="flexContainer">
       <!--日付-->
       <div id="day"></div>
@@ -43,30 +39,33 @@
     </div>
 
     <!--プロ街の画面比率は11:8-->
-    <div id="Pmachi" class="flexContainer">
-      <div class="flexContainerColumn">
+    <div id="Pmachi" class="flexContainer" >
+      <div id="Pmain" class="flexContainerColumn" >
         <div id="graphic">
           <button id="login" onclick="login()">LOGIN</button>
         </div>
-        <form name="nameForm" id="nameForm">
-          <span>お名前</span><input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須だょ">
-          <input type="submit" value="login">
-        </form>
-        <form name="msgForm" id="msgForm">
-          <input type="text" name="msg" id="msg" maxlength='250'
+        <div id="form">
+
+          <form name="nameForm" id="nameForm">
+            <span>お名前</span><input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須だょ">
+            <input type="submit" value="login">
+          </form>
+          <form name="msgForm" id="msgForm">
+            <input type="text" name="msg" id="msg" maxlength='250'
             placeholder="                                                                                                       メッセージはこちらへ"
             autocomplete="off">
-          <input type="submit" value="SEND">
-          <span>　　shift+Enterでログ残し</span>
-          <div class="right">　</div>
-          <div class="right" id="users">0</div>
-          <div class="right">users:</div>
-        </form>
-
-        <form name="fontForm">
+            <input type="submit" value="SEND">
+            <span>　　shift+Enterでログ残し</span>
+            <div class="right">　</div>
+            <div class="right" id="users">0</div>
+            <div class="right">users:</div>
+          </form>
+        </div>
+          <div  class="flexContainerColumn" id="fontSousenkyo">
           <p>フォント総選挙</p>
-          <span>　自分の名前</span>
-          <span class="selectForm">
+        <div class="flexContainer">
+          <span class="flexShrink0">自分の名前</span>
+          <span class="selectForm" class="flexShrink0">
             <select class="JKゴシックM" id="nameTextFont" name="nameTextFont" onchange="fontChenge('nameText')">
               <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
               <option class="JKゴシックM">JKゴシックM</option>
@@ -79,8 +78,8 @@
               <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
             </select>
           </span>
-          <span>　チャット欄</span>
-          <span class="selectForm">
+          <span class="flexShrink0">チャット欄</span>
+          <span class="selectForm" class="flexShrink0">
             <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChenge('chatLog')">
               <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
               <option class="JKゴシックM">JKゴシックM</option>
@@ -92,8 +91,10 @@
               <option class="游ゴシック">游ゴシック</option>
               <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
             </select>
-          </span><br>
-          <span>　たいとる</span>
+          </span>
+          </div>
+          <div class="flexContainer">
+          <span>たいとる</span>
           <span class="selectForm">
             <select class="ピグモ00" id="titleFont" name="titleFont" onchange="fontChenge('title')">
               <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
@@ -107,7 +108,7 @@
               <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
             </select>
           </span>
-          <span>　その他</span>
+          <span>その他</span>
           <span class="selectForm">
             <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChenge('sonota')">
               <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
@@ -121,14 +122,17 @@
               <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
             </select>
           </span>
-        </form>
+          </div>
+        </div>
       </div>
       <div id="chatLog">
         <ul id="logs" class="flexContainerColumn">
         </ul>
       </div>
     </div>
-    <div id="tyui">　　　　　　※トリップ使えるけど、あんま流出対策してないので本トリップは使わんように</div>
+    <br>
+    <div id="tyui">※トリップ使えるけど、あんま流出対策してないので本トリップは使わんように</div>
+    <div id= footer>
     <div class="flexContainer">
       <svg width="40" height="40" class="pkun">
         <defs>
@@ -152,6 +156,10 @@
     <div id="kousinrireki">
       <br>
       <p>更新履歴</p>
+      <p>2020/05/26 IE11で描画がおかしくなってたの直した、しかしIE11の対応がめんどすぎるのでそのうち投げるかもしれん</p>
+      <p>リサイズ時のスクロールバーの挙動がおかしいので直した</p>
+      <p>2020/05/25 <span style="color:#97B8FF; font-weight:bold;">ねこすけ</span>実装　提供：ごまちゃんお</p>
+      <p>画面の大きさとか調整した</p>
       <p>2020/05/23 動きのバグ直した</p>
       <p>2020/05/21 UIを色々変えた</p>
       <p>2020/05/17 名前を自動再入力するようにした</p>
@@ -209,10 +217,12 @@
     </div>
     <div id="senburahaihu" class="flexContainer">
         <p>windows用専ブラPMbrowserVer1.0  提供：</p>
-        <p style="color: red; font-weight:bold; font-size:24px;">闇の帝王　</p>
-        <a href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
-        <p>　　　</p>
+        <p class="rightSpace"style="color: red; font-weight:bold; font-size:17px;">闇の帝王</p>
+        <a class="rightSpace" href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
+        <div class="rightSpace"></div>
+        <div class="rightSpace"></div>
         <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a>
+    </div>
     </div>
   </div>
 
@@ -221,10 +231,4 @@
     <p>javascriptが無効になってるみたいやから、有効にしてね！！</p>
   </noscript>
 </body>
-
-
-
-
-
-
 </html>
