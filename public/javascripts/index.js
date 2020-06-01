@@ -1,7 +1,28 @@
 'use strict';
 
+//大雑把に
+//変数宣言等
+//フォント切り替え※後で消すからこの位置
+//webGL(PIXIJS)の設定開始
+//画像読み込み
+//setUp()・・・画像切り取り、画像設定、座標表示設定、submit設定、gameLoop();
+//ブロックの配置、タップやアニメの設定、クッキー読み込み、看板機能
+//login()・・・名前出力、クッキー書き込み、ログイン画面消去、エントランスの設定、座標関連、フォーム切り替え、chengeRoomPoint()
+//部屋移動・・chengeRoomPoint()、socket.on("leave_room"、socket.on("join_me"、socket.on("join_room")、moveMsg()//移動時のメッセージ
+// メッセージ関連・・・socket.on("emit_msg"、アボン処理
+//socket.on("mySocketID"、socket.on("login_me"、socket.on("loadAvatar"、 socket.on("login_room"
+//ログアウト処理
+//function gameLoop()
+//再起動用メッセージ
+//背景色を変える、画面リサイズの処理
+//Ｐくｎ
+
+
+
+
 //ソケットIOをonにする
 let socket = io.connect('153.127.33.40:3000');
+
 
 //アバターの初期位置
 let AX = 300;
@@ -38,7 +59,13 @@ let nameTextY = -105;
 let inRoom = 0;
 
 let room;
-let loginBack, entrance, ground, croud, bonfire;
+let loginBack;
+let entrance, ground, croud, bonfire;
+let daikokubasira;
+
+let utyu;
+
+
 let gomaNecoFace, necosukeFace;
 
 let gomaNecoS, gomaNecoS1, gomaNecoS2,
@@ -74,7 +101,7 @@ let rightY, leftY;
 let flag = false;
 let setAbon = [];
 
-let daikokubasira;
+
 
 //エイリアス
 let html = document.querySelector('html')
@@ -194,55 +221,12 @@ function fontChenge(value) {
 
 //webGL(Canvasの設定)
 let app = new PIXI.Application({
-  width: 660,
+  width: 660,//背景の標準サイズ
   height: 480,
 });
-//最初の背景画像
-// app.renderer.backgroundColor = 0x4C4C52;
-// app.renderer.autoDensityautoResize=true;//要るんか？？これ
 
 
 
-
-
-
-
-//  ブロックを配置
-// let block1 = new PIXI.Graphics();//ブロックを置く宣言
-// block1.beginFill(0xf0f8ff);
-// block1.drawPolygon([
-//   321, 250,
-//   690, 251,
-//   690, 322,
-//   400, 323,
-//   320, 276,
-// ]);
-// app.stage.addChild(block1);//実装
-
-
-// let block2 = new PIXI.Graphics();//ブロックを置く宣言
-// block2.beginFill(0x4682b4);
-// block2.drawPolygon([
-//   0, 0,
-//   465, 1,
-//   460, 91,
-//   437, 90,
-//   436, 21,
-//   388, 20,
-//   386, 91,
-//   290, 90,
-//   76, 198,
-//   1, 138,
-// ]);
-// app.stage.addChild(block2);//実装
-// app.stage.removeChild(block1);//ブロック１を消す
-// app.stage.removeChild(block2);//ブロック２を消す
-
-// // ブロックの頂点の座標をブロックごとに入れてく、最後に始点を入れてることに注意。
-// const block1X = [321, 690, 691, 400, 320, 321];
-// const block1Y = [250, 252, 322, 323, 276, 250];
-// const block2X = [0, 465, 460, 437, 436, 388, 386, 290, 76, 1, 0];
-// const block2Y = [0, 1, 91, 90, 21, 20, 91, 90, 198, 138, 0];
 
 
 let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
@@ -285,6 +269,7 @@ PIXI.Loader.shared//画像を読みこんでから処理を始める為のロー
   .add("croud", "img/croud.png")
   .add("bonfire", "img/bonfire.png")
   .add("daikokubasira", "img/daikokubasira.png")
+  .add("utyu", "img/utyu.png")
   .on("progress", loadProgressHandler)//プログラミングローダー
   .load(setUp);//画像読み込み後の処理は基本ここに書いてく
 
@@ -299,6 +284,14 @@ function loadProgressHandler(Loader, resources) {
 
 
 function setUp() {//画像読み込み後の処理はここに書いていく
+  socket.emit("getMySocketID", {});//サーバーに入ったことを伝える
+  // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
+  app.renderer.autoDensity = true;
+
+  // app.stage.interactive = true;//タップヲ有効にする
+
+
+
   //アバターのベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
   gomaNecoS = new PIXI.Texture(PIXI.BaseTexture.from("gomaNeco"), new PIXI.Rectangle(0, 0, 40, 70));
   gomaNecoS1 = new PIXI.Texture(PIXI.BaseTexture.from("gomaNeco"), new PIXI.Rectangle(40, 0, 40, 70));
@@ -371,33 +364,34 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   necosukeSE2 = new PIXI.Texture(PIXI.BaseTexture.from("necosuke"), new PIXI.Rectangle(150, 560, 50, 80));
 
 
-  socket.emit("set", {});//サーバーに入ったことを伝える
   //背景の画像を追加
+  //ログイン画面
   loginBack = new PIXI.Sprite(PIXI.Loader.shared.resources["loginBack"].texture);
   gomaNecoFace = new PIXI.Sprite(PIXI.Loader.shared.resources["gomaNecoFace"].texture);
   necosukeFace = new PIXI.Sprite(PIXI.Loader.shared.resources["necosukeFace"].texture);
+  //login画面をクリックできるようにする
+  setMap(loginBack);
+  tapRange(loginBack);
 
 
-
+  //エントランス画面
   entrance = new PIXI.Sprite(PIXI.Loader.shared.resources["entrance"].texture);
-  entrance.name = "entrance";
+  entrance.name = "entrance";//名前を割り振る※これをやらないとgetChildByNameメソッドが使えない
   ground = new PIXI.Sprite(PIXI.Loader.shared.resources["ground"].texture);
   croud = new PIXI.Sprite(PIXI.Loader.shared.resources["croud"].texture);
   bonfire = new PIXI.Sprite(PIXI.Loader.shared.resources["bonfire"].texture);
   daikokubasira = new PIXI.Sprite(PIXI.Loader.shared.resources["daikokubasira"].texture);
+  //宇宙画面
+  utyu = new PIXI.Sprite(PIXI.Loader.shared.resources["utyu"].texture);
+  utyu.name = "utyu";//名前を割り振る
 
 
-  // entrance.width = 660;
-  // entrance.height = 480;
-
-  setMap(loginBack);
-  clickRange(loginBack);
 
 
-  loginBack.addChild(gomaNecoFace);
+  loginBack.addChild(gomaNecoFace);//login画面にgomaNocoFaceを追加
   gomaNecoFace.interactive = true;//クリックイベントを有効化
-  gomaNecoFace.on("click", function () {//ごまねこアイコンクリック時にアバター変更
-    avaP[socketID].avatar = "gomaNeco";
+  gomaNecoFace.pointerdown = function () {//ごまねこアイコンクリック時にアバター変更
+    avaP[socketID].avatar = "gomaNeco";//親コンテナにアバターの種類を設定する
     avaS[socketID] = new PIXI.Sprite(gomaNecoS);
     avaS1[socketID] = new PIXI.Sprite(gomaNecoS1);
     avaS2[socketID] = new PIXI.Sprite(gomaNecoS2);
@@ -423,7 +417,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     avaSE1[socketID] = new PIXI.Sprite(gomaNecoSE1);
     avaSE2[socketID] = new PIXI.Sprite(gomaNecoSE2);
 
-
     avaS[socketID].anchor.set(0.5, 1);
     avaS1[socketID].anchor.set(0.5, 1);
     avaS2[socketID].anchor.set(0.5, 1);
@@ -448,12 +441,12 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     avaSE[socketID].anchor.set(0.5, 1);
     avaSE1[socketID].anchor.set(0.5, 1);
     avaSE2[socketID].anchor.set(0.5, 1);
-  });
+  };
 
-  loginBack.addChild(necosukeFace);
+  loginBack.addChild(necosukeFace);//login画面にnucosukeFaceを追加
   necosukeFace.position.set(40, 0);
   necosukeFace.interactive = true;//クリックイベントを有効化
-  necosukeFace.on("click", function () {//ねこすけアイコンクリック時にアバター変更
+  necosukeFace.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
     avaP[socketID].avatar = "necosuke";
     avaS[socketID] = new PIXI.Sprite(necosukeS);
     avaS1[socketID] = new PIXI.Sprite(necosukeS1);
@@ -507,14 +500,10 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     avaSE[socketID].anchor.set(0.5, 1);
     avaSE1[socketID].anchor.set(0.5, 1);
     avaSE2[socketID].anchor.set(0.5, 1);
-  });
+  };
 
 
-
-
-
-
-  // 座標確認用のオブジェクト
+  // 座標確認用のオブジェクトの表示
   // アバターX座標の表示設定
   AtextX = new PIXI.Text("avaX");
   AtextX.style = {//アバターX座標のスタイル
@@ -537,6 +526,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   AtextY.position.set(560, 435);
   app.stage.addChild(AtextY);
 
+
   //マウスX座標の表示設定
   MtextX = new PIXI.Text("mouX");
   MtextX.style = {//マウスX座標のスタイル
@@ -558,85 +548,27 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   MtextY.position.set(560, 465);
 
 
-  //入った時に入力欄にフォーカスを合わせる
+
+  //セッション開始時に入力欄にフォーカスを合わせる
   document.querySelector('input').focus();
-
-
-  //名前を出力
+  //名前を出力、名前がsubmitされたらログイン
   document.querySelector("#nameForm").addEventListener("submit", function (e) {
-    nameText[socketID].text = (document.nameForm.userName.value);;
-    e.preventDefault();
+    nameText[socketID].text = (document.nameForm.userName.value);//名前タグに出力
+    e.preventDefault();//画面遷移を防ぐ
     login();
   });
 
 
 
-  // 読み込み      
-  function readCookie() {
-    let cookieValue = document.cookie.replace(/(?:(?:^|.*;\s*)mycookie\s*\=\s*([^;]*).*$)|^.*$/, "$1");
-    document.nameForm.userName.value = cookieValue;
-  }
-
-  readCookie();
-
-
-
-  let isDownedShift = false;
-  document.querySelector("#msgForm").addEventListener("keydown", function (e) {
-    isDownedShift = e.shiftKey;
-  });
-  document.querySelector("#msgForm").addEventListener("keyup", function (e) {
-    isDownedShift = e.shiftKey;
-  });
-  document.querySelector("#msgForm").addEventListener("submit", function (e) {
-    if (isDownedShift) {
-      socket.json.emit("emit_msg", {
-        socketID: socketID,
-        msg: (document.msgForm.msg.value),
-        kanban: true,
-      });
-      document.msgForm.msg.value = "";
-      document.msgForm.msg.focus();
-    } else {
-      socket.json.emit("emit_msg", {
-        socketID: socketID,
-        msg: (document.msgForm.msg.value),
-        kanban: false,
-      });
-      document.msgForm.msg.value = "";
-      document.msgForm.msg.focus();
-    }
-    e.preventDefault();
-  });
-
-
-
-  //   //画面をタップした時の処理
-  // // document.getElementById("graphic").addEventListener("touchstart", function () {
-  //   app.stage.on('touchstart', function (event) {
-  //   // loginBack.touchstart = function(){
-  //     flag = true;
-  //     MX = event.data.getLocalPosition(event.target).x;
-  //     MY = event.data.getLocalPosition(event.target).y;
-  //     // MX = app.renderer.plugins.interaction.mouse.global.x;//使えない
-  //     // MY = app.renderer.plugins.interaction.mouse.global.y;
-  //     moveEvent();
-  //   });
-  // // });
-
-  // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
-  app.renderer.autoDensity = true;
-
-
-  app.stage.interactive = true;
 
   gameLoop();
-}
+}//function setUpはここで終わり
 
+//エントランスでタップ可能なブロックを配置
 // croudBlock1配置
 let croudBlock1 = new PIXI.Graphics();
 croudBlock1.beginFill(0xf0f8ff);
-croudBlock1.alpha = 0;
+croudBlock1.alpha = 0;//透明にする
 croudBlock1.drawPolygon([
   111, 123,
   123, 113,
@@ -672,7 +604,7 @@ croudBlock1.drawPolygon([
 //croudBlock2配置
 let croudBlock2 = new PIXI.Graphics();
 croudBlock2.beginFill(0xf0f8ff);
-croudBlock2.alpha = 0;
+croudBlock2.alpha = 0;//透明にする
 croudBlock2.drawPolygon([
   421, 73,
   443, 59,
@@ -721,163 +653,32 @@ groundBlock.drawPolygon([
   660, 480,
   0, 480,
 ]);
+//大黒柱の頂点を配置
+let daikokubasiraBlock = new PIXI.Graphics();//ブロックを置く宣言
+daikokubasiraBlock.beginFill(0xf0f8ff);
+daikokubasiraBlock.drawPolygon([
+  125, 200,
+  175, 300,
+  175, 300,
+  125, 200,
+]);
 
+//障害物の範囲設定
 const bonfireBlockX = [270, 349, 392, 320, 270];
 const bonfireBlockY = [326, 285, 325, 358, 326];
+const daikokubasiraBottomBlockX = [125, 175, 175, 125, 125];
+const daikokubasiraBottomBlockY = [295, 295, 300, 300, 295];
 
-function entranceBlock() {
+function entranceBlock() {//エントランスで障害物に当たった時の設定
   iniColPoint(bonfireBlockX);//colPointを初期化
   checkColPoint(bonfireBlockX, bonfireBlockY);//bonfireのcolPointを調べる
+  iniColPoint(daikokubasiraBottomBlockX);//colPointを初期化
+  checkColPoint(daikokubasiraBottomBlockX, daikokubasiraBottomBlockY);//daikokubasiraBlockBottomのcolPointを調べる
 }
 
-
-//画面をクリックした時の処理
-function setMap(value) {
-  value.sortableChildren = true;//子要素のzIndexをonにする。
-  app.stage.addChild(value);//画像を読みこむ
+function utyuBlock() {
+  //宇宙に画像を入れた時に↑のを参考に増やす
 }
-
-function clickRange(value) {
-  value.interactive = true;//クリックイベントを有効化
-  value.click = function () {
-
-    // if (flag) {
-    // flag = false;
-    // } else {
-    MX = app.renderer.plugins.interaction.mouse.global.x;
-    MY = app.renderer.plugins.interaction.mouse.global.y;
-    // console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);//マウスの座標を取得
-    // console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
-    if (AX != MX || AY != MY) {//同一点なら移動しない//パターン１
-      moveEvent();
-    }
-    document.msgForm.msg.focus();
-    // }
-  };
-}
-function moveEvent() {
-  let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
-  if (inRoom == 0) {//ログイン画面に居るとき
-    if (sin <= -0.9239) {
-      anime(avaN, avaN1, avaN2, socketID);
-    } else if (0.9239 <= sin) {
-      anime(avaS, avaS1, avaS2, socketID);
-    } else if (0.3827 <= sin && AX < MX) {
-      anime(avaSE, avaSE1, avaSE2, socketID);
-    } else if (0.3827 <= sin && MX < AX) {
-      anime(avaSW, avaSW1, avaSW2, socketID);
-
-    } else if (sin <= -0.3827 && AX < MX) {
-      anime(avaNE, avaNE1, avaNE2, socketID);
-    } else if (sin <= -0.3827 && MX < AX) {
-      anime(avaNW, avaNW1, avaNW2, socketID);
-
-    } else if (AX < MX) {
-      anime(avaE, avaE1, avaE2, socketID);
-    } else if (MX < AX) {
-      anime(avaW, avaW1, avaW2, socketID);
-    }
-
-    gsap.to(avaP[socketID], {
-      duration: 0.4, x: MX, y: MY,
-      onComplete: function () {
-        AX = avaP[socketID].x;
-        AY = avaP[socketID].y;
-      }
-    });
-  } else {//ログイン画面以外に居るとき
-    // 方向に合わせて画像を変えて表示
-    if (sin <= -0.9239) {
-      DIR = "N";
-    } else if (0.9239 <= sin) {
-      DIR = "S";
-    } else if (0.3827 <= sin && AX < MX) {
-      DIR = "SE";
-    } else if (0.3827 <= sin && MX < AX) {
-      DIR = "SW";
-    } else if (sin <= -0.3827 && AX < MX) {
-      DIR = "NE";
-    } else if (sin <= -0.3827 && MX < AX) {
-      DIR = "NW";
-    } else if (AX < MX) {
-      DIR = "E";
-    } else if (MX < AX) {
-      DIR = "W";
-    }
-    if (room == "entrance") {
-      entranceBlock();
-    }//別の部屋の場合でつき足す!!!!!!!!!!!!
-    if (colPointAll[0] == undefined) {//どこにもぶつからなかった場合//パターン２
-      AX = MX;
-      AY = MY;
-      clickedMove(DIR, AX, AY, socketID);
-      socket.json.emit("clickMap", {
-        DIR: DIR,
-        AX: AX,
-        AY: AY,
-        socketID: socketID,
-      });
-    } else {//ブロックと交わる場合
-      //distanceが最小値順になるようにcolPointAllを並び変える
-      colPointAll.sort(function (a, b) {
-        if (a.distance > b.distance) {
-          return 1;
-        } else {
-          return -1;
-        }
-      });
-      //衝突時の動き
-      if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].PY < colPointAll[0].TY) {
-        colMove(colPointAll[0], -1, -1);
-      } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].PY < colPointAll[0].TY) {
-        colMove(colPointAll[0], -1, 1);
-      } else if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].TY < colPointAll[0].PY) {
-        colMove(colPointAll[0], 1, -1);
-      } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].TY < colPointAll[0].PY) {
-        colMove(colPointAll[0], 1, 1);
-      }
-    }
-    // 初期化
-    colPointAll = [];
-  }
-}
-
-function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき、歩いてるとき２、socketID
-  gsap.to(avaP[value], 0, {
-    delay: 0.1,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava1[value];
-      avaP[value].addChild(avaC[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.2,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava2[value];
-      avaP[value].addChild(avaC[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.3,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava1[value];
-      avaP[value].addChild(avaC[value]);
-    }
-  });
-  gsap.to(avaP[value], 0, {
-    delay: 0.4,
-    onUpdate: function () {
-      avaP[value].removeChild(avaC[value]);
-      avaC[value] = ava[value];
-      avaP[value].addChild(avaC[value]);
-    }
-  });
-}
-
-
 function iniColPoint(blockSize) {//checkColpointで設定したcolPointを初期化
   colPoint = [];//一旦全部消す
   for (let i = 0; i < blockSize.length - 1; i++) {//値を用意する
@@ -926,12 +727,150 @@ function checkColPoint(BX, BY) { //(collisionPointの略)
 }
 
 
+//画面タップ可能な画像の設定
+function setMap(value) {
+  value.sortableChildren = true;//子要素のzIndexをonにする。
+  app.stage.addChild(value);//画像を読みこむ
+}
+
+function tapRange(value) {
+  value.interactive = true;//クリックイベントを有効化
+  value.pointerdown = function (event) {
+    MX = event.data.getLocalPosition(value).x;
+    MY = event.data.getLocalPosition(value).y;
+    // console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);//マウスのクリック座標
+    // console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
+    if (AX != MX || AY != MY) {//同一点なら移動しない//パターン１
+      let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
+      if (inRoom == 0) {//ログイン画面に居るとき
+        if (sin <= -0.9239) {
+          anime(avaN, avaN1, avaN2, socketID);
+        } else if (0.9239 <= sin) {
+          anime(avaS, avaS1, avaS2, socketID);
+        } else if (0.3827 <= sin && AX < MX) {
+          anime(avaSE, avaSE1, avaSE2, socketID);
+        } else if (0.3827 <= sin && MX < AX) {
+          anime(avaSW, avaSW1, avaSW2, socketID);
+
+        } else if (sin <= -0.3827 && AX < MX) {
+          anime(avaNE, avaNE1, avaNE2, socketID);
+        } else if (sin <= -0.3827 && MX < AX) {
+          anime(avaNW, avaNW1, avaNW2, socketID);
+
+        } else if (AX < MX) {
+          anime(avaE, avaE1, avaE2, socketID);
+        } else if (MX < AX) {
+          anime(avaW, avaW1, avaW2, socketID);
+        }
+
+        gsap.to(avaP[socketID], {
+          duration: 0.4, x: MX, y: MY,
+          onComplete: function () {
+            AX = avaP[socketID].x;
+            AY = avaP[socketID].y;
+          }
+        });
+      } else {//ログイン画面以外に居るとき
+        // 方向に合わせて画像を変えて表示
+        if (sin <= -0.9239) {
+          DIR = "N";
+        } else if (0.9239 <= sin) {
+          DIR = "S";
+        } else if (0.3827 <= sin && AX < MX) {
+          DIR = "SE";
+        } else if (0.3827 <= sin && MX < AX) {
+          DIR = "SW";
+        } else if (sin <= -0.3827 && AX < MX) {
+          DIR = "NE";
+        } else if (sin <= -0.3827 && MX < AX) {
+          DIR = "NW";
+        } else if (AX < MX) {
+          DIR = "E";
+        } else if (MX < AX) {
+          DIR = "W";
+        }
+        if (room == "entrance") {
+          entranceBlock();
+        }//別の部屋の場合でつき足す!!!!!!!!!!!!
+        if (colPointAll[0] == undefined) {//どこにもぶつからなかった場合//パターン２
+          AX = MX;
+          AY = MY;
+          tappedMove(socketID,AX, AY, DIR);
+          socket.json.emit("tapMap", {
+            DIR: DIR,
+            AX: AX,
+            AY: AY,
+            socketID: socketID,
+          });
+        } else {//ブロックと交わる場合//パターン３
+          //distanceが最小値順になるようにcolPointAllを並び変える
+          colPointAll.sort(function (a, b) {
+            if (a.distance > b.distance) {
+              return 1;
+            } else {
+              return -1;
+            }
+          });
+          //衝突時の動き
+          if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].PY < colPointAll[0].TY) {
+            colMove(colPointAll[0], -1, -1);
+          } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].PY < colPointAll[0].TY) {
+            colMove(colPointAll[0], -1, 1);
+          } else if (colPointAll[0].TX < colPointAll[0].PX && colPointAll[0].TY < colPointAll[0].PY) {
+            colMove(colPointAll[0], 1, -1);
+          } else if (colPointAll[0].PX < colPointAll[0].TX && colPointAll[0].TY < colPointAll[0].PY) {
+            colMove(colPointAll[0], 1, 1);
+          }
+        }
+        // 初期化
+        colPointAll = [];
+      }
+    }
+    document.msgForm.msg.focus();
+  };
+}
+
+function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき、歩いてるとき２、socketID
+  gsap.to(avaP[value], 0, {
+    delay: 0.1,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava1[value];
+      avaP[value].addChild(avaC[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.2,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava2[value];
+      avaP[value].addChild(avaC[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.3,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava1[value];
+      avaP[value].addChild(avaC[value]);
+    }
+  });
+  gsap.to(avaP[value], 0, {
+    delay: 0.4,
+    onUpdate: function () {
+      avaP[value].removeChild(avaC[value]);
+      avaC[value] = ava[value];
+      avaP[value].addChild(avaC[value]);
+    }
+  });
+}
+
 function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,CPAはcolPointALLの略、stopXとstopYはブロックの手前で止まってもらうための数字,バグ防止
   //交点に位置に移動する
   AX = CPA.LX + stopX;
   AY = CPA.LY + stopY;
-  clickedMove(DIR, AX, AY, socketID);
-  socket.json.emit("clickMap", {
+  tappedMove(socketID, AX, AY, DIR);
+  socket.json.emit("tapMap", {
     DIR: DIR,
     socketID: socketID,
     AX: AX,
@@ -941,86 +880,141 @@ function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,C
 
 
 //移動時のソケット受け取り
-socket.on("clickMap_from_server", function (data) {
+socket.on("tapMap", function (data) {
   if (setAbon[data.socketID] == false) {
-    clickedMove(data.DIR, data.AX, data.AY, data.socketID);
+    tappedMove(data.socketID, data.AX, data.AY, data.DIR);
   }
 });
 
 //数値を取得後のアバターの動き
-function clickedMove(DIR, AX, AY, socketID) {
+function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
   switch (DIR) {//子要素の画像を入れる
     case "NE":
-      anime(avaNE, avaNE1, avaNE2, socketID);
+      anime(avaNE, avaNE1, avaNE2, thisSocketID);
       break;
     case "SE":
-      anime(avaSE, avaSE1, avaSE2, socketID);
+      anime(avaSE, avaSE1, avaSE2, thisSocketID);
       break;
     case "SW":
-      anime(avaSW, avaSW1, avaSW2, socketID);
+      anime(avaSW, avaSW1, avaSW2, thisSocketID);
       break;
     case "NW":
-      anime(avaNW, avaNW1, avaNW2, socketID);
+      anime(avaNW, avaNW1, avaNW2, thisSocketID);
       break;
     case "N":
-      anime(avaN, avaN1, avaN2, socketID);
+      anime(avaN, avaN1, avaN2, thisSocketID);
       break;
     case "E":
-      anime(avaE, avaE1, avaE2, socketID);
+      anime(avaE, avaE1, avaE2, thisSocketID);
       break;
     case "S":
-      anime(avaS, avaS1, avaS2, socketID);
+      anime(avaS, avaS1, avaS2, thisSocketID);
       break;
     default:
-      anime(avaW, avaW1, avaW2, socketID);
+      anime(avaW, avaW1, avaW2, thisSocketID);
       break;
   }
-  moving.to(avaP[socketID], { duration: 0.4, x: AX, y: AY });
-  avaP[socketID].zIndex = AY;//上に進むか下に進むかで処理位置決めたらいいんかな？　後で考える
+  avaP[thisSocketID].zIndex = thisAY;//上に進むか下に進むかで処理位置決めたらいいんかな？　後で考える
+  moving.to(avaP[thisSocketID], {
+    duration: 0.4, x: thisAX, y: thisAY, onComplete: function () {
+      if (thisSocketID == socketID) {
+        selfChengeRoom();
+      } else {
+        nonSelfChengeRoom(thisSocketID,thisAX,thisAY);
+    }
+  }});
 }
+
+// クッキーを読み込み      
+function readCookie() {
+  let cookieValue = document.cookie.replace(/(?:(?:^|.*;\s*)mycookie\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+  document.nameForm.userName.value = cookieValue;//名前を出力
+}
+readCookie();
+
+
+//看板機能
+let isDownedShift = false;
+document.querySelector("#msgForm").addEventListener("keydown", function (e) {
+  isDownedShift = e.shiftKey;
+});
+document.querySelector("#msgForm").addEventListener("keyup", function (e) {
+  isDownedShift = e.shiftKey;
+});
+document.querySelector("#msgForm").addEventListener("submit", function (e) {
+  if (isDownedShift) {//シフトが押されてる場合
+    socket.json.emit("emit_msg", {
+      socketID: socketID,
+      msg: (document.msgForm.msg.value),
+      kanban: true,
+    });
+    document.msgForm.msg.value = "";
+    document.msgForm.msg.focus();
+  } else {//シフトが推されてない時
+    socket.json.emit("emit_msg", {
+      socketID: socketID,
+      msg: (document.msgForm.msg.value),
+      kanban: false,
+    });
+    document.msgForm.msg.value = "";//メッセージ入力欄を空にする
+    document.msgForm.msg.focus();//メッセージ入力欄にフォーカスを合わせる
+  }
+  e.preventDefault();
+});
 
 //ログイン時の処理
 function login() {
-  //userNameにフォームの内容を入れる
-  userName = document.nameForm.userName.value;
+  if (userName != "") {//名前が空だと移動しない
+    //userNameにフォームの内容を入れる
+    userName = document.nameForm.userName.value;
+    
+    //クッキー書き込み
+    document.cookie = "mycookie=" + userName;
+    
+    //ログイン画面の画像を消す
+    app.stage.removeChild(loginBack);//ここもsetMapに入れたい
 
-  //クッキー書き込み
-  document.cookie = "mycookie=" + userName;
-  room = "entrance";
-
-
-  if (userName != "") {//名前が空だと移動しない//マップを切り替える
-
+    room = "entrance";//マップを切り替える
     entrance.addChild(croudBlock1);
-    clickRange(croudBlock1);
+    tapRange(croudBlock1);
     entrance.addChild(croudBlock2);
-    clickRange(croudBlock2);
+    tapRange(croudBlock2);
 
     entrance.addChild(groundBlock);
-    clickRange(groundBlock);
+    tapRange(groundBlock);
+
+    entrance.addChild(daikokubasiraBlock);
+    tapRange(daikokubasiraBlock);
+
 
     entrance.addChild(croud);
     entrance.addChild(ground);
     bonfire.zIndex = 325;
     entrance.addChild(bonfire);
+
+    daikokubasira.anchor.set(0.5, 1);
+    daikokubasira.position.set(150, 300);
+    daikokubasira.zIndex = 300;
+    entrance.addChild(daikokubasira);
+
     setMap(entrance);
 
     //マウス座標を表示
-    // app.stage.addChild(MtextX);
-    // app.stage.addChild(MtextY);
+    app.stage.addChild(MtextX);
+    app.stage.addChild(MtextY);
+    app.stage.addChild(AtextX);
+    app.stage.addChild(AtextY);
     //座標を消す
     // app.stage.removeChild(AtextX);
     // app.stage.removeChild(AtextY);
     // app.stage.removeChild(MtextX);
     // app.stage.removeChild(MtextY);
 
-    AX = 457;//座標を切り替える//ここらへんは後でsetMapに入れるか
+    AX = 457;//座標を切り替える
     AY = 80;
 
-    //ログイン画面の画像を消す
-    app.stage.removeChild(loginBack);//ここもsetMapに入れたい
 
-    socket.json.emit("join_room", {//エントランスに入る
+    socket.json.emit("login_room", {//エントランスに入る
       room: "entrance",
       socketID: socketID,//soket.id
       userName: userName,//ユーザーネーム
@@ -1034,15 +1028,113 @@ function login() {
     document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
     document.msgForm.msg.focus();
     inRoom = 1;
+
   }
-  daikokubasira.position.set(350, 360);
-  // daikokubasira.zIndex = 360;
-  entrance.addChild(daikokubasira);
 }
 
 
+function selfChengeRoom() {
+  if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {//大黒柱の範囲内に入った時
+    app.stage.removeChild(entrance);
+    room = "utyu";//移動先の部屋を設定
+    setMap(utyu);
+    tapRange(utyu);
+    moveMsg(userName + "がentranceから移動してきました");//移動時のメッセージ出力
+    avaP[socketID].removeChild(avaC[socketID]);
+    AX = 300;
+    AY = 200;
+    DIR = "S";
+    socket.json.emit("join_room", {
+      socketID: socketID,//soket.id
+      userName: userName,
+      beforeRoom: "entrance",
+      afterRoom: "utyu",
+      AX: AX,
+      AY: AY,
+      DIR:DIR,
+    });
+  }
+}
+function nonSelfChengeRoom(thisSocketID,thisAX,thisAY) {
+  if (room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
+    entrance.removeChild(avaP[thisSocketID]);
+    moveMsg(nameText[thisSocketID].text + "が" + "utyu" + "に移動しました。");
+    document.getElementById('users').textContent--;
+  }
+}
+
+
+
+socket.on("join_self", function (data) {//自分が部屋に入室した時
+  const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
+  keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
+    if (data.user[value].room == data.room) {
+      // 画像とメッセージと名前を追加してステージに上げる
+      switch (data.user[value].DIR) {
+        case "NE":
+          avaC[value] = avaNE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SE":
+          avaC[value] = avaSE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SW":
+          avaC[value] = avaSW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "NW":
+          avaC[value] = avaNW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "N":
+          avaC[value] = avaN[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "E":
+          avaC[value] = avaE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "S":
+          avaC[value] = avaS[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        default:
+          avaC[value] = avaW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+      }
+      avaP[value].position.set(data.user[value].AX, data.user[value].AY);
+      app.stage.getChildByName(data.room).addChild(avaP[value]);//部屋にアバターを入れる
+    }
+  });
+  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
+});
+
+socket.on("join_nonself", function (data) {//自分以外が部屋に入室した時
+  app.stage.getChildByName(data.room).addChild(avaP[data.socketID]);//部屋にアバターを入れる
+  avaP[data.socketID].position.set(data.AX, data.AY);
+  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
+});
+
+
+function moveMsg(moveMsg) {//移動時のメッセージ出力
+  const li = document.createElement("li");
+  li.textContent = moveMsg;
+  const ul = document.querySelector("ul");
+  //メッセージを出力
+  if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+  }
+}
+
+
+
 //メッセージを受け取って表示
-socket.on("emit_msg_from_server", function (data) {
+socket.on("emit_msg", function (data) {
   const li = document.createElement("li");
   if (setAbon[data.socketID] == false) {
     if (data.avaMsg == "") {//未入力メッセージなら吹き出しを消す
@@ -1063,7 +1155,6 @@ socket.on("emit_msg_from_server", function (data) {
       let regexp = /、b|、ｂ/i
       if (regexp.test(msgText)) {
         msgText += "　ちゃりーｎ、りーん";
-        console.log(regexp.test(msgText));
       }
 
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
@@ -1099,7 +1190,7 @@ socket.on("emit_msg_from_server", function (data) {
 });
 
 //アボンした時の処理
-socket.on("abonSetting_from_server", function (data) {
+socket.on("abonSetting", function (data) {
   const li = document.createElement("li");
   li.textContent = data.msg;
   const ul = document.querySelector("ul");
@@ -1160,7 +1251,7 @@ socket.on("abonSetting_from_server", function (data) {
 });
 
 
-socket.on("mySocketID_from_server", function (data) {
+socket.on("mySocketID", function (data) {
   socketID = data.socketID;
   //アバターの親コンテナを設定
   avaP[socketID] = new PIXI.Container();
@@ -1251,21 +1342,11 @@ socket.on("mySocketID_from_server", function (data) {
 
 
 //ルーム入室時に自分と他人のアバターを生成する
-socket.on("join_me_from_server", function (data) {
-  //入室時のメッセージを出す
-  const li = document.createElement("li");
-  li.textContent = data.msg;
-  const ul = document.querySelector("ul");
-  //メッセージを出力
-  if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-    chatLog.scrollTop = chatLog.scrollHeight;
-  } else {
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-  }
+socket.on("login_me", function (data) {
+  moveMsg(data.msg);//移動時のメッセージ出力
 
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.roomUser;
+  document.getElementById('users').textContent = data.users;
 
 
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
@@ -1401,180 +1482,122 @@ socket.on("join_me_from_server", function (data) {
 
 
 
+    // アバターの親コンテナを作成
+    avaP[value] = new PIXI.Container();
+    avaP[value].zIndex = data.user[value].AY;
+    avaP[value].sortableChildren = true;//子要素のzIndexをonにする
+    avaP[value].position.set(data.user[value].AX, data.user[value].AY);
     if (data.user[value].room == "entrance") {
-      // アバターの親コンテナを作成
-      avaP[value] = new PIXI.Container();
-      avaP[value].zIndex = data.user[value].AY;
-      avaP[value].sortableChildren = true;//子要素のzIndexをonにする
-      avaP[value].position.set(data.user[value].AX, data.user[value].AY);
       entrance.addChild(avaP[value]);
-
-
-
-      // 画像とメッセージと名前を追加してステージに上げる
-      switch (data.user[value].DIR) {
-        case "NE":
-          avaC[value] = avaNE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "SE":
-          avaC[value] = avaSE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "SW":
-          avaC[value] = avaSW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "NW":
-          avaC[value] = avaNW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "N":
-          avaC[value] = avaN[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "E":
-          avaC[value] = avaE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "S":
-          avaC[value] = avaS[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        default:
-          avaC[value] = avaW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-      }
-
-      //名前を追加
-      nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
-      nameText[value].zIndex = 10;
-      nameText[value].anchor.set(0.5);
-      nameText[value].position.set(0, -avaC[value].height - 15);
-      avaP[value].addChild(nameText[value]);
-
-      nameTag[value] = new PIXI.Graphics();
-      nameTag[value].lineStyle(1, 0x000000, 0.5);
-      nameTag[value].beginFill(0x000000);
-      nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
-      nameTag[value].endFill();
-      nameTag[value].x = -nameText[value].width / 2;
-      nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
-      nameTag[value].alpha = 0.3;
-
-      avaP[value].addChild(nameTag[value]);
-      // アバターのメッセージを追加する
-      msg[value] = new PIXI.Text(data.user[value].msg);
-      msg[value].zIndex = 20;
-      msg[value].position.set(0, -avaC[value].height - 5);
-      msg[value].style.fontSize = 16;
-      msg[value].style.fill = "0x1e90ff";
-      avaP[value].addChild(msg[value]);
-
-      if (data.user[value].msg != "") {
-        const liKanban = document.createElement("li");
-        liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;
-        liKanban.style.color = "white";
-        liKanban.style.background = "rgba(0,0,205,0.3)";
-        const ulKanban = document.querySelector("ul");
-
-        ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[li.length]);
-      }
-
-
-      //アバタークリックでアボン
-      avaP[value].interactive = true;//クリックイベントを有効化
-      setAbon[value] = false;
-      avaP[value].on("click", function () {
-        if (value != socketID) {//自アバターは省く 
-          if (setAbon[value]) {
-            setAbon[value] = false;
-          } else {
-            setAbon[value] = true;
-            avaP[value].removeChild(avaC[value]);
-            avaC[value] = avaAbon[value];
-            avaP[value].addChild(avaC[value]);
-          }
-          socket.json.emit("abonSetting", {
-            setAbon: setAbon[value],
-            socketID: value,
-          });
-        }
-      });
-
-      //画像をクリックしたときだけにアボンする処理を書こうとしたんやけど、これだとうまくいかんなあ
-      //     function clickAvaC() {
-      //       if (value != socketID) {//自アバターは省く 
-      //         if (setAbon[value]) {
-      //           setAbon[value] = false;
-
-
-      //         } else {
-      //           setAbon[value] = true;
-      //           avaP[value].removeChild(avaC[value]);
-      //             avaC[value] = avaAbon[value];
-      //             avaP[value].addChild(avaC[value]);
-      //           }
-      //           socket.json.emit("abonSetting", {
-      //             setAbon: setAbon[value],
-      //             socketID: value,
-      //           });
-      //         }
-      //     }
-
-      //     avaN[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaNE[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaE[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaSE[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaS[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaSW[value].on("click", function () {
-      //       console.log("TEST");
-      //       clickAvaC();
-      //     });
-      //     avaW[value].on("click", function () {
-      //       clickAvaC();
-      //     });
-      //     avaNW[value].on("click", function () {
-      //       console.log("TEST");
-      //   clickAvaC();
-      // });
-
-
-
-
     }
+
+
+    // 画像とメッセージと名前を追加してステージに上げる
+    switch (data.user[value].DIR) {
+      case "NE":
+        avaC[value] = avaNE[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "SE":
+        avaC[value] = avaSE[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "SW":
+        avaC[value] = avaSW[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "NW":
+        avaC[value] = avaNW[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "N":
+        avaC[value] = avaN[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "E":
+        avaC[value] = avaE[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      case "S":
+        avaC[value] = avaS[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+      default:
+        avaC[value] = avaW[value];
+        avaP[value].addChild(avaC[value]);
+        break;
+    }
+
+    //名前を追加
+    nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
+    nameText[value].zIndex = 10;
+    nameText[value].anchor.set(0.5);
+    nameText[value].position.set(0, -avaC[value].height - 15);
+    avaP[value].addChild(nameText[value]);
+
+    nameTag[value] = new PIXI.Graphics();
+    nameTag[value].lineStyle(1, 0x000000, 0.5);
+    nameTag[value].beginFill(0x000000);
+    nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
+    nameTag[value].endFill();
+    nameTag[value].x = -nameText[value].width / 2;
+    nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
+    nameTag[value].alpha = 0.3;
+
+    avaP[value].addChild(nameTag[value]);
+    // アバターのメッセージを追加する
+    msg[value] = new PIXI.Text(data.user[value].msg);
+    msg[value].zIndex = 20;
+    msg[value].position.set(0, -avaC[value].height - 5);
+    msg[value].style.fontSize = 16;
+    msg[value].style.fill = "0x1e90ff";
+    avaP[value].addChild(msg[value]);
+
+    if (data.user[value].msg != "") {
+      const liKanban = document.createElement("li");
+      liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;
+      liKanban.style.color = "white";
+      liKanban.style.background = "rgba(0,0,205,0.3)";
+      const ulKanban = document.querySelector("ul");
+
+      ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    }
+
+
+    //アバタークリックでアボン
+    avaP[value].interactive = true;//クリックイベントを有効化
+    setAbon[value] = false;
+    avaP[value].rightclick = function () {
+      if (value != socketID) {//自アバターは省く 
+        if (setAbon[value]) {
+          setAbon[value] = false;
+        } else {
+          setAbon[value] = true;
+          avaP[value].removeChild(avaC[value]);
+          avaC[value] = avaAbon[value];
+          avaP[value].addChild(avaC[value]);
+        }
+        socket.json.emit("abonSetting", {
+          setAbon: setAbon[value],
+          socketID: value,
+        });
+      }
+    };
+
+
   });
 
 
 });
 
 
-
-
-//自分以外がルームに入ってきた時のアバター作成とアナウンス
-socket.on("join_room_from_server", function (data) {
+socket.on("loadAvatar", function (data) {
   // アバターの親コンテナを作成
   avaP[data.socketID] = new PIXI.Container();
   avaP[data.socketID].sortableChildren = true;//子要素のzIndexをonにする
-  avaP[data.socketID].zIndex = 200;
+  avaP[data.socketID].zIndex = 80;
   avaP[data.socketID].position.set(457, 80);
-  entrance.addChild(avaP[data.socketID]);
+
 
 
   //ここらへんは、後で画像纏めた時に関数化したいな
@@ -1701,7 +1724,7 @@ socket.on("join_room_from_server", function (data) {
   // アバタークリックでアボン
   avaP[data.socketID].interactive = true;//クリックイベントを有効化
   setAbon[data.socketID] = false;
-  avaP[data.socketID].on("click", function () {
+  avaP[data.socketID].rightclick = function () {
     if (setAbon[data.socketID]) {
       setAbon[data.socketID] = false;
     } else {
@@ -1714,26 +1737,30 @@ socket.on("join_room_from_server", function (data) {
       setAbon: setAbon[data.socketID],
       socketID: data.socketID,
     });
-  });
+  };
 
-  //入室時のメッセージを出す
-  const li = document.createElement("li");
-  li.textContent = data.msg;
-  const ul = document.querySelector("ul");
-  //メッセージを出力
-  if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-    chatLog.scrollTop = chatLog.scrollHeight;
-  } else {
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-  }
-  //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.roomUser;
+
 });
 
+//自分以外がルームに入ってきた時のアバター作成とアナウンス
+socket.on("login_room", function (data) {
+  entrance.addChild(avaP[data.socketID]);
+  moveMsg(data.msg);//移動時のメッセージ出力
+  //部屋人数の表記を変える
+  document.getElementById('users').textContent = data.users;
+})
 
-
-
+//ログアウトした時の処理
+socket.on("logout", function (data) {
+  moveMsg(data.msg);//移動時のメッセージ出力
+  //部屋人数の表記を変える
+  document.getElementById('users').textContent = data.users;
+  //アバターを消す
+  app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
+  
+  // data.room.removeChild(avaP[data.socketID]);
+  // entrance.removeChild(avaP[data.socketID]);
+});
 
 //アバター位置とマウス位置の表示
 let loginMX;
@@ -1750,53 +1777,34 @@ function gameLoop() {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-//ログアウトした時の処理
-socket.on("logout_from_server", function (data) {
-  const li = document.createElement("li");
-  li.textContent = data.msg;//退出ログを入れる
-  const ul = document.querySelector("ul");
-  //メッセージを出力
-  if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-    chatLog.scrollTop = chatLog.scrollHeight;
-  } else {
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-  }
-  //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.roomUser;
-  //アバターを消す
-  app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
-
-  // data.room.removeChild(avaP[data.socketID]);
-  // entrance.removeChild(avaP[data.socketID]);
+//再起動用メッセージ
+socket.on("emitSaikiMsg", function (data) {
+  moveMsg(data.msg);//移動時じゃないけど、これ使う
 });
 
 
-
-
-
 //背景色を変える
-let uiColor = true;
-
-title.addEventListener("touchstart", function (event) {
+let uiColor = 0;
+title.addEventListener("touchstart", function () {
   flag = true;
-  if (uiColor == true) {
-    body.style.backgroundColor = "skyblue";
+  switch (uiColor) {
+    case 0:
+      body.style.backgroundColor = "skyblue";
 
-    uiColor = false;
-  } else {
-    body.style.backgroundColor = "#333333";
-    uiColor = true;
+      uiColor = 1;
+      break;
+    case 1:
+      body.style.backgroundColor = "#f68b1f";
+      uiColor = 2;
+      break;
+    case 2:
+      body.style.backgroundColor = "#333333";
+      uiColor = 3;
+      break;
+    case 3:
+      body.style.backgroundColor = "rgb(50, 50, 58)";
+      uiColor = 0;
+      break;
   }
 });
 
@@ -1804,14 +1812,26 @@ title.addEventListener("click", function () {
   if (flag) {
     flag = false;
   } else {
-    if (uiColor == true) {
-      body.style.backgroundColor = "skyblue";
-      uiColor = false;
-    } else {
-      body.style.backgroundColor = "#333333";
-      uiColor = true;
+    switch (uiColor) {
+      case 0:
+        body.style.backgroundColor = "skyblue";
+
+        uiColor = 1;
+        break;
+      case 1:
+        body.style.backgroundColor = "#f68b1f";
+        uiColor = 2;
+        break;
+      case 2:
+        body.style.backgroundColor = "#333333";
+        uiColor = 3;
+        break;
+      case 3:
+        body.style.backgroundColor = "rgb(50, 50, 58)";
+        uiColor = 0;
+        break;
+      }
     }
-  }
 });
 
 
@@ -1819,65 +1839,95 @@ let windowSize = window.innerWidth;
 StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
 loginID.style.position = windowSize / 2 - 10 + "px"
 
-
 Pmain.style.width = 528 + "px";
 Pmain.style.height = 460 + "px";
 
 windowResize();
 
 
-let scrollBar;
-//画面サイズが変わった時にチャットのスクロールバーを動かす//
-window.addEventListener('resize', function () {
-  // console.log(chatLog.scrollHeight+chatLog.scrollTop);
-  console.log("TE1:" + chatLog.clientHeight);
-  // console.log(typeof chatLog.scrollTop);
-  
-  if (windowSize > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1 && window.innerWidth<=700) {//windowSizeが700以上でスクロールが一番下にある時、window.innnerWidthが700以下になったら
-    chatLog.scrollTop = 0;//スクロールを一番上にする
-  } else if ((windowSize <= 700 && chatLog.scrollTop == 0 && window.innerWidth > 700) || windowSize > 700  ){//windowSizeが700以下でスクロールが一番下にある時にwindow.innerWidthが700以上になった時か、windowSizeが700以上での時
-    chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
-  }
+let chatLogScrollHeight;
+let chatLogScrollTop;
+let chatLogClientHeight;
+chatLog.onscroll = function () {
+  chatLogScrollHeight = chatLog.scrollHeight;
+  chatLogScrollTop = chatLog.scrollTop;
+  chatLogClientHeight = chatLog.clientHeight;
+}
+
+function over700andBottomBar() {
   windowSize = window.innerWidth;
   windowResize();
-}, false);
+  if (window.innerWidth > 700) {//window.innerWidthが700以上の場所に移動した場合
+    chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
+
+  } else {//700以下の場所に移動した場合
+    chatLog.scrollTop = 0;
+  }
+}
+
+function under700andTopBar() {
+  windowSize = window.innerWidth;
+  windowResize();
+  if (window.innerWidth > 700) {//windowサイズが700以上になったら
+    chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
+  }
+
+}
+
+function elseBar() {
+  windowSize = window.innerWidth;
+  windowResize();
+  chatLogScrollHeight = chatLog.scrollHeight;
+  chatLogScrollTop = chatLog.scrollTop;
+  chatLogClientHeight = chatLog.clientHeight;
+}
+
+//画面サイズが変わった時にチャットのスクロールバーを動かす
+window.addEventListener("resize", function () {
+  if (windowSize > 700 && chatLogScrollHeight - chatLogScrollTop <= chatLogClientHeight + 1) {//windowサイズが700以上の時かつ、スクロールバーが一番下にある時
+    over700andBottomBar();
+  } else if (windowSize <= 700 && chatLog.scrollTop == 0) {//windowサイズが700以下の時、かつスクロールバーが一番上にある時
+    under700andTopBar();
+  } else {
+    elseBar();
+  }
+});
+
+
 
 
 function windowResize() {
-  if (windowSize <= 700) {//windowSizeが700以下の時///あああ、IE11で横に謎の隙間できるの不安やなぁ,現状は問題ないけど、スマホとかで問題でそう。とりあえず、Pmainのscale前の状態を参照しとるっぽい。(たぶｎ)
+  if (windowSize <= 700) {//windowSizeが700以下の時//あああ、IE11で横に謎の隙間できるの不安やなぁ,現状は問題ないけど、スマホとかで問題でそう。とりあえず、Pmainのscale前の状態を参照しとるっぽい。(たぶｎ)
     let PMscale = windowSize / (660 + 25);
     let scale = "scale(" + PMscale + ")";
     StyleDeclarationSetTransform(Pmain.style, scale);
-    // Pmain.style.width = graphic.clientWidth * PMscale + "px";//なんでこれ入れたんかわからんけど、消しても問題なさそうだから消しとく
+    Pmain.style.width = graphic.clientWidth * PMscale + "px";//Pmainの実質幅を変更
 
-    
     loginID.style.left = loginID.offsetWidth * PMscale / 2 + 660 / 2 * PMscale + "px";
-    
-    
-    
+
     tyui.style.position = "absolute";
     tyui.style.top = 525 * PMscale + "px";
-    
+
     //IE11対策
     chatLog.style.position = "absolute";
     chatLog.style.top = 590 * PMscale + "px";
-    chatLog.style.left = 0+ "px";
+    chatLog.style.left = 0 + "px";
     chatLog.style.width = windowSize + "px";
     chatLog.style.width = chatLog.clientWidth + "px";
-    
+
     footer.style.position = "absolute";
     footer.style.top = 500 + 555 * PMscale + "px";
-    
+
     StyleDeclarationSetTransform(fontSousenkyo.style, scale);
     footer.appendChild(fontSousenkyo);
     footer.appendChild(titleBar);
-    
+
     // //IE11対策
     footer.style.width = windowSize + "px";
     footer.style.width = kousinrireki.clientWidth + "px";
   } else {//700以上の時
     StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
-    chatLog.style.width = windowSize-528+"px";
+    chatLog.style.width = windowSize - 528 + "px";
     Pmain.style.width = 528 + "px";
     loginID.style.left = loginID.offsetWidth * 0.8 / 2 + 660 / 2 * 0.8 + "px";
     tyui.style.position = "static";
@@ -1886,7 +1936,7 @@ function windowResize() {
     StyleDeclarationSetTransform(fontSousenkyo.style, "scale(1.0)");
     Pmain.appendChild(fontSousenkyo);
     main.insertBefore(titleBar, Pmachi);
-    
+
     //IE11対策
     footer.style.width = windowSize + "px";
   }
@@ -1900,48 +1950,54 @@ function StyleDeclarationSetTransform(style, value) {//設定したい要素,設
     "webkitTransform",
     "MozTransform",
     "msTransform",
-    "OTransform"
+    "OTransform",
   ];
   let i;
   let num = list.length;
   for (i = 0; i < num; i++) {
+    style[list[i]] = value;
     if (style[list[i]] !== undefined) {
-      style[list[i]] = value;
       return true;
     }
   }
   return false;
-
 }
 
 
 
-//再起動用メッセージ
-socket.on("emitSaikiMsg", function (data) {
-  const li = document.createElement("li");
-  li.textContent = data.msg;
-  const ul = document.querySelector("ul");
-  //メッセージを出力
-  if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-    chatLog.scrollTop = chatLog.scrollHeight;
-  } else {
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
-  }
-});
 
 console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
 
-// app.renderer.resize(600, 440);
-// app.view.width = 600;
 
-//Pくん
-(function () {
-  document.querySelector('svg').addEventListener("click", function () {
-    document.querySelectorAll('.pkun').forEach(function (pkun) {
-      pkun.classList.add('moved');
-      console.log("プロ街&飴ちゃん");
-    });
-  });
 
-})(); 
+// Pくん
+function clickPkun() {
+  pkun.classList.add('moved');
+  console.log("プロ街&飴ちゃん");
+}
+
+let PkunFlag = true;
+document.querySelector('svg').addEventListener("touchstart", function () {
+  flag = true;
+  if (PkunFlag) {
+    clickPkun();
+    PkunFlag = false;
+  } else {
+    pkun.classList.remove('moved');
+    PkunFlag = true;
+  }
+});
+
+document.querySelector('svg').addEventListener("click", function () {
+  if (flag) {
+    flag = false;
+  } else {
+    if (PkunFlag) {
+      clickPkun();
+      PkunFlag = false;
+    } else {
+      pkun.classList.remove('moved');
+      PkunFlag = true;
+    }
+  }
+});

@@ -44,8 +44,10 @@ server.on('listening', onListening);
 
 let user = {};
 // user={socketID:{userName,msg,socketID,room,AX,AY,DIR}};
+
+let time;
+let users = { "entrance": 0, "utyu": 0 };
 let room;
-let entranceUser = 0;
 
 var crypto = require("crypto");
 // var cipers = crypto.getCiphers();
@@ -96,21 +98,18 @@ io.on('connection', function (socket) {
     AX: 457,
     AY: 80,
     DIR: "S",
-    msg:"",
+    msg: "",
+    avatar: "gomaNeco",
   }
 
-  socket.broadcast.json.emit("loadNewUser", {//新しい人が来たときに画像を作るよう要請する
-    socketID: socket.id,
-  });
 
-  socket.on("set", function () {
-    io.to(socket.id).json.emit("mySocketID_from_server", {
+  socket.on("getMySocketID", function () {//ソケットIDを送る
+    io.to(socket.id).json.emit("mySocketID", {
       socketID: socket.id,
-      user: user,
     });
   });
 
-  socket.on("join_room", function (data) {//部屋に入室した時
+  socket.on("login_room", function (data) {//ログイン処理
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       //トリップを作る
       data.userName = data.userName.replace(/◆/g, '□');
@@ -127,31 +126,67 @@ io.on('connection', function (socket) {
         data.userName = tripName + tripCreate(tripStr);
       }
       user[data.socketID].userName = data.userName;//名前をサバに保存
-      room = data.room;
-      if (room == "entrance") {
-        user[data.socketID].room = "entrance";
-        entranceUser++;
-      }
+      
+      user[data.socketID].avatar = data.avatar;
+      
 
-      socket.join(room);
-      let time;
-      if (room == "entrance") {
-        time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
-        io.to(socket.id).json.emit("join_me_from_server", {
-          user: user,
-          roomUser: entranceUser,
-          msg: user[data.socketID].userName + "が" + room + "に入室しました。" + time,
-        });
+      user[data.socketID].room = data.room;//ユーザー情報に部屋を入れる
+      users[data.room]++;//部屋人数を変更
+      socket.join("entrance");
+     
+      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間
 
-        socket.broadcast.to(room).emit("join_room_from_server", {
-          socketID: data.socketID,
-          userName: data.userName,
-          roomUser: entranceUser,
-          msg: user[data.socketID].userName + "が" + room + "に入室しました。" + time,
-        });
-      }
+      socket.broadcast.emit("loadAvatar", {//全体に新規入場者を読みこます、後々全体人数もここで管理していいかな
+        socketID: data.socketID,
+        avatar:data.avatar,
+        userName: user[data.socketID].userName,
+      });
+
+      io.to(socket.id).json.emit("login_me", {
+        user: user,
+        users: users[data.room],
+        msg: user[data.socketID].userName + "が" + data.room + "に入室しました。" + time,
+      });
+
+      socket.broadcast.to(data.room).emit("login_room", {
+        socketID: data.socketID,
+        msg: user[data.socketID].userName + "が" + data.room + "に入室しました。" + time,
+        users: users[data.room],
+      });
     } else {
       saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+  socket.on("join_room", function (data) {
+    if (user[data.socketID]) {////サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間
+      let before = data.beforeRoom;
+      let after = data.afterRoom;
+      socket.leave(before);
+      socket.join(after);
+      users[before]--//入室前の部屋人数を減らす
+      users[after]++;//入室後の部屋人数を増やす
+      user[data.socketID].room = data.afterRoom;
+      user[data.socketID].AX = data.AX;
+      user[data.socketID].AY = data.AY;
+      user[data.socketID].DIR = data.DIR;
+      io.to(socket.id).json.emit("join_self", {
+        user: user,
+        room: data.afterRoom,
+        users:users[after],
+      })
+      socket.broadcast.to(after).emit("join_nonself", {
+        socketID: data.socketID,
+        room:data.afterRoom,
+        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。",
+        users: users[data.afterRoom],
+        AX: data.AX,
+        AY: data.AY,
+      });
+        
+    } else {
+      saikiMsg();
     }
   });
 
@@ -165,13 +200,14 @@ io.on('connection', function (socket) {
       } else {
         user[data.socketID].msg = "";
       }
-      io.to(room).emit("emit_msg_from_server", {
-        userName:user[data.socketID].userName,
+
+      io.to(user[data.socketID].room).emit("emit_msg", {
+        userName: user[data.socketID].userName,
         msg: data.msg,
         socketID: data.socketID,
         avaMsg: data.msg,
         abonClass: user[data.socketID].socketID,//あとで考える！！！！！！！！！
-        kanban:data.kanban,
+        kanban: data.kanban,
       });
     } else {
       saikiMsg();
@@ -192,7 +228,7 @@ io.on('connection', function (socket) {
         abonMsg = user[data.socketID].userName + "のあぼんをやめました";
         abonAvaMsg = "";
       }
-      io.to(socket.id).json.emit("abonSetting_from_server", {
+      io.to(socket.id).json.emit("abonSetting", {
         msg: abonMsg,
         socketID: data.socketID,
         avaMsg: abonAvaMsg,
@@ -206,13 +242,13 @@ io.on('connection', function (socket) {
   });
 
   //クリックイベント
-  socket.on('clickMap', function (data) {
+  socket.on('tapMap', function (data) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       user[data.socketID].DIR = data.DIR;
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;
 
-      socket.broadcast.to(room).emit("clickMap_from_server", {
+      socket.broadcast.to(user[data.socketID].room).emit("tapMap", {
         DIR: data.DIR,
         socketID: data.socketID,
         AX: data.AX,
@@ -226,19 +262,16 @@ io.on('connection', function (socket) {
 
   //退出時
   socket.on("disconnect", function () {
-    if (user[socket.id].room == "entrance") {
-      entranceUser--;
-      roomUserFunk(entranceUser);
-    }
-    function roomUserFunk(value) {
-      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
-      io.to(room).emit("logout_from_server", {
-        socketID: socket.id,
-        msg: user[socket.id].userName + "が退出しました。" + time,
-        room: room,
-        roomUser: value,
-      });
-    }
+    users[user[socket.id].room]--;
+
+    time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
+
+    io.to(user[socket.id].room).emit("logout", {
+      socketID: socket.id,
+      msg: user[socket.id].userName + "が退出しました。" + time,
+      room: user[socket.id].room,
+      users: users[user[socket.id].room],
+    });
     delete user[socket.id];
 
   });

@@ -10,14 +10,12 @@
   <meta name="description" content="チャットサイトproject街の後継？テストサバです。">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
   <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script> 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
   <link rel='stylesheet' href='/stylesheets/style.css' />
-
 </head>
 
 <body>
-
   <script type="text/javascript">
     let type = "WebGL"
     if (!PIXI.utils.isWebGLSupported()) {
@@ -25,6 +23,7 @@
     }
     PIXI.utils.sayHello(type)
   </script>
+
   <div id="contextmenu">
   </div>
 
@@ -134,7 +133,7 @@
     <div id="tyui">※トリップ使えるけど、あんま流出対策してないので本トリップは使わんように</div>
     <div id= footer>
     <div class="flexContainer">
-      <svg width="40" height="40" class="pkun">
+      <svg width="40" height="40" id="pkun">
         <defs>
           <style>
             .svgText {
@@ -146,7 +145,7 @@
             }
           </style>
         </defs>
-        <rect x="0" y="0" width="40" height="40" fill="skyblue" />
+        <rect x="0" y="0" width="40" height="40" ></rect>
         <text x="20" y="35" class="svgText">
           P
         </text>
@@ -156,12 +155,19 @@
     <div id="kousinrireki">
       <br>
       <p>更新履歴</p>
+      <p>2020/6/1 宇宙が生まれた</p>
+      <p>2020/5/30 再開 画面外脱出バグ修正</p>
+      <p>飽きたのでしばらく放置</p>
+      <p>2020/05/28 やっとスマホ対応</p>
+      <p>とりあえず、アボンは右クリックでできるようにした。</p>
+      <p>新色→skyblue→みかん色→旧</p>
       <p>2020/05/26 IE11で描画がおかしくなってたの直した、しかしIE11の対応がめんどすぎるのでそのうち投げるかもしれん</p>
       <p>リサイズ時のスクロールバーの挙動がおかしいので直した</p>
+      <p>スクロールバーちょっと弄ってみた(Chrome,Safariのみ)</p>
       <p>2020/05/25 <span style="color:#97B8FF; font-weight:bold;">ねこすけ</span>実装　提供：ごまちゃんお</p>
       <p>画面の大きさとか調整した</p>
       <p>2020/05/23 動きのバグ直した</p>
-      <p>2020/05/21 UIを色々変えた</p>
+      <p>2020/05/21 UIを色々変えた、ちゃりーｎ</p>
       <p>2020/05/17 名前を自動再入力するようにした</p>
       <a href="/dominionrule" target="_blank">　　　　　ドミニオンのルール</a>
       <p>2020/05/11 再起動メッセージが上手くいかなくなってたので直した</p>
@@ -217,7 +223,7 @@
     </div>
     <div id="senburahaihu" class="flexContainer">
         <p>windows用専ブラPMbrowserVer1.0  提供：</p>
-        <p class="rightSpace"style="color: red; font-weight:bold; font-size:17px;">闇の帝王</p>
+        <p class="rightSpace" style="color:red; font-weight:bold; font-size:17px;">闇の帝王</p>
         <a class="rightSpace" href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
         <div class="rightSpace"></div>
         <div class="rightSpace"></div>

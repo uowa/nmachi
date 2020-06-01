@@ -3,10 +3,54 @@ body {
     color: #eee;
     font-size: 14px;
     margin: 0 0 0 2px;
-    background-color: #222424;
+    background-color: rgb(50, 50, 58);
+    /* background-color: rgb(35, 35, 39); こっちとで迷う*/
+    
     display: -webkit-flex;
     display: flex;
     flex-direction: column;
+}
+
+/* ページ全体のスクロールの幅の指定 */
+
+html::-webkit-scrollbar {
+    width: 15px;
+    height: 10px;
+}
+
+/* ページ全体のスクロールの背景の設定 */
+
+html::-webkit-scrollbar-track {
+    border-radius: 5px;
+    box-shadow: 0 0 4px #aaa inset;
+}
+
+/* ページ全体のスクロールのつまみ部分の設定 */
+
+html::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: rgba(195, 193, 207, 0.315);
+}
+
+/* その他のスクロールの幅の指定 */
+
+#chatLog::-webkit-scrollbar, #kousinrireki::-webkit-scrollbar {
+    width: 20px;
+    height: 0px;
+}
+
+/* その他のスクロールの背景の設定 */
+
+#chatLog-webkit-scrollbar-track, #kousinrireki::-webkit-scrollbar-track {
+    border-radius: 5px;
+    box-shadow: 0 0 4px #aaa inset;
+}
+
+/* その他のスクロールのつまみ部分の設定 */
+
+#chatLog::-webkit-scrollbar-thumb, #kousinrireki::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: rgba(207, 199, 255, 0.315);
 }
 
 p {
@@ -27,20 +71,21 @@ a {
     display: flex;
     flex-direction: column;
 }
-.spaceBetween{
+
+.spaceBetween {
     justify-content: space-between;
 }
-.flexShrink0{
+
+.flexShrink0 {
     flex-shrink: 0;
 }
 
 .rightSpace {
     /* IE11でも空白を使えるようにするための処置 */
-    display:inline-block;
-    padding-right:15px;/*お好きなサイズで*/
-  }
-
-
+    display: inline-block;
+    padding-right: 15px;
+    /*お好きなサイズで*/
+}
 
 #day {
     font-size: 14px;
@@ -64,7 +109,7 @@ a {
     /* flex-basis: 10000px; */
 }
 
-#login { 
+#login {
     position: absolute;
     font-weight: bold;
     border-style: none;
@@ -81,7 +126,8 @@ a {
     /*要素の大きさの半分ずつを戻す*/
     -webkit-transform: translateY(-50%) translateX(-50%);
     top: 50%;
-    left: 61%;/*ここで左右調整*/
+    left: 61%;
+    /*ここで左右調整*/
     transform: translateY(-50%) translateX(-50%);
     -webkit-transform: translateY(-50%) translateX(-50%);
 }
@@ -90,8 +136,6 @@ a {
     text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
 }
 
-
-
 #Pmain {
     /* 画面サイズ大き過ぎたから80%にするための処理 */
     /* -webkit-transform: scale(0.8);
@@ -99,7 +143,6 @@ a {
     -ms-transform: scale(0.8);
     -o-transform: scale(0.8);
     transform: scale(0.8); */
-
     -moz-transform-origin: 0px 0px;
     -webkit-transform-origin: 0px 0px;
     -o-transform-origin: 0px 0px;
@@ -146,8 +189,6 @@ a {
     height: 460px;
     max-width: 1000px;
     padding: 0px;
-
-    
 }
 
 #chatLog ul {
@@ -178,15 +219,16 @@ a {
     float: right;
 }
 
-.pkun {
+#pkun {
     cursor: pointer;
     stroke-linecap: round;
+    fill:skyblue;
 }
 
-.pkun.moved {
+#pkun.moved {
     animation-name: spin;
     animation-duration: 2s;
-    /* animation-iteration-count: infinite; */
+    animation-iteration-count: infinite;
     animation-timing-function: ease-in-out;
     /* animation-direction: alternate; */
     animation-fill-mode: forwards;
@@ -194,25 +236,53 @@ a {
 
 @keyframes spin {
     0% {
-        transform: none;
+        transform: rotate(0) scale(1.8) translateX(-80px);
+    }
+    10% {
+        transform: rotate(50) scale(1.8) translateX(-5px);
     }
     20% {
-        transform: rotate(100deg) scale(1.8);
+        transform: rotate(75deg) scale(1.7);
+    }
+    25% {
+        transform: rotate(100deg) scale(1.7);
     }
     30% {
         transform: rotate(270deg) scale(1.8) translateX(-80px);
         border-radius: 25%;
         width: 250px;
     }
+    40% {
+        transform: rotate(400deg) scale(1.8) translateX(-80px);
+        border-radius: 25%;
+        width: 250px;
+    }
     50% {
         transform: rotate(-200deg) scale(1.8) translateX(30px);
         border-radius: 50%;
+        /* fill:skyblue; */
+    }
+    60% {
+        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        border-radius: 50%;
+        background-color: transparent;/*背景を初期値（透明）にする*/
+        /* fill: rgb(233, 200, 12); */
     }
     80% {
         transform: rotate(640deg) scale(5.8) translateX(100px);
+        /* background-color: gold; */
+        /* fill:skyblue; */
+    }
+    90% {
+        transform: rotate(640deg) scale(5.8) translateX(100px);
+        background-color: transparent;/*背景を初期値（透明）にする*/
+    }
+    95% {
+        transform: rotate(720deg) scale(1.8) translateX(200px);
+        border-radius: 20%;
     }
     100% {
-        transform: rotate(720deg) scale(1.8) translateX(8px);
+        transform: rotate(720deg) scale(1.8) translateX(50px);
         border-radius: 20%;
     }
 }
@@ -225,6 +295,9 @@ a {
 #Q-A {
     font-size: 20px;
 }
+#Q-A a{
+font-size: 18px;
+}
 
 #kousinrirekiURL {
     font-size: 20px;
@@ -233,10 +306,11 @@ a {
 
 #kousinrireki {
     font-size: 14px;
-    max-width: 1528px;/*PMeinの幅とchatLogの幅の合計値に合わせる*/
+    max-width: 1528px;
+    /*PMeinの幅とchatLogの幅の合計値に合わせる*/
     height: 100px;
     overflow: scroll;
-    background-color: #414952;
+    background-color: #223852;
 }
 
 #kousinrireki a {
