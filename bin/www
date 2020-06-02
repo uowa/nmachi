@@ -171,15 +171,18 @@ io.on('connection', function (socket) {
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;
       user[data.socketID].DIR = data.DIR;
+      user[data.socketID].msg = "";
       io.to(socket.id).json.emit("join_self", {
         user: user,
         room: data.afterRoom,
-        users:users[after],
-      })
+        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
+        users: users[after],
+      });
+
       socket.broadcast.to(after).emit("join_nonself", {
         socketID: data.socketID,
         room:data.afterRoom,
-        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。",
+        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。"+time,
         users: users[data.afterRoom],
         AX: data.AX,
         AY: data.AY,
@@ -197,7 +200,12 @@ io.on('connection', function (socket) {
     if (user[data.socketID]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       if (data.kanban) {
         user[data.socketID].msg = data.msg;
-      } else {
+
+        //最後に発言したkanbanをuserの最後に入れなおす
+        let value = user[data.socketID];
+        delete user[data.socketID];
+        user[data.socketID] = value;
+      } else {//kanbanじゃないなら、userのメッセージ情報は消しとく
         user[data.socketID].msg = "";
       }
 

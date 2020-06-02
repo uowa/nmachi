@@ -6,6 +6,7 @@
 //webGL(PIXIJS)の設定開始
 //画像読み込み
 //setUp()・・・画像切り取り、画像設定、座標表示設定、submit設定、gameLoop();
+//socket.on("mySocketID"
 //ブロックの配置、タップやアニメの設定、クッキー読み込み、看板機能
 //login()・・・名前出力、クッキー書き込み、ログイン画面消去、エントランスの設定、座標関連、フォーム切り替え、chengeRoomPoint()
 //部屋移動・・chengeRoomPoint()、socket.on("leave_room"、socket.on("join_me"、socket.on("join_room")、moveMsg()//移動時のメッセージ
@@ -284,7 +285,7 @@ function loadProgressHandler(Loader, resources) {
 
 
 function setUp() {//画像読み込み後の処理はここに書いていく
-  socket.emit("getMySocketID", {});//サーバーに入ったことを伝える
+  
   // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
   app.renderer.autoDensity = true;
 
@@ -385,6 +386,157 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   utyu = new PIXI.Sprite(PIXI.Loader.shared.resources["utyu"].texture);
   utyu.name = "utyu";//名前を割り振る
 
+  socket.emit("getMySocketID", {});//サーバーに入ったことを伝える
+
+
+
+
+  
+
+
+  // 座標確認用のオブジェクトの表示
+  // アバターX座標の表示設定
+  AtextX = new PIXI.Text("avaX");
+  AtextX.style = {//アバターX座標のスタイル
+    fontFamily: "serif",
+    fontSize: "12px",
+    fill: "blue",
+  }
+  ///アバターX座標の位置
+  AtextX.position.set(560, 420);
+  app.stage.addChild(AtextX);
+
+  //アバターY座標の表示設定
+  AtextY = new PIXI.Text("avaY");
+  AtextY.style = {//アバターY座標のスタイル
+    fontFamily: "serif",
+    fontSize: "12px",
+    fill: "blue",
+  }
+  //アバターY座標の位置
+  AtextY.position.set(560, 435);
+  app.stage.addChild(AtextY);
+
+
+  //マウスX座標の表示設定
+  MtextX = new PIXI.Text("mouX");
+  MtextX.style = {//マウスX座標のスタイル
+    fontFamily: "serif",
+    fontSize: "12px",
+    fill: "red",
+  }
+  //マウスX座標の位置
+  MtextX.position.set(560, 450);
+
+  //マウスY座標の表示位置設定
+  MtextY = new PIXI.Text("mouY");
+  MtextY.style = {//マウスY座標のスタイル
+    fontFamily: "serif",
+    fontSize: "12px",
+    fill: "red",
+  }
+  //マウスY座標の位置
+  MtextY.position.set(560, 465);
+
+
+
+  //セッション開始時に入力欄にフォーカスを合わせる
+  document.querySelector('input').focus();
+  //名前を出力、名前がsubmitされたらログイン
+  document.querySelector("#nameForm").addEventListener("submit", function (e) {
+    nameText[socketID].text = (document.nameForm.userName.value);//名前タグに出力
+    e.preventDefault();//画面遷移を防ぐ
+    login();
+  });
+
+
+
+
+  gameLoop();
+}//function setUpはここで終わり
+
+socket.on("mySocketID", function (data) {
+  socketID = data.socketID;
+  //アバターの親コンテナを設定
+  avaP[socketID] = new PIXI.Container();
+  avaP[socketID].sortableChildren = true;//子要素のzIndexをonにする
+  avaP[socketID].position.set(320, 200);
+
+  //画像を追加
+  //デフォルト
+  avaP[socketID].avatar = "gomaNeco";
+  avaS[socketID] = new PIXI.Sprite(gomaNecoS);
+  avaS1[socketID] = new PIXI.Sprite(gomaNecoS1);
+  avaS2[socketID] = new PIXI.Sprite(gomaNecoS2);
+  avaSW[socketID] = new PIXI.Sprite(gomaNecoSW);
+  avaSW1[socketID] = new PIXI.Sprite(gomaNecoSW1);
+  avaSW2[socketID] = new PIXI.Sprite(gomaNecoSW2);
+  avaW[socketID] = new PIXI.Sprite(gomaNecoW);
+  avaW1[socketID] = new PIXI.Sprite(gomaNecoW1);
+  avaW2[socketID] = new PIXI.Sprite(gomaNecoW2);
+  avaNW[socketID] = new PIXI.Sprite(gomaNecoNW);
+  avaNW1[socketID] = new PIXI.Sprite(gomaNecoNW1);
+  avaNW2[socketID] = new PIXI.Sprite(gomaNecoNW2);
+  avaN[socketID] = new PIXI.Sprite(gomaNecoN);
+  avaN1[socketID] = new PIXI.Sprite(gomaNecoN1);
+  avaN2[socketID] = new PIXI.Sprite(gomaNecoN2);
+  avaNE[socketID] = new PIXI.Sprite(gomaNecoNE);
+  avaNE1[socketID] = new PIXI.Sprite(gomaNecoNE1);
+  avaNE2[socketID] = new PIXI.Sprite(gomaNecoNE2);
+  avaE[socketID] = new PIXI.Sprite(gomaNecoE);
+  avaE1[socketID] = new PIXI.Sprite(gomaNecoE1);
+  avaE2[socketID] = new PIXI.Sprite(gomaNecoE2);
+  avaSE[socketID] = new PIXI.Sprite(gomaNecoSE);
+  avaSE1[socketID] = new PIXI.Sprite(gomaNecoSE1);
+  avaSE2[socketID] = new PIXI.Sprite(gomaNecoSE2);
+
+  avaS[socketID].anchor.set(0.5, 1);
+  avaS1[socketID].anchor.set(0.5, 1);
+  avaS2[socketID].anchor.set(0.5, 1);
+  avaSW[socketID].anchor.set(0.5, 1);
+  avaSW1[socketID].anchor.set(0.5, 1);
+  avaSW2[socketID].anchor.set(0.5, 1);
+  avaW[socketID].anchor.set(0.5, 1);
+  avaW1[socketID].anchor.set(0.5, 1);
+  avaW2[socketID].anchor.set(0.5, 1);
+  avaNW[socketID].anchor.set(0.5, 1);
+  avaNW1[socketID].anchor.set(0.5, 1);
+  avaNW2[socketID].anchor.set(0.5, 1);
+  avaN[socketID].anchor.set(0.5, 1);
+  avaN1[socketID].anchor.set(0.5, 1);
+  avaN2[socketID].anchor.set(0.5, 1);
+  avaNE[socketID].anchor.set(0.5, 1);
+  avaNE1[socketID].anchor.set(0.5, 1);
+  avaNE2[socketID].anchor.set(0.5, 1);
+  avaE[socketID].anchor.set(0.5, 1);
+  avaE1[socketID].anchor.set(0.5, 1);
+  avaE2[socketID].anchor.set(0.5, 1);
+  avaSE[socketID].anchor.set(0.5, 1);
+  avaSE1[socketID].anchor.set(0.5, 1);
+  avaSE2[socketID].anchor.set(0.5, 1);
+  //avaPに追加
+  avaC[socketID] = avaS[socketID];
+  avaP[socketID].addChild(avaC[socketID]);
+
+  //名前タグを生成
+  nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
+  nameText[socketID].zIndex = 10;
+  nameText[socketID].anchor.set(0.5);
+  nameText[socketID].position.set(0, -avaC[socketID].height - 15);
+  avaP[socketID].addChild(nameText[socketID]);
+
+  nameTag[socketID] = new PIXI.Graphics();
+  nameTag[socketID].lineStyle(1, 0x000000, 0.5);
+  nameTag[socketID].beginFill(0x000000);
+  nameTag[socketID].drawRect(0, 0, nameText[socketID].width, nameText[socketID].height);
+  nameTag[socketID].endFill();
+  nameTag[socketID].x = -nameText[socketID].width / 2;
+  nameTag[socketID].y = -avaC[socketID].height - 15 - nameText[socketID].height / 2;
+  nameTag[socketID].alpha = 0.3;
+
+  avaP[socketID].addChild(nameTag[socketID]);
+  //ステージに追加
+  loginBack.addChild(avaP[socketID]);
 
 
 
@@ -501,68 +653,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     avaSE1[socketID].anchor.set(0.5, 1);
     avaSE2[socketID].anchor.set(0.5, 1);
   };
-
-
-  // 座標確認用のオブジェクトの表示
-  // アバターX座標の表示設定
-  AtextX = new PIXI.Text("avaX");
-  AtextX.style = {//アバターX座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "blue",
-  }
-  ///アバターX座標の位置
-  AtextX.position.set(560, 420);
-  app.stage.addChild(AtextX);
-
-  //アバターY座標の表示設定
-  AtextY = new PIXI.Text("avaY");
-  AtextY.style = {//アバターY座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "blue",
-  }
-  //アバターY座標の位置
-  AtextY.position.set(560, 435);
-  app.stage.addChild(AtextY);
-
-
-  //マウスX座標の表示設定
-  MtextX = new PIXI.Text("mouX");
-  MtextX.style = {//マウスX座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "red",
-  }
-  //マウスX座標の位置
-  MtextX.position.set(560, 450);
-
-  //マウスY座標の表示位置設定
-  MtextY = new PIXI.Text("mouY");
-  MtextY.style = {//マウスY座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "red",
-  }
-  //マウスY座標の位置
-  MtextY.position.set(560, 465);
-
-
-
-  //セッション開始時に入力欄にフォーカスを合わせる
-  document.querySelector('input').focus();
-  //名前を出力、名前がsubmitされたらログイン
-  document.querySelector("#nameForm").addEventListener("submit", function (e) {
-    nameText[socketID].text = (document.nameForm.userName.value);//名前タグに出力
-    e.preventDefault();//画面遷移を防ぐ
-    login();
-  });
-
-
-
-
-  gameLoop();
-}//function setUpはここで終わり
+});
 
 //エントランスでタップ可能なブロックを配置
 // croudBlock1配置
@@ -1039,7 +1130,6 @@ function selfChengeRoom() {
     room = "utyu";//移動先の部屋を設定
     setMap(utyu);
     tapRange(utyu);
-    moveMsg(userName + "がentranceから移動してきました");//移動時のメッセージ出力
     avaP[socketID].removeChild(avaC[socketID]);
     AX = 300;
     AY = 200;
@@ -1058,15 +1148,21 @@ function selfChengeRoom() {
 function nonSelfChengeRoom(thisSocketID,thisAX,thisAY) {
   if (room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
     entrance.removeChild(avaP[thisSocketID]);
-    moveMsg(nameText[thisSocketID].text + "が" + "utyu" + "に移動しました。");
     document.getElementById('users').textContent--;
+    moveMsg(nameText[thisSocketID].text+"がutyuに移動しました。");
   }
 }
 
 
 
+  
+
 socket.on("join_self", function (data) {//自分が部屋に入室した時
+  moveMsg(data.msg);
+  msg[socketID].text = "";
+  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
+  console.log(keys);
   keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
     if (data.user[value].room == data.room) {
       // 画像とメッセージと名前を追加してステージに上げる
@@ -1104,16 +1200,25 @@ socket.on("join_self", function (data) {//自分が部屋に入室した時
           avaP[value].addChild(avaC[value]);
           break;
       }
+      if (data.user[value].msg != ""&&data.user[value].room==data.room) {
+        const liKanban = document.createElement("li");//likanbanを作る
+        liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
+        liKanban.style.color = "white";//likanbanの文字を指定
+        liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
+        document.getElementById("logs").appendChild(liKanban);//logsの末尾に入れる
+      }
+
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
       app.stage.getChildByName(data.room).addChild(avaP[value]);//部屋にアバターを入れる
     }
   });
-  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
 });
 
 socket.on("join_nonself", function (data) {//自分以外が部屋に入室した時
   app.stage.getChildByName(data.room).addChild(avaP[data.socketID]);//部屋にアバターを入れる
   avaP[data.socketID].position.set(data.AX, data.AY);
+  msg[data.socketID].text = "";
+  moveMsg(data.msg);
   document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
 });
 
@@ -1251,89 +1356,7 @@ socket.on("abonSetting", function (data) {
 });
 
 
-socket.on("mySocketID", function (data) {
-  socketID = data.socketID;
-  //アバターの親コンテナを設定
-  avaP[socketID] = new PIXI.Container();
-  avaP[socketID].sortableChildren = true;//子要素のzIndexをonにする
-  avaP[socketID].position.set(320, 200);
 
-  //画像を追加
-  //デフォルト
-  avaP[socketID].avatar = "gomaNeco";
-  avaS[socketID] = new PIXI.Sprite(gomaNecoS);
-  avaS1[socketID] = new PIXI.Sprite(gomaNecoS1);
-  avaS2[socketID] = new PIXI.Sprite(gomaNecoS2);
-  avaSW[socketID] = new PIXI.Sprite(gomaNecoSW);
-  avaSW1[socketID] = new PIXI.Sprite(gomaNecoSW1);
-  avaSW2[socketID] = new PIXI.Sprite(gomaNecoSW2);
-  avaW[socketID] = new PIXI.Sprite(gomaNecoW);
-  avaW1[socketID] = new PIXI.Sprite(gomaNecoW1);
-  avaW2[socketID] = new PIXI.Sprite(gomaNecoW2);
-  avaNW[socketID] = new PIXI.Sprite(gomaNecoNW);
-  avaNW1[socketID] = new PIXI.Sprite(gomaNecoNW1);
-  avaNW2[socketID] = new PIXI.Sprite(gomaNecoNW2);
-  avaN[socketID] = new PIXI.Sprite(gomaNecoN);
-  avaN1[socketID] = new PIXI.Sprite(gomaNecoN1);
-  avaN2[socketID] = new PIXI.Sprite(gomaNecoN2);
-  avaNE[socketID] = new PIXI.Sprite(gomaNecoNE);
-  avaNE1[socketID] = new PIXI.Sprite(gomaNecoNE1);
-  avaNE2[socketID] = new PIXI.Sprite(gomaNecoNE2);
-  avaE[socketID] = new PIXI.Sprite(gomaNecoE);
-  avaE1[socketID] = new PIXI.Sprite(gomaNecoE1);
-  avaE2[socketID] = new PIXI.Sprite(gomaNecoE2);
-  avaSE[socketID] = new PIXI.Sprite(gomaNecoSE);
-  avaSE1[socketID] = new PIXI.Sprite(gomaNecoSE1);
-  avaSE2[socketID] = new PIXI.Sprite(gomaNecoSE2);
-
-  avaS[socketID].anchor.set(0.5, 1);
-  avaS1[socketID].anchor.set(0.5, 1);
-  avaS2[socketID].anchor.set(0.5, 1);
-  avaSW[socketID].anchor.set(0.5, 1);
-  avaSW1[socketID].anchor.set(0.5, 1);
-  avaSW2[socketID].anchor.set(0.5, 1);
-  avaW[socketID].anchor.set(0.5, 1);
-  avaW1[socketID].anchor.set(0.5, 1);
-  avaW2[socketID].anchor.set(0.5, 1);
-  avaNW[socketID].anchor.set(0.5, 1);
-  avaNW1[socketID].anchor.set(0.5, 1);
-  avaNW2[socketID].anchor.set(0.5, 1);
-  avaN[socketID].anchor.set(0.5, 1);
-  avaN1[socketID].anchor.set(0.5, 1);
-  avaN2[socketID].anchor.set(0.5, 1);
-  avaNE[socketID].anchor.set(0.5, 1);
-  avaNE1[socketID].anchor.set(0.5, 1);
-  avaNE2[socketID].anchor.set(0.5, 1);
-  avaE[socketID].anchor.set(0.5, 1);
-  avaE1[socketID].anchor.set(0.5, 1);
-  avaE2[socketID].anchor.set(0.5, 1);
-  avaSE[socketID].anchor.set(0.5, 1);
-  avaSE1[socketID].anchor.set(0.5, 1);
-  avaSE2[socketID].anchor.set(0.5, 1);
-  //avaPに追加
-  avaC[socketID] = avaS[socketID];
-  avaP[socketID].addChild(avaC[socketID]);
-
-  //名前タグを生成
-  nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
-  nameText[socketID].zIndex = 10;
-  nameText[socketID].anchor.set(0.5);
-  nameText[socketID].position.set(0, -avaC[socketID].height - 15);
-  avaP[socketID].addChild(nameText[socketID]);
-
-  nameTag[socketID] = new PIXI.Graphics();
-  nameTag[socketID].lineStyle(1, 0x000000, 0.5);
-  nameTag[socketID].beginFill(0x000000);
-  nameTag[socketID].drawRect(0, 0, nameText[socketID].width, nameText[socketID].height);
-  nameTag[socketID].endFill();
-  nameTag[socketID].x = -nameText[socketID].width / 2;
-  nameTag[socketID].y = -avaC[socketID].height - 15 - nameText[socketID].height / 2;
-  nameTag[socketID].alpha = 0.3;
-
-  avaP[socketID].addChild(nameTag[socketID]);
-  //ステージに追加
-  loginBack.addChild(avaP[socketID]);
-});
 
 
 
@@ -1553,14 +1576,12 @@ socket.on("login_me", function (data) {
     msg[value].style.fill = "0x1e90ff";
     avaP[value].addChild(msg[value]);
 
-    if (data.user[value].msg != "") {
-      const liKanban = document.createElement("li");
-      liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;
-      liKanban.style.color = "white";
-      liKanban.style.background = "rgba(0,0,205,0.3)";
-      const ulKanban = document.querySelector("ul");
-
-      ulKanban.insertBefore(liKanban, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    if (data.user[value].msg != ""&&data.user[value].room=="entrance") {
+      const liKanban = document.createElement("li");//likanbanを作る
+      liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
+      liKanban.style.color = "white";//likanbanの文字を指定
+      liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
+      document.getElementById("logs").appendChild(liKanban);//logsの末尾に入れる
     }
 
 
