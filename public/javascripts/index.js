@@ -1237,7 +1237,7 @@ function moveMsg(moveMsg) {//移動時のメッセージ出力
 }
 
 
-
+const logChime = new Audio('sound/chime.mp3');
 //メッセージを受け取って表示
 socket.on("emit_msg", function (data) {
   const li = document.createElement("li");
@@ -1264,6 +1264,7 @@ socket.on("emit_msg", function (data) {
 
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
+      logChime.play();
 
 
       //メッセージを出力
