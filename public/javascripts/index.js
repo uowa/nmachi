@@ -122,7 +122,11 @@ let footer = document.getElementById("footer");
 let kousinrireki = document.getElementById("kousinrireki");
 
 
-
+//ここはフォント総選挙消したときに消していい
+let chatFont = document.getElementById("chatFont");
+let titleFont=document.getElementById("titleFont");
+let nameTextFont =document.getElementById("nameTextFont");
+let sonotaFont=document.getElementById("sonotaFont");
 
 
 
@@ -135,23 +139,23 @@ let fontName;
 let obj;
 let index;
 let fontSize;
-document.getElementById("nameTextFont").options[1].selected = true;
-document.getElementById("chatFont").options[2].selected = true;
-document.getElementById("titleFont").options[8].selected = true;
-document.getElementById("sonotaFont").options[2].selected = true;
+nameTextFont.options[1].selected = true;//選択位置を変更
+chatFont.options[2].selected = true;
+titleFont.options[8].selected = true;
+sonotaFont.options[2].selected = true;
 function fontChenge(value) {
   switch (value) {
-    case "chatLog":
-      obj = document.fontForm.chatFont;
+    case "chatLog": 
+      obj = chatFont;
       break;
     case "title":
-      obj = document.fontForm.titleFont;
+      obj = titleFont;
       break;
     case "sonota":
-      obj = document.fontForm.sonotaFont;
+      obj = sonotaFont;
       break;
     case "nameText":
-      obj = document.fontForm.nameTextFont;
+      obj = nameTextFont;
       break;
   }
   index = obj.selectedIndex;
@@ -197,16 +201,16 @@ function fontChenge(value) {
     case "chatLog":
       chatLog.style.fontFamily = fontName, "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
       chatLog.style.fontSize = fontSize + "px";
-      document.getElementById("chatFont").style.fontFamily = fontName;
+      chatFont.style.fontFamily = fontName;
       break;
     case "title":
       title.style.fontFamily = fontName;
       title.style.fontSize = fontSize + 37 + "px";
-      document.getElementById("titleFont").style.fontFamily = fontName;
+      titleFont.style.fontFamily = fontName;
       break;
     case "sonota":
       body.style.fontFamily = fontName;
-      document.getElementById("sonotaFont").style.fontFamily = fontName;
+      sonotaFont.style.fontFamily = fontName;
       break;
     case "nameText":
       nameText[socketID].style = {
@@ -1162,7 +1166,6 @@ socket.on("join_self", function (data) {//自分が部屋に入室した時
   msg[socketID].text = "";
   document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
-  console.log(keys);
   keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
     if (data.user[value].room == data.room) {
       // 画像とメッセージと名前を追加してステージに上げる
