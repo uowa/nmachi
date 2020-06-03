@@ -87,6 +87,12 @@ a {
     /*お好きなサイズで*/
 }
 
+.logNoiseButton {
+    background-color: green;
+    height: 23px;
+    margin-right: 5px;
+}
+
 #day {
     font-size: 14px;
     flex: 1 0 auto;

@@ -1238,6 +1238,19 @@ function moveMsg(moveMsg) {//移動時のメッセージ出力
 
 
 const logChime = new Audio('sound/chime.mp3');
+let useLogChime = true;
+function logChimeButtonClicked () {
+  if (useLogChime) {
+    document.getElementById("logNoiseButton").style.backgroundColor = 'red';
+	  useLogChime = false;
+	} else {
+    document.getElementById("logNoiseButton").style.backgroundColor = 'green';
+    useLogChime = true;
+  }
+}
+document.getElementById("logNoiseButton").addEventListener('click', logChimeButtonClicked);
+document.getElementById("logNoiseButton").addEventListener('mousedown', e => { e.preventDefault(); });
+
 //メッセージを受け取って表示
 socket.on("emit_msg", function (data) {
   const li = document.createElement("li");
@@ -1264,7 +1277,8 @@ socket.on("emit_msg", function (data) {
 
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
-      logChime.play();
+      if (useLogChime)
+        logChime.play();
 
 
       //メッセージを出力
