@@ -127,8 +127,8 @@ io.on('connection', function (socket) {
       }
       user[data.socketID].userName = data.userName;//名前をサバに保存
       
-      user[data.socketID].avatar = data.avatar;
-      
+      user[data.socketID].avatar = data.avatar;//アバターを設定
+      user[data.socketID].avatarColor = data.avatarColor;//アバターの色を設定
 
       user[data.socketID].room = data.room;//ユーザー情報に部屋を入れる
       users[data.room]++;//部屋人数を変更
@@ -140,6 +140,7 @@ io.on('connection', function (socket) {
         socketID: data.socketID,
         avatar:data.avatar,
         userName: user[data.socketID].userName,
+        avatarColor:user[data.socketID].avatarColor,
       });
 
       io.to(socket.id).json.emit("login_me", {
@@ -167,6 +168,7 @@ io.on('connection', function (socket) {
       socket.join(after);
       users[before]--//入室前の部屋人数を減らす
       users[after]++;//入室後の部屋人数を増やす
+      
       user[data.socketID].room = data.afterRoom;
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;

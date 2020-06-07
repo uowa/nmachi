@@ -59,7 +59,7 @@ let nameTextX = -30;
 let nameTextY = -105;
 let inRoom = 0;
 
-let room;
+let room = "login";
 let loginBack;
 let entrance, ground, croud, bonfire;
 let daikokubasira;
@@ -124,9 +124,9 @@ let kousinrireki = document.getElementById("kousinrireki");
 
 //ここはフォント総選挙消したときに消していい
 let chatFont = document.getElementById("chatFont");
-let titleFont=document.getElementById("titleFont");
-let nameTextFont =document.getElementById("nameTextFont");
-let sonotaFont=document.getElementById("sonotaFont");
+let titleFont = document.getElementById("titleFont");
+let nameTextFont = document.getElementById("nameTextFont");
+let sonotaFont = document.getElementById("sonotaFont");
 
 
 
@@ -145,7 +145,7 @@ titleFont.options[8].selected = true;
 sonotaFont.options[2].selected = true;
 function fontChenge(value) {
   switch (value) {
-    case "chatLog": 
+    case "chatLog":
       obj = chatFont;
       break;
     case "title":
@@ -231,9 +231,6 @@ let app = new PIXI.Application({
 });
 
 
-
-
-
 let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
   fontFamily: "JKゴシックM",
   fontSize: 18,
@@ -261,6 +258,7 @@ document.getElementById("graphic").appendChild(app.view);
 
 PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
   .add("gomaNeco", "img/gomaNeco.png")
+  .add("", "img/allgraphics.png")
   .add("gomaNecoFace", "img/gomaNecoFace.png")
   .add("gomaNecoSleep", "img/sleeping.png")
   .add("necosuke", "img/necosuke.png")
@@ -268,7 +266,6 @@ PIXI.Loader.shared//画像を読みこんでから処理を始める為のロー
 
 
   .add("abon", "img/abon.png")
-  .add("loginBack", "img/loginBack.png")
   .add("entrance", "img/sky.png")//ここでsky.pngをentranceに書き換えてるので注意
   .add("ground", "img/ground.png")
   .add("croud", "img/croud.png")
@@ -286,10 +283,16 @@ function loadProgressHandler(Loader, resources) {
   console.log("progress" + Loader.progress + "%");
 }
 
-
+//背景の画像を追加
+//ログイン画面
+let loginBackRect = new PIXI.Rectangle(0, 0, 660,480);
+loginBack = new PIXI.Graphics();
+loginBack.beginFill(0X4C4C52);
+loginBack.drawShape(loginBackRect);
+loginBack.endFill();
 
 function setUp() {//画像読み込み後の処理はここに書いていく
-  
+
   // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
   app.renderer.autoDensity = true;
 
@@ -368,15 +371,15 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   necosukeSE1 = new PIXI.Texture(PIXI.BaseTexture.from("necosuke"), new PIXI.Rectangle(50, 560, 50, 80));
   necosukeSE2 = new PIXI.Texture(PIXI.BaseTexture.from("necosuke"), new PIXI.Rectangle(150, 560, 50, 80));
 
+  
 
-  //背景の画像を追加
-  //ログイン画面
-  loginBack = new PIXI.Sprite(PIXI.Loader.shared.resources["loginBack"].texture);
+
   gomaNecoFace = new PIXI.Sprite(PIXI.Loader.shared.resources["gomaNecoFace"].texture);
   necosukeFace = new PIXI.Sprite(PIXI.Loader.shared.resources["necosukeFace"].texture);
   //login画面をクリックできるようにする
-  setMap(loginBack);
+  setMap(loginBack);//zIndexをonにして、画像を加える
   tapRange(loginBack);
+
 
 
   //エントランス画面
@@ -395,52 +398,52 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
 
-  
 
 
-  // 座標確認用のオブジェクトの表示
-  // アバターX座標の表示設定
-  AtextX = new PIXI.Text("avaX");
-  AtextX.style = {//アバターX座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "blue",
-  }
-  ///アバターX座標の位置
-  AtextX.position.set(560, 420);
-  app.stage.addChild(AtextX);
 
-  //アバターY座標の表示設定
-  AtextY = new PIXI.Text("avaY");
-  AtextY.style = {//アバターY座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "blue",
-  }
-  //アバターY座標の位置
-  AtextY.position.set(560, 435);
-  app.stage.addChild(AtextY);
+  // // 座標確認用のオブジェクトの表示
+  // // アバターX座標の表示設定
+  // AtextX = new PIXI.Text("avaX");
+  // AtextX.style = {//アバターX座標のスタイル
+  //   fontFamily: "serif",
+  //   fontSize: "12px",
+  //   fill: "blue",
+  // }
+  // ///アバターX座標の位置
+  // AtextX.position.set(560, 420);
+  // app.stage.addChild(AtextX);
+
+  // //アバターY座標の表示設定
+  // AtextY = new PIXI.Text("avaY");
+  // AtextY.style = {//アバターY座標のスタイル
+  //   fontFamily: "serif",
+  //   fontSize: "12px",
+  //   fill: "blue",
+  // }
+  // //アバターY座標の位置
+  // AtextY.position.set(560, 435);
+  // app.stage.addChild(AtextY);
 
 
-  //マウスX座標の表示設定
-  MtextX = new PIXI.Text("mouX");
-  MtextX.style = {//マウスX座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "red",
-  }
-  //マウスX座標の位置
-  MtextX.position.set(560, 450);
+  // //マウスX座標の表示設定
+  // MtextX = new PIXI.Text("mouX");
+  // MtextX.style = {//マウスX座標のスタイル
+  //   fontFamily: "serif",
+  //   fontSize: "12px",
+  //   fill: "red",
+  // }
+  // //マウスX座標の位置
+  // MtextX.position.set(560, 450);
 
-  //マウスY座標の表示位置設定
-  MtextY = new PIXI.Text("mouY");
-  MtextY.style = {//マウスY座標のスタイル
-    fontFamily: "serif",
-    fontSize: "12px",
-    fill: "red",
-  }
-  //マウスY座標の位置
-  MtextY.position.set(560, 465);
+  // //マウスY座標の表示位置設定
+  // MtextY = new PIXI.Text("mouY");
+  // MtextY.style = {//マウスY座標のスタイル
+  //   fontFamily: "serif",
+  //   fontSize: "12px",
+  //   fill: "red",
+  // }
+  // //マウスY座標の位置
+  // MtextY.position.set(560, 465);
 
 
 
@@ -456,7 +459,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
 
-  gameLoop();
+  // gameLoop();
 }//function setUpはここで終わり
 
 socket.on("mySocketID", function (data) {
@@ -657,7 +660,175 @@ socket.on("mySocketID", function (data) {
     avaSE1[socketID].anchor.set(0.5, 1);
     avaSE2[socketID].anchor.set(0.5, 1);
   };
+
+
+  let rect = new PIXI.Rectangle(0, 0, 50, 50);
+  let greenyellowPalette, royalbluePalette, tealPalette, midnightbluePalette, deepskybluePalette, cyanPalette, firebrickPalette, snowPalette, blackPalette, grayPalette, darkvioletPalette;
+  let usuiPinkPalette, hutuuPinkPalette, yayakoiPinkPalette, koiPinkPalette, nayakonoiroPalette, grayppoiPalette;
+  setColor(greenyellowPalette, 0Xadff2f, 0, 300);
+  setColor(firebrickPalette, 0Xb22222, 50, 300);
+  setColor(cyanPalette, 0X00ffff, 100, 300);
+  setColor(deepskybluePalette, 0X00bfff, 150, 300);
+  setColor(royalbluePalette, 0X4169e1, 200, 300);
+  setColor(darkvioletPalette, 0X9400d3, 250, 300);
+  setColor(midnightbluePalette, 0X191970, 300, 300);
+  setColor(snowPalette, 0Xfffafa, 350, 300);
+  setColor(tealPalette, 0X008080, 400, 300);
+  setColor(grayPalette, 0X808080, 450, 300);
+  setColor(usuiPinkPalette, 0XFAC3FF, 0, 350);
+  setColor(hutuuPinkPalette, 0XE2A4E9, 50, 350);
+  setColor(yayakoiPinkPalette, 0XE2A4E9, 100, 350);
+  setColor(koiPinkPalette, 0XDB9AE1, 150, 350);
+  setColor(nayakonoiroPalette, 0XFF9696, 200, 350);
+  setColor(grayppoiPalette, 0X808080, 250, 350);
+  // setColor(blackPalette, 0X000000, 600, 300);
+
+  //黒だけ透明で実装
+  blackPalette = new PIXI.Graphics();
+  blackPalette.x = 650;
+  blackPalette.y = 300;
+  blackPalette.zIndex = 1000;//上になるようにしておく
+  blackPalette.beginFill(0X4C4C52);
+  blackPalette.drawShape(rect);
+  blackPalette.endFill();
+  blackPalette.interactive = true;
+  blackPalette.pointerdown = function () {
+    avaP[socketID].avatarColor = 0X000000;
+    avaS[socketID].tint = 0X000000;
+    avaS1[socketID].tint = 0X000000;
+    avaS2[socketID].tint = 0X000000;
+    avaSW[socketID].tint = 0X000000;
+    avaSW1[socketID].tint = 0X000000;
+    avaSW2[socketID].tint = 0X000000;
+    avaW[socketID].tint = 0X000000;
+    avaW1[socketID].tint = 0X000000;
+    avaW2[socketID].tint = 0X000000;
+    avaNW[socketID].tint = 0X000000;
+    avaNW1[socketID].tint = 0X000000;
+    avaNW2[socketID].tint = 0X000000;
+    avaN[socketID].tint = 0X000000;
+    avaN1[socketID].tint = 0X000000;
+    avaN2[socketID].tint = 0X000000;
+    avaNE[socketID].tint = 0X000000;
+    avaNE1[socketID].tint = 0X000000;
+    avaNE2[socketID].tint = 0X000000;
+    avaE[socketID].tint = 0X000000;
+    avaE1[socketID].tint = 0X000000;
+    avaE2[socketID].tint = 0X000000;
+    avaSE[socketID].tint = 0X000000;
+    avaSE1[socketID].tint = 0X000000;
+    avaSE2[socketID].tint = 0X000000;
+  }
+  loginBack.addChild(blackPalette);
+  // setColor(Palette,0X , , );
+
+  function setColor(colorPalette, setColor, x, y) {
+    colorPalette = new PIXI.Graphics();
+    colorPalette.x = x;
+    colorPalette.y = y;
+    colorPalette.beginFill(setColor);
+    // colorPalette.lineStyle(2, 0xff0000);
+    colorPalette.drawShape(rect);
+    colorPalette.endFill();
+    colorPalette.interactive = true;
+    colorPalette.pointerdown = function () {
+      avaP[socketID].avatarColor = setColor;
+      avaS[socketID].tint = setColor;
+      avaS1[socketID].tint = setColor;
+      avaS2[socketID].tint = setColor;
+      avaSW[socketID].tint = setColor;
+      avaSW1[socketID].tint = setColor;
+      avaSW2[socketID].tint = setColor;
+      avaW[socketID].tint = setColor;
+      avaW1[socketID].tint = setColor;
+      avaW2[socketID].tint = setColor;
+      avaNW[socketID].tint = setColor;
+      avaNW1[socketID].tint = setColor;
+      avaNW2[socketID].tint = setColor;
+      avaN[socketID].tint = setColor;
+      avaN1[socketID].tint = setColor;
+      avaN2[socketID].tint = setColor;
+      avaNE[socketID].tint = setColor;
+      avaNE1[socketID].tint = setColor;
+      avaNE2[socketID].tint = setColor;
+      avaE[socketID].tint = setColor;
+      avaE1[socketID].tint = setColor;
+      avaE2[socketID].tint = setColor;
+      avaSE[socketID].tint = setColor;
+      avaSE1[socketID].tint = setColor;
+      avaSE2[socketID].tint = setColor;
+    }
+    loginBack.addChild(colorPalette);
+  }
 });
+
+function moveEnd() {
+  AX = avaP[socketID].x;
+  AY = avaP[socketID].y;
+  avaP[socketID].zIndex = AY;
+}
+function setColor(thisSocketID, setColor) {
+  avaS[thisSocketID].tint = setColor;
+  avaS1[thisSocketID].tint = setColor;
+  avaS2[thisSocketID].tint = setColor;
+  avaSW[thisSocketID].tint = setColor;
+  avaSW1[thisSocketID].tint = setColor;
+  avaSW2[thisSocketID].tint = setColor;
+  avaW[thisSocketID].tint = setColor;
+  avaW1[thisSocketID].tint = setColor;
+  avaW2[thisSocketID].tint = setColor;
+  avaNW[thisSocketID].tint = setColor;
+  avaNW1[thisSocketID].tint = setColor;
+  avaNW2[thisSocketID].tint = setColor;
+  avaN[thisSocketID].tint = setColor;
+  avaN1[thisSocketID].tint = setColor;
+  avaN2[thisSocketID].tint = setColor;
+  avaNE[thisSocketID].tint = setColor;
+  avaNE1[thisSocketID].tint = setColor;
+  avaNE2[thisSocketID].tint = setColor;
+  avaE[thisSocketID].tint = setColor;
+  avaE1[thisSocketID].tint = setColor;
+  avaE2[thisSocketID].tint = setColor;
+  avaSE[thisSocketID].tint = setColor;
+  avaSE1[thisSocketID].tint = setColor;
+  avaSE2[thisSocketID].tint = setColor;
+}
+
+// function chengeColor(setColor) {
+//   AX = avaP[socketID].x;
+//   AY = avaP[socketID].y;
+//   if (0 <  avaP[socketID].x &&  avaP[socketID].x < 50 && 300 <  avaP[socketID].y &&  avaP[socketID].y < 350) {
+//     avaS[socketID].tint = setColor;
+//     avaS1[socketID].tint = setColor;
+//     avaS2[socketID].tint = setColor;
+//     avaSW[socketID].tint = setColor;
+//     avaSW1[socketID].tint = setColor;
+//     avaSW2[socketID].tint = setColor;
+//     avaW[socketID].tint = setColor;
+//     avaW1[socketID].tint = setColor;
+//     avaW2[socketID].tint = setColor;
+//     avaNW[socketID].tint = setColor;
+//     avaNW1[socketID].tint = setColor;
+//     avaNW2[socketID].tint = setColor;
+//     avaN[socketID].tint = setColor;
+//     avaN1[socketID].tint = setColor;
+//     avaN2[socketID].tint = setColor;
+//     avaNE[socketID].tint = setColor;
+//     avaNE1[socketID].tint = setColor;
+//     avaNE2[socketID].tint = setColor;
+//     avaE[socketID].tint = setColor;
+//     avaE1[socketID].tint = setColor;
+//     avaE2[socketID].tint = setColor;
+//     avaSE[socketID].tint = setColor;
+//     avaSE1[socketID].tint = setColor;
+//     avaSE2[socketID].tint = setColor;
+//   }
+// }
+
+
+
+
+
 
 //エントランスでタップ可能なブロックを配置
 // croudBlock1配置
@@ -859,11 +1030,7 @@ function tapRange(value) {
         }
 
         gsap.to(avaP[socketID], {
-          duration: 0.4, x: MX, y: MY,
-          onComplete: function () {
-            AX = avaP[socketID].x;
-            AY = avaP[socketID].y;
-          }
+          duration: 0.4, x: MX, y: MY, onComplete: function () { moveEnd(); }
         });
       } else {//ログイン画面以外に居るとき
         // 方向に合わせて画像を変えて表示
@@ -890,7 +1057,7 @@ function tapRange(value) {
         if (colPointAll[0] == undefined) {//どこにもぶつからなかった場合//パターン２
           AX = MX;
           AY = MY;
-          tappedMove(socketID,AX, AY, DIR);
+          tappedMove(socketID, AX, AY, DIR);
           socket.json.emit("tapMap", {
             DIR: DIR,
             AX: AX,
@@ -924,6 +1091,8 @@ function tapRange(value) {
     document.msgForm.msg.focus();
   };
 }
+
+
 
 function anime(ava, ava1, ava2, value) {//引数：初期ava,歩いてるとき、歩いてるとき２、socketID
   gsap.to(avaP[value], 0, {
@@ -1015,9 +1184,10 @@ function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
       if (thisSocketID == socketID) {
         selfChengeRoom();
       } else {
-        nonSelfChengeRoom(thisSocketID,thisAX,thisAY);
+        nonSelfChengeRoom(thisSocketID, thisAX, thisAY);
+      }
     }
-  }});
+  });
 }
 
 // クッキーを読み込み      
@@ -1062,10 +1232,10 @@ function login() {
   if (userName != "") {//名前が空だと移動しない
     //userNameにフォームの内容を入れる
     userName = document.nameForm.userName.value;
-    
+
     //クッキー書き込み
     document.cookie = "mycookie=" + userName;
-    
+
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);//ここもsetMapに入れたい
 
@@ -1095,10 +1265,10 @@ function login() {
     setMap(entrance);
 
     //マウス座標を表示
-    app.stage.addChild(MtextX);
-    app.stage.addChild(MtextY);
-    app.stage.addChild(AtextX);
-    app.stage.addChild(AtextY);
+    // app.stage.addChild(MtextX);
+    // app.stage.addChild(MtextY);
+    // app.stage.addChild(AtextX);
+    // app.stage.addChild(AtextY);
     //座標を消す
     // app.stage.removeChild(AtextX);
     // app.stage.removeChild(AtextY);
@@ -1114,6 +1284,7 @@ function login() {
       socketID: socketID,//soket.id
       userName: userName,//ユーザーネーム
       avatar: avaP[socketID].avatar,
+      avatarColor: avaP[socketID].avatarColor,
     });
 
 
@@ -1145,21 +1316,21 @@ function selfChengeRoom() {
       afterRoom: "utyu",
       AX: AX,
       AY: AY,
-      DIR:DIR,
+      DIR: DIR,
     });
   }
 }
-function nonSelfChengeRoom(thisSocketID,thisAX,thisAY) {
+function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {
   if (room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
     entrance.removeChild(avaP[thisSocketID]);
     document.getElementById('users').textContent--;
-    moveMsg(nameText[thisSocketID].text+"がutyuに移動しました。");
+    moveMsg(nameText[thisSocketID].text + "がutyuに移動しました。");
   }
 }
 
 
 
-  
+
 
 socket.on("join_self", function (data) {//自分が部屋に入室した時
   moveMsg(data.msg);
@@ -1203,7 +1374,7 @@ socket.on("join_self", function (data) {//自分が部屋に入室した時
           avaP[value].addChild(avaC[value]);
           break;
       }
-      if (data.user[value].msg != ""&&data.user[value].room==data.room) {
+      if (data.user[value].msg != "" && data.user[value].room == data.room) {
         const liKanban = document.createElement("li");//likanbanを作る
         liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
         liKanban.style.color = "white";//likanbanの文字を指定
@@ -1553,6 +1724,7 @@ socket.on("login_me", function (data) {
         avaP[value].addChild(avaC[value]);
         break;
     }
+    setColor(value, data.user[value].avatarColor);
 
     //名前を追加
     nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
@@ -1579,7 +1751,7 @@ socket.on("login_me", function (data) {
     msg[value].style.fill = "0x1e90ff";
     avaP[value].addChild(msg[value]);
 
-    if (data.user[value].msg != ""&&data.user[value].room=="entrance") {
+    if (data.user[value].msg != "" && data.user[value].room == "entrance") {
       const liKanban = document.createElement("li");//likanbanを作る
       liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
       liKanban.style.color = "white";//likanbanの文字を指定
@@ -1621,8 +1793,6 @@ socket.on("loadAvatar", function (data) {
   avaP[data.socketID].sortableChildren = true;//子要素のzIndexをonにする
   avaP[data.socketID].zIndex = 80;
   avaP[data.socketID].position.set(457, 80);
-
-
 
   //ここらへんは、後で画像纏めた時に関数化したいな
   avaAbon[data.socketID] = new PIXI.Sprite(PIXI.Loader.shared.resources["abon"].texture);
@@ -1687,6 +1857,8 @@ socket.on("loadAvatar", function (data) {
       avaSE2[data.socketID].width = -50;
       break;
   }
+  setColor(data.socketID, data.avatarColor);
+
   avaS[data.socketID].anchor.set(0.5, 1);
   avaS1[data.socketID].anchor.set(0.5, 1);
   avaS2[data.socketID].anchor.set(0.5, 1);
@@ -1781,7 +1953,7 @@ socket.on("logout", function (data) {
   document.getElementById('users').textContent = data.users;
   //アバターを消す
   app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
-  
+
   // data.room.removeChild(avaP[data.socketID]);
   // entrance.removeChild(avaP[data.socketID]);
 });
@@ -1854,8 +2026,8 @@ title.addEventListener("click", function () {
         body.style.backgroundColor = "rgb(50, 50, 58)";
         uiColor = 0;
         break;
-      }
     }
+  }
 });
 
 
