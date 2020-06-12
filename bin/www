@@ -85,7 +85,6 @@ function tripCreate(isTrip) {
 
 io.on('connection', function (socket) {
   //フォント切り替え
-
   function saikiMsg() {
     io.to(socket.id).json.emit("emitSaikiMsg", {
       msg: "ブラウザを更新してください",
@@ -129,6 +128,7 @@ io.on('connection', function (socket) {
       
       user[data.socketID].avatar = data.avatar;//アバターを設定
       user[data.socketID].avatarColor = data.avatarColor;//アバターの色を設定
+      user[data.socketID].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
 
       user[data.socketID].room = data.room;//ユーザー情報に部屋を入れる
       users[data.room]++;//部屋人数を変更
@@ -141,6 +141,7 @@ io.on('connection', function (socket) {
         avatar:data.avatar,
         userName: user[data.socketID].userName,
         avatarColor:user[data.socketID].avatarColor,
+        avatarAlpha:user[data.socketID].avatarAlpha,
       });
 
       io.to(socket.id).json.emit("login_me", {
@@ -267,6 +268,14 @@ io.on('connection', function (socket) {
     } else {
       saikiMsg();//再起動メッセージを送る
     }
+  });
+
+  socket.on("alphaChenge", function (data) {
+    user[socket.id].avatarAlpha = data.alpha;//アバターの透明度を設定
+    socket.broadcast.emit("alphaChenge", {
+      alpha: data.alpha,
+      socketID: socket.id,
+    });
   });
 
 

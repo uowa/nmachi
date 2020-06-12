@@ -37,7 +37,7 @@
       </div>
     </div>
 
-    <!--プロ街の画面比率は11:8-->
+    <!--元プロ街の画面比率は11:8-->
     <div id="Pmachi" class="flexContainer" >
       <div id="Pmain" class="flexContainerColumn" >
         <div id="graphic">
@@ -46,8 +46,7 @@
         <div id="form">
 
           <form name="nameForm" id="nameForm">
-            <span>お名前</span><input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須だょ">
-            <input type="submit" value="login">
+            <input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須だょ">
           </form>
           <form name="msgForm" id="msgForm">
             <input type="text" name="msg" id="msg" maxlength='250'
@@ -58,6 +57,7 @@
             <div class="right">　</div>
             <div class="right" id="users">0</div>
             <div class="right">users:</div>
+            <div class="right"><button type="button" id="logNoiseButton">ログ音<button/></div>
           </form>
         </div>
           <div  class="flexContainerColumn" id="fontSousenkyo">
@@ -125,12 +125,10 @@
         </div>
       </div>
       <div id="chatLog">
-        <ul id="logs" class="flexContainerColumn">
-        </ul>
+          <ul id="logs" class="flexContainerColumn">
+          </ul>
       </div>
     </div>
-    <br>
-    <div id="tyui">※トリップ使えるけど、あんま流出対策してないので本トリップは使わんように</div>
     <div id= footer>
     <div class="flexContainer">
       <svg width="40" height="40" id="pkun">
@@ -155,6 +153,12 @@
     <div id="kousinrireki">
       <br>
       <p>更新履歴</p>
+      <p>2020/6/11 ちょっとＵＩ変えた、iOSで文字入力時に拡大されるの直した</p>
+      <p>2020/6/10 効果音増やした</p>
+      <p>2020/6/9 遠近感入れた</p>
+      <p>2020/6/8 効果音実装　協力：<span class="mzk">mzk</span></p>
+      <p>2020/6/7 軽量化した</p>
+      <p>2020/6/5 色増やした</p>
       <p>2020/6/4 色変え実装</p>
       <p>2020/6/2 ログ残しが順番になってなかった</p>
       <p>2020/6/1 宇宙が生まれた</p>

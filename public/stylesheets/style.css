@@ -80,11 +80,9 @@ a {
     flex-shrink: 0;
 }
 
-.rightSpace {
-    /* IE11でも空白を使えるようにするための処置 */
+.rightSpace {/* IE11でも空白を使えるようにするための処置 */
     display: inline-block;
     padding-right: 15px;
-    /*お好きなサイズで*/
 }
 
 #day {
@@ -92,6 +90,11 @@ a {
     flex: 1 0 auto;
     align-self: flex-end;
     margin-top: auto;
+}
+.logNoiseButton {
+    background-color: green;
+    /* height: 23px; */
+    margin-right: 5px;
 }
 
 #title {
@@ -159,22 +162,42 @@ a {
 }
 
 #userName {
-    line-height: 20px;
-    width: 400px;
+    font-size: 19px;
+    transform: scale(0.8);
+    width:800px;
     background-color: #E1E1E1;
+    -moz-transform-origin: 3px 0px;
+    -webkit-transform-origin: 3px 0px;
+    -o-transform-origin: 3px 0px;
+    -ms-transform-origin: 3px 0px;
+    transform-origin: 3px 0px;
+
+    line-height: 20px;/* IE11対策 */
 }
 
 #msgForm {
     width: 660px;
+    text-align: right;
     display: none;
     background-color: #939393;
 }
 
 #msg {
-    line-height: 20px;
-    width: 590px;
+    font-size: 19px;
+    transform: scale(0.8);
+    width: 800px;
     background-color: #E1E1E1;
+    -moz-transform-origin: 3px 0px;
+    -webkit-transform-origin: 3px 0px;
+    -o-transform-origin: 3px 0px;
+    -ms-transform-origin: 3px 0px;
+    transform-origin: 3px 0px;
+
+    line-height: 20px;/* IE11対策 */
 }
+#msg::placeholder {
+    text-align: right;
+  }
 
 .input {
     height: 21px;
@@ -202,7 +225,6 @@ a {
 
 #chatLog li {
     color: black;
-    font-size: 17px;
 }
 
 /* #chatLog img{
@@ -322,11 +344,6 @@ font-size: 18px;
     font-size: 17px;
 }
 
-#tyui {
-    font-size: 15px;
-    color: red;
-}
-
 #senburahaihu {
     flex-wrap: wrap;
     margin: 0 0 0 30px;
@@ -422,3 +439,19 @@ select {
         flex-direction: column-reverse;
     }
 }
+
+.mzk {
+    display        : inline-block;
+    color          : rgba(153, 153, 153, 0.10);            /* 文字の色 */
+    font-size      : 12pt;               /* 文字のサイズ */
+    letter-spacing : 2px;                /* 文字間 */
+    text-shadow    : 
+         1px  1px 1px #ffffff,
+        -1px  1px 1px #ffffff,
+         1px -1px 1px #ffffff,
+        -1px -1px 1px #ffffff,
+         1px  0px 1px #ffffff,
+         0px  1px 1px #ffffff,
+        -1px  0px 1px #ffffff,
+         0px -1px 1px #ffffff;        /* 文字の影 */
+  }
