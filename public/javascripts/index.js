@@ -110,6 +110,9 @@ let chatLog = document.getElementById("chatLog");
 let footer = document.getElementById("footer");
 let kousinrireki = document.getElementById("kousinrireki");
 let day = document.getElementById('day');
+let form = document.getElementById('form');
+let nameForm = document.getElementById('nameForm');
+let PmainFooterChild = document.getElementsByClassName("PmainFooterChild");
 
 
 //ここはフォント総選挙消したときに消していい
@@ -216,8 +219,8 @@ function fontChenge(value) {
 
 //webGL(Canvasの設定)
 let app = new PIXI.Application({
-  width: 660,//背景の標準サイズ
-  height: 480,
+  width: 660,
+  height: 460,
 });
 
 
@@ -245,6 +248,7 @@ let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
 
 // レンダラーのviewをDOMに追加する
 document.getElementById("graphic").appendChild(app.view);
+app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 
 PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
   .add("all", "img/allgraphics.png")
@@ -267,6 +271,19 @@ loginBack.beginFill(0X4C4C52);
 loginBack.drawShape(loginBackRect);
 loginBack.endFill();
 
+//スマホで画面に表示するテキスト
+let gamenLogStyle = {
+  fontSize: 18,
+  wordWrap: true,
+  wordWrapWidth: 500,
+  breakWords: true
+};
+let gamenLog = new PIXI.Text("",gamenLogStyle);
+
+
+
+
+
 let tyui = new PIXI.Text("※一応トリップ使えるけど、流出対策はあんましてないです");
 tyui.zIndex = 0;
 tyui.position.set(0, 464);
@@ -280,7 +297,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
   app.renderer.autoDensity = true;
 
-  // app.stage.interactive = true;//タップヲ有効にする
 
 
 
@@ -336,6 +352,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
   avaAbon = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 1300, 40, 70));
 
+
+
   //login画面をクリックできるようにする
   loginBack.sortableChildren = true;//子要素のzIndexをonにする。
   app.stage.addChild(loginBack);//画像を読みこむ
@@ -373,8 +391,9 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     fill: "blue",
   }
   ///アバターX座標の位置
-  AtextX.position.set(560, 420);
-
+  AtextX.position.set(560, 400);
+  AtextX.zIndex = 10;
+  
   //アバターY座標の表示設定
   AtextY = new PIXI.Text("avaY");
   AtextY.style = {//アバターY座標のスタイル
@@ -383,7 +402,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     fill: "blue",
   }
   //アバターY座標の位置
-  AtextY.position.set(560, 435);
+  AtextY.position.set(560, 415);
+  AtextY.zIndex = 10;
 
 
   //マウスX座標の表示設定
@@ -394,8 +414,9 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     fill: "red",
   }
   //マウスX座標の位置
-  MtextX.position.set(560, 450);
-
+  MtextX.position.set(560, 430);
+  MtextX.zIndex = 10;
+  
   //マウスY座標の表示位置設定
   MtextY = new PIXI.Text("mouY");
   MtextY.style = {//マウスY座標のスタイル
@@ -404,7 +425,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
     fill: "red",
   }
   //マウスY座標の位置
-  MtextY.position.set(560, 465);
+  MtextY.position.set(560, 445);
+  MtextY.zIndex = 10;
 
 
 
@@ -1142,7 +1164,7 @@ function tapRange(value) {
         colPointAll = [];
       }
     }
-    document.msgForm.msg.focus();
+    // document.msgForm.msg.focus();
   };
 }
 
@@ -1287,6 +1309,7 @@ function login() {
     entrance = new PIXI.Sprite(entrance);
     entrance.name = "entrance";//名前を割り振る※これをやらないとgetChildByNameメソッドが使えない
     //userNameにフォームの内容を入れる
+    room = "entrance";//マップを切り替える
 
     //クッキー書き込み
     document.cookie = "mycookie=" + userName;
@@ -1294,7 +1317,6 @@ function login() {
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);
 
-    room = "entrance";//マップを切り替える
     entrance.addChild(croudBlock1);
     tapRange(croudBlock1);
     entrance.addChild(croudBlock2);
@@ -1324,8 +1346,11 @@ function login() {
     entrance.sortableChildren = true;//子要素のzIndexをonにする。
     app.stage.addChild(entrance);//画像を読みこむ
 
-
-
+    //マップをここで作っておく
+    utyu = new PIXI.Sprite(utyu);
+    utyu.name = "utyu";//名前を割り振る
+    utyu.sortableChildren = true;//子要素のzIndexをonにする。
+    tapRange(utyu);
 
     AX = 457;//座標を切り替える
     AY = 80;
@@ -1361,11 +1386,7 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
   if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {//大黒柱の範囲内に入った時
     app.stage.removeChild(entrance);
     room = "utyu";//移動先の部屋を設定
-    utyu = new PIXI.Sprite(utyu);
-    utyu.name = "utyu";//名前を割り振る
-    utyu.sortableChildren = true;//子要素のzIndexをonにする。
     app.stage.addChild(utyu);//画像を読みこむ
-    tapRange(utyu);
     avaP[socketID].removeChild(avaC[socketID]);
     AX = 300;
     AY = 200;
@@ -1379,6 +1400,26 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
       AY: AY,
       DIR: DIR,
     });
+    gamenLog.style.fill = "white";
+  } else if(room == "utyu" && 141 <= AX && AX <=  146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
+    app.stage.removeChild(utyu);
+    room = "entrance";//移動先の部屋を設定
+    app.stage.addChild(entrance);//画像を読みこむ
+    avaP[socketID].removeChild(avaC[socketID]);
+    AX = 150;
+    AY = 130;
+    DIR = "S";
+    socket.json.emit("join_room", {
+      socketID: socketID,//soket.id
+      userName: userName,
+      beforeRoom: "utyu",
+      afterRoom: "entrance",
+      AX: AX,
+      AY: AY,
+      DIR: DIR,
+    });
+    
+    gamenLog.style.fill = "black";
   }
 }
 function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部屋を移動するとき
@@ -1386,6 +1427,10 @@ function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部�
     entrance.removeChild(avaP[thisSocketID]);
     document.getElementById('users').textContent--;
     moveMsg(nameText[thisSocketID].text + "がutyuに移動しました。");
+  } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
+    utyu.removeChild(avaP[thisSocketID]);
+    document.getElementById('users').textContent--;
+    moveMsg(nameText[thisSocketID].text + "がentranceに移動しました。");
   }
 }
 
@@ -1469,11 +1514,56 @@ function moveMsg(moveMsg) {//移動時のメッセージ出力
   } else {
     ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
   }
+
+    gamenLog.text =  moveMsg+"\n"+gamenLog.text;
+  app.stage.addChild(gamenLog);
+  
   if (useLogChime) {//ログチャイムがオンになってたら
     let random = Math.floor(Math.random() * logChime.length);
     logChime[random].play();
   }
 }
+
+//過去ログ表示
+let usePastLog = false;
+document.getElementById("pastLog").style.backgroundColor = 'red';
+function pastLogButtonClicked() {
+  if (usePastLog) {
+    document.getElementById("pastLog").style.backgroundColor = 'red';
+    chatLog.style.height = 0 + "px";
+    usePastLog = false;
+  } else {
+    document.getElementById("pastLog").style.backgroundColor = 'skyblue';
+    if (window.innerWidth >700) {
+      chatLog.style.width = windowSize - 528 + "px";
+    } else {
+      chatLog.style.width = windowSize+"px";
+    }
+    chatLog.style.height = 470 + "px";
+    usePastLog = true;
+  }
+}
+document.getElementById("pastLog").addEventListener('click', pastLogButtonClicked);
+document.getElementById("pastLog").addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+//画面ログ非表示
+let visibleLog = false;
+document.getElementById("unVisibleLog").style.backgroundColor = 'red';
+function unVisibleLogButtonClicked() {
+  if (visibleLog) {
+    document.getElementById("unVisibleLog").style.backgroundColor = 'red';
+    gamenLog.visible = false;
+    visibleLog = false;
+  } else {
+    document.getElementById("unVisibleLog").style.backgroundColor = 'skyblue';
+    gamenLog.visible = true;
+    visibleLog = true;
+  }
+}
+document.getElementById("unVisibleLog").addEventListener('click', unVisibleLogButtonClicked);
+document.getElementById("unVisibleLog").addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+
 
 //ログ音
 let logChime = [];
@@ -1488,18 +1578,30 @@ logChime[7] = new Audio('sound/pa1.mp3');
 logChime[8] = new Audio('sound/suck1.mp3');
 logChime[9] = new Audio('sound/tirin1.mp3');
 logChime[10] = new Audio('sound/touch1.mp3');
+
+for (let i = 0; i < logChime.length; i++) {//デフォの音量
+  logChime[i].volume = 0.3;
+}
+
 let useLogChime = true;
+document.getElementById("logNoiseButton").style.backgroundColor = 'skyblue';
 function logChimeButtonClicked() {
   if (useLogChime) {
     document.getElementById("logNoiseButton").style.backgroundColor = 'red';
     useLogChime = false;
   } else {
-    document.getElementById("logNoiseButton").style.backgroundColor = 'green';
+    document.getElementById("logNoiseButton").style.backgroundColor = 'skyblue';
     useLogChime = true;
   }
 }
 document.getElementById("logNoiseButton").addEventListener('click', logChimeButtonClicked);
 document.getElementById("logNoiseButton").addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+function setVolume(value) {//音量調整
+  for (let i = 0; i < logChime.length; i++) {
+    logChime[i].volume = value;
+  }
+}
 
 
 //メッセージを受け取って表示
@@ -1512,8 +1614,6 @@ socket.on("emit_msg", function (data) {
       if (data.kanban) {//看板機能
         msg[data.socketID].text = data.avaMsg;
         msg[data.socketID].style.fill = "0x1e90ff";
-        li.style.color = "white";
-        li.style.background = "rgba(0,0,205,0.3)";
       } else {
         msg[data.socketID].text = data.avaMsg;
         msg[data.socketID].style.fill = "white";
@@ -1528,6 +1628,10 @@ socket.on("emit_msg", function (data) {
 
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
+
+      
+        gamenLog.text =  data.userName+ ":"+data.avaMsg+"\n"+gamenLog.text;
+        app.stage.addChild(gamenLog);
 
       if (useLogChime) {//ログチャイムがオンになってたら
         let random = Math.floor(Math.random() * logChime.length);
@@ -2063,7 +2167,7 @@ function gameLoop() {
   loginMY = app.renderer.plugins.interaction.mouse.global.y;
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
-  if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY < 480) {
+  if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY <=460) {
     MtextX.text = "mouX" + loginMX;
     MtextY.text = "mouY" + loginMY;
   }
@@ -2151,46 +2255,79 @@ window.addEventListener("resize", function () {
 
 function windowResize() {
   if (windowSize <= 700) {//windowSizeが700以下の時//あああ、IE11で横に謎の隙間できるの不安やなぁ,現状は問題ないけど、スマホとかで問題でそう。とりあえず、Pmainのscale前の状態を参照しとるっぽい。(たぶｎ)
-    let PMscale = windowSize / (660 + 25);
+    let PMscale = windowSize / 660 -0.015;
     let scale = "scale(" + PMscale + ")";
     StyleDeclarationSetTransform(Pmain.style, scale);
-    Pmain.style.width = graphic.clientWidth * PMscale + "px";//Pmainの実質幅を変更
-
+    
     loginID.style.left = loginID.offsetWidth * PMscale / 2 + 660 / 2 * PMscale + "px";
-
-
-    //IE11対策
-    chatLog.style.position = "absolute";
-    chatLog.style.top = 550 * PMscale + "px";
-    chatLog.style.left = 0 + "px";
-    chatLog.style.width = windowSize + "px";
-    chatLog.style.width = chatLog.clientWidth + "px";
-
-    footer.style.position = "absolute";
-    footer.style.top = 500 + 555 * PMscale + "px";
-
+     
+    
+    PmainFooter.style.position = "absolute";
+    PmainFooter.style.top = 23 + graphic.clientHeight + "px";
+    // PmainFooterChild.style.top = 23 + graphic.clientHeight + "px";
+    document.getElementById('users').style.position = "absolute";
+    document.getElementById('users').style.top = 25 + "px";
+    document.getElementById('users').style.right = 0 + "px";
+    
+    document.getElementById('pastLog').style.position = "absolute";
+    document.getElementById('pastLog').style.top = 20+ "px";
+    document.getElementById('pastLog').style.right = 210+ "px";
+    document.getElementById('PmainFooterChildUsers').style.position = "absolute";
+    document.getElementById('PmainFooterChildUsers').style.top = 25+ "px";
+    document.getElementById('PmainFooterChildUsers').style.right = 8+ "px";
+    document.getElementById('logNoiseButton').style.position = "absolute";
+    document.getElementById('logNoiseButton').style.top = 20+ "px";
+    document.getElementById('logNoiseButton').style.right = 60+ "px";
+    document.getElementById('unVisibleLog').style.position = "absolute";
+    document.getElementById('unVisibleLog').style.top = 20+ "px";
+    document.getElementById('unVisibleLog').style.right = 115+ "px";
+    
+    
+    // chatLog.style.fontSize = "13px";
+    
     StyleDeclarationSetTransform(fontSousenkyo.style, scale);
+    
+    footer.appendChild(chatLog);
+    footer.insertBefore(chatLog,document.getElementById('firstFooter'));
+    footer.style.position = "absolute";
+
+    //画面
+    //過去ログ
+    document.getElementById("pastLog").style.backgroundColor = 'red';
+    chatLog.style.height = 0 + "px";
+    usePastLog = false;
+
+    footer.style.top = 26+26+ 480 * PMscale + "px";
     footer.appendChild(fontSousenkyo);
     footer.appendChild(titleBar);
-
-    // //IE11対策
+    
+    //IE11対策
     footer.style.width = windowSize + "px";
-    footer.style.width = kousinrireki.clientWidth + "px";
+    // footer.style.width = kousinrireki.clientWidth + "px";
 
-
-    chatLog.style.fontSize = "13px";
   } else {//700以上の時
     StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
     chatLog.style.width = windowSize - 528 + "px";
     Pmain.style.width = 528 + "px";
     loginID.style.left = loginID.offsetWidth * 0.8 / 2 + 660 / 2 * 0.8 + "px";
+
+
+    PmainFooter.style.position = "static";
+    document.getElementById('users').style.position = "static";
+    document.getElementById('PmainFooterChildUsers').style.position = "static";
+    document.getElementById('logNoiseButton').style.position = "static";
+    document.getElementById('unVisibleLog').style.position = "static";
+
+    Pmachi.appendChild(chatLog);
     chatLog.style.position = "static";
+    document.getElementById("pastLog").style.backgroundColor = 'skyblue';
+    chatLog.style.height = 470 + "px";
+    usePastLog = true;
+
     footer.style.position = "static";
     StyleDeclarationSetTransform(fontSousenkyo.style, "scale(1.0)");
     Pmain.appendChild(fontSousenkyo);
     main.insertBefore(titleBar, Pmachi);
-
-    //IE11対策
     footer.style.width = windowSize + "px";
 
 

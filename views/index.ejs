@@ -10,7 +10,7 @@
   <meta name="description" content="チャットサイトproject街の後継？テストサバです。">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
   <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script> 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
   <link rel='stylesheet' href='/stylesheets/style.css' />
 </head>
@@ -37,204 +37,217 @@
       </div>
     </div>
 
+    
     <!--元プロ街の画面比率は11:8-->
-    <div id="Pmachi" class="flexContainer" >
-      <div id="Pmain" class="flexContainerColumn" >
+    <div id="Pmachi" class="flexContainer">
+
+      <div id="Pmain" class="flexContainerColumn">
         <div id="graphic">
           <button id="login" onclick="login()">LOGIN</button>
         </div>
         <div id="form">
-
           <form name="nameForm" id="nameForm">
             <input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須だょ">
           </form>
           <form name="msgForm" id="msgForm">
-            <input type="text" name="msg" id="msg" maxlength='250'
-            placeholder="                                                                                                       メッセージはこちらへ"
-            autocomplete="off">
-            <input type="submit" value="SEND">
-            <span>　　shift+Enterでログ残し</span>
-            <div class="right">　</div>
-            <div class="right" id="users">0</div>
-            <div class="right">users:</div>
-            <div class="right"><button type="button" id="logNoiseButton">ログ音<button/></div>
+            <input type="text" name="msg" id="msg" maxlength='250' placeholder="メッセージはこちらへ" autocomplete="off">
           </form>
         </div>
-          <div  class="flexContainerColumn" id="fontSousenkyo">
+        <div id=PmainFooter>
+          <!-- <div id="TEST">TEST</div> -->
+          <span class="PC">　　shift+Enterでログ残し</span>
+          <button type="button" class="smartphone" id="pastLog">過去ログ表示</button>
+          <div class="right">　</div>
+          <div class="right" id="users">0</div>
+          <div class="right" id="PmainFooterChildUsers"> users:</div>
+          <button type="button" class="right" id="logNoiseButton">ログ音</button>
+          <button type="button" class="right" id="unVisibleLog">画面ログ表示</button>
+        </div>
+
+   
+        <div class="flexContainerColumn" id="fontSousenkyo">
           <p>フォント総選挙</p>
-        <div class="flexContainer">
-          <span class="flexShrink0">自分の名前</span>
-          <span class="selectForm" class="flexShrink0">
-            <select class="JKゴシックM" id="nameTextFont" name="nameTextFont" onchange="fontChenge('nameText')">
-              <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
-              <option class="JKゴシックM">JKゴシックM</option>
-              <option class=kosugiMaru>kosugiMaru</option>
-              <option class="チカラヅヨク">チカラヅヨク</option>
-              <option class="チカラヨワク">チカラヨワク</option>
-              <option class="MSゴシック">MSゴシック</option>
-              <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
-              <option class="游ゴシック">游ゴシック</option>
-              <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-            </select>
-          </span>
-          <span class="flexShrink0">チャット欄</span>
-          <span class="selectForm" class="flexShrink0">
-            <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChenge('chatLog')">
-              <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
-              <option class="JKゴシックM">JKゴシックM</option>
-              <option class=kosugiMaru>kosugiMaru</option>
-              <option class="チカラヅヨク">チカラヅヨク</option>
-              <option class="チカラヨワク">チカラヨワク</option>
-              <option class="MSゴシック">MSゴシック</option>
-              <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
-              <option class="游ゴシック">游ゴシック</option>
-              <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-            </select>
-          </span>
+          <div class="flexContainer">
+            <span class="flexShrink0">自分の名前</span>
+            <span class="selectForm" class="flexShrink0">
+              <select class="JKゴシックM" id="nameTextFont" name="nameTextFont" onchange="fontChenge('nameText')">
+                <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+                <option class="JKゴシックM">JKゴシックM</option>
+                <option class=kosugiMaru>kosugiMaru</option>
+                <option class="チカラヅヨク">チカラヅヨク</option>
+                <option class="チカラヨワク">チカラヨワク</option>
+                <option class="MSゴシック">MSゴシック</option>
+                <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+                <option class="游ゴシック">游ゴシック</option>
+                <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+              </select>
+            </span>
+            <span class="flexShrink0">チャット欄</span>
+            <span class="selectForm" class="flexShrink0">
+              <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChenge('chatLog')">
+                <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+                <option class="JKゴシックM">JKゴシックM</option>
+                <option class=kosugiMaru>kosugiMaru</option>
+                <option class="チカラヅヨク">チカラヅヨク</option>
+                <option class="チカラヨワク">チカラヨワク</option>
+                <option class="MSゴシック">MSゴシック</option>
+                <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+                <option class="游ゴシック">游ゴシック</option>
+                <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+              </select>
+            </span>
           </div>
           <div class="flexContainer">
-          <span>たいとる</span>
-          <span class="selectForm">
-            <select class="ピグモ00" id="titleFont" name="titleFont" onchange="fontChenge('title')">
-              <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
-              <option class="JKゴシックM">JKゴシックM</option>
-              <option class=kosugiMaru>kosugiMaru</option>
-              <option class="チカラヅヨク">チカラヅヨク</option>
-              <option class="チカラヨワク">チカラヨワク</option>
-              <option class="MSゴシック">MSゴシック</option>
-              <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
-              <option class="游ゴシック">游ゴシック</option>
-              <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-            </select>
-          </span>
-          <span>その他</span>
-          <span class="selectForm">
-            <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChenge('sonota')">
-              <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
-              <option class="JKゴシックM">JKゴシックM</option>
-              <option class=kosugiMaru>kosugiMaru</option>
-              <option class="チカラヅヨク">チカラヅヨク</option>
-              <option class="チカラヨワク">チカラヨワク</option>
-              <option class="MSゴシック">MSゴシック</option>
-              <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
-              <option class="游ゴシック">游ゴシック</option>
-              <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-            </select>
-          </span>
+            <span>たいとる</span>
+            <span class="selectForm">
+              <select class="ピグモ00" id="titleFont" name="titleFont" onchange="fontChenge('title')">
+                <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+                <option class="JKゴシックM">JKゴシックM</option>
+                <option class=kosugiMaru>kosugiMaru</option>
+                <option class="チカラヅヨク">チカラヅヨク</option>
+                <option class="チカラヨワク">チカラヨワク</option>
+                <option class="MSゴシック">MSゴシック</option>
+                <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+                <option class="游ゴシック">游ゴシック</option>
+                <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+              </select>
+            </span>
+            <span>その他</span>
+            <span class="selectForm">
+              <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChenge('sonota')">
+                <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+                <option class="JKゴシックM">JKゴシックM</option>
+                <option class=kosugiMaru>kosugiMaru</option>
+                <option class="チカラヅヨク">チカラヅヨク</option>
+                <option class="チカラヨワク">チカラヨワク</option>
+                <option class="MSゴシック">MSゴシック</option>
+                <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+                <option class="游ゴシック">游ゴシック</option>
+                <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+              </select>
+            </span>
           </div>
         </div>
       </div>
+
       <div id="chatLog">
-          <ul id="logs" class="flexContainerColumn">
-          </ul>
+        <ul id="logs" class="flexContainerColumn">
+        </ul>
       </div>
     </div>
-    <div id= footer>
-    <div class="flexContainer">
-      <svg width="40" height="40" id="pkun">
-        <defs>
-          <style>
-            .svgText {
-              font-size: 40px;
-              font-weight: bold;
-              font-family: Arial;
-              fill: #fff;
-              text-anchor: middle;
-            }
-          </style>
-        </defs>
-        <rect x="0" y="0" width="40" height="40" ></rect>
-        <text x="20" y="35" class="svgText">
-          P
-        </text>
-      </svg>
-      <a id="Q-AURL" href="/Q-A" target="_blank">Q & A</a>
-    </div>
-    <div id="kousinrireki">
-      <br>
-      <p>更新履歴</p>
-      <p>2020/6/11 ちょっとＵＩ変えた、iOSで文字入力時に拡大されるの直した</p>
-      <p>2020/6/10 効果音増やした</p>
-      <p>2020/6/9 遠近感入れた</p>
-      <p>2020/6/8 効果音実装　協力：<span class="mzk">mzk</span></p>
-      <p>2020/6/7 軽量化した</p>
-      <p>2020/6/5 色増やした</p>
-      <p>2020/6/4 色変え実装</p>
-      <p>2020/6/2 ログ残しが順番になってなかった</p>
-      <p>2020/6/1 宇宙が生まれた</p>
-      <p>2020/5/30 再開 画面外脱出バグ修正</p>
-      <p>飽きたのでしばらく放置</p>
-      <p>2020/05/28 やっとスマホ対応</p>
-      <p>とりあえず、アボンは右クリックでできるようにした。</p>
-      <p>新色→skyblue→みかん色→旧</p>
-      <p>2020/05/26 IE11で描画がおかしくなってたの直した、しかしIE11の対応がめんどすぎるのでそのうち投げるかもしれん</p>
-      <p>リサイズ時のスクロールバーの挙動がおかしいので直した</p>
-      <p>スクロールバーちょっと弄ってみた(Chrome,Safariのみ)</p>
-      <p>2020/05/25 <span style="color:#97B8FF; font-weight:bold;">ねこすけ</span>実装　提供：ごまちゃんお</p>
-      <p>画面の大きさとか調整した</p>
-      <p>2020/05/23 動きのバグ直した</p>
-      <p>2020/05/21 UIを色々変えた、ちゃりーｎ</p>
-      <p>2020/05/17 名前を自動再入力するようにした</p>
-      <a href="/dominionrule" target="_blank">　　　　　ドミニオンのルール</a>
-      <p>2020/05/11 再起動メッセージが上手くいかなくなってたので直した</p>
-      <p>ログ残し</p>
-      <p>2020/05/10 Ｑ＆Ａ設置</p>
-      <p>フォント増やした</p>
-      <p>2020/05/09 名前を真ん中にして、枠つけた</p>
-      <p>2020/05/08 フォント選定開始、そのうち統一する、重くなるので選択式にはしない</p>
-      <p>2020/05/05 エントランスの画像差し替え</p>
-      <p>若干軽くなった</p>
-      <p>低脂肪はコンフレとコヒ牛乳。飲むだけなら普通の牛乳。ホットケーキミックスクスにはバナナ豆乳。何食べは調整豆乳を飲む。 ごまちゃｎは料理とかコーヒーに混ぜるときは無調整、そのまま飲むときは低脂肪
-      </p>
-      <p>2020/05/04 入退場時に時間が表示されるようにした</p>
-      <p>2020/05/01 無入力で吹き出し消せるようにした</p>
-      <p>アボン画像差し替え</p>
-      <span>　　　</span>
-      <img src="img/abonBefore.png" alt="旧アボン" align="middle">
-      <div class="inlineBlock">　→　</div>
-      <img src="img/abon.png" alt="新アボン" align="middle">
-      <p>2020/04/30/アボンで藁人形になるようにした、アボンすると動きもわからなくなるようにした　提供：ごまちゃんが</p>
-      <p>アバターの位置によってちゃんと手前や後ろになるようにした</p>
-      <p>名前入力時にエンターでログインできるようにした</p>
-      <p>2020/04/26 <span style="color:#F9C2FD;">ごまねこ</span>実装</p>
-      <p>windows用専ブラPMbrowserVer1.0配布 提供：<span style="color: red;">闇の帝王</span></p>
-      <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a>
-      <a href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
-      <p>起動手順: distフォルダのp-m-browser Setup 1.0.0をクリックで、setup</p>
-      <p>win10なら、スタート→最近追加されたもの右クリック→その他　でファイルの場所を開く　ってあるので必要な方はそっからショートカット生成</p>
-      <p style="color: yellow;">Mac用の専ブラは誰か手伝ってくれれば作れる、協力者求む！！！</p>
-      <p>edgeでなんか画面グラグラするの修正</p>
-      <p>方向判定修正</p>
-      <p>メッセージのオートコンプリート機能を無効化</p>
-      <p>2020/04/25 鯖落ちエラーの修正、再起動時にメッセージを出力</p>
-      <p>2020/04/22 ごまねこ実装中(途中) 提供：ごまちゃん</p>
-      <p>2020/04/16 アバター残像バグ修正</p>
-      <p>2020/04/15 チャットログに背景画面を設定。提供：ごまちゃん</p>
-      <p>2020/3/26 トリップ実装※2ch非準拠</p>
-      <p>2020/3/13 アボン機能　アバターかテキストクリックでアボン※相手の発言が見えなくなるよ、こっちの発言は伝わるよ、アボンしたことは相手には伝わらないよ。</p>
-      <p>シュモクザメになりたい</p>
-      <p>2020/3/11 users</p>
-      <p>2020/3/7 一応スマホ対応したが、なんかだんだん重くなる、謎、しばらくあんま更新しない</p>
-      <p>2020/3/6 サーバー常駐になった</p>
-      <p>2020/3/5 IE11に完全対応</p>
-      <p>2020/3/4 入力欄に自動でフォーカスが当たるようになった、スマホだと入るとき糞重い問題解決（まだ動けない）、実はログイン回数200までだったのを解除した</p>
-      <p>2020/3/3 汚物は消毒だーーー(エントランス画像差し替え)、　　未入力を無効化</p>
-      <p>2020/3/2 IE11に一応対応(調整中,二回に一回バグる)</p>
-      <p>2020/3/1 更新履歴実装</p>
-      <p>2020/2/29メッセージフォームおっきくした、ログの文字の大きさ調整、文字制限を250字に拡大</p>
-      <p>2020/2/28 表示位置がちょいちょいおかしいの修正、背景色を街にした</p>
-      <p>2020/2/27 テストサーバー公開</p>
-      <a href="https://twitter.com/Project_MACHI" target="_blank">https://twitter.com/Project_MACHI</a>
-      <p>管理人ツイッター　:ここで起こった全てのクレーム苦情罵倒暴言暴力はこちらへ</p>
-    </div>
-    <div id="senburahaihu" class="flexContainer">
-        <p>windows用専ブラPMbrowserVer1.0  提供：</p>
+
+    <div id=footer>
+      <div class="flexContainer" id="firstFooter">
+        <svg width="40" height="40" id="pkun">
+          <defs>
+            <style>
+              .svgText {
+                font-size: 40px;
+                font-weight: bold;
+                font-family: Arial;
+                fill: #fff;
+                text-anchor: middle;
+              }
+            </style>
+          </defs>
+          <rect x="0" y="0" width="40" height="40"></rect>
+          <text x="20" y="35" class="svgText">
+            P
+          </text>
+        </svg>
+        <a id="Q-AURL" href="/Q-A" target="_blank">Q & A</a>
+      </div>
+      <div id="kousinrireki">
+        <br>
+        <p>更新履歴</p>
+        <p>2020/6/14 宇宙から生還 音量調整入れた</p>
+        <p>2020/6/13 もう完全にスマホ対応した</p>
+        <p>2020/6/11 ちょっとＵＩ変えた、iOSで文字入力時に拡大されるの直した</p>
+        <p>2020/6/10 効果音増やした</p>
+        <p>2020/6/9 遠近感入れた</p>
+        <p>2020/6/8 効果音実装　協力：<span class="mzk">mzk</span></p>
+        <p>2020/6/7 軽量化した</p>
+        <p>2020/6/5 色増やした</p>
+        <p>2020/6/4 色変え実装</p>
+        <p>2020/6/2 ログ残しが順番になってなかった</p>
+        <p>2020/6/1 宇宙が生まれた</p>
+        <p>2020/5/30 再開 画面外脱出バグ修正</p>
+        <p>飽きたのでしばらく放置</p>
+        <p>2020/05/28 やっとスマホ対応</p>
+        <p>とりあえず、アボンは右クリックでできるようにした。</p>
+        <p>新色→skyblue→みかん色→旧</p>
+        <p>2020/05/26 IE11で描画がおかしくなってたの直した、しかしIE11の対応がめんどすぎるのでそのうち投げるかもしれん</p>
+        <p>リサイズ時のスクロールバーの挙動がおかしいので直した</p>
+        <p>スクロールバーちょっと弄ってみた(Chrome,Safariのみ)</p>
+        <p>2020/05/25 <span style="color:#97B8FF; font-weight:bold;">ねこすけ</span>実装　提供：ごまちゃんお</p>
+        <p>画面の大きさとか調整した</p>
+        <p>2020/05/23 動きのバグ直した</p>
+        <p>2020/05/21 UIを色々変えた、ちゃりーｎ</p>
+        <p>2020/05/17 名前を自動再入力するようにした</p>
+        <a href="/dominionrule" target="_blank">　　　　　ドミニオンのルール</a>
+        <p>2020/05/11 再起動メッセージが上手くいかなくなってたので直した</p>
+        <p>ログ残し</p>
+        <p>2020/05/10 Ｑ＆Ａ設置</p>
+        <p>フォント増やした</p>
+        <p>2020/05/09 名前を真ん中にして、枠つけた</p>
+        <p>2020/05/08 フォント選定開始、そのうち統一する、重くなるので選択式にはしない</p>
+        <p>2020/05/05 エントランスの画像差し替え</p>
+        <p>若干軽くなった</p>
+        <p>低脂肪はコンフレとコヒ牛乳。飲むだけなら普通の牛乳。ホットケーキミックスクスにはバナナ豆乳。何食べは調整豆乳を飲む。 ごまちゃｎは料理とかコーヒーに混ぜるときは無調整、そのまま飲むときは低脂肪
+        </p>
+        <p>2020/05/04 入退場時に時間が表示されるようにした</p>
+        <p>2020/05/01 無入力で吹き出し消せるようにした</p>
+        <p>アボン画像差し替え</p>
+        <span>　　　</span>
+        <img src="img/abonBefore.png" alt="旧アボン" align="middle">
+        <div class="inlineBlock">　→　</div>
+        <img src="img/abon.png" alt="新アボン" align="middle">
+        <p>2020/04/30/アボンで藁人形になるようにした、アボンすると動きもわからなくなるようにした　提供：ごまちゃんが</p>
+        <p>アバターの位置によってちゃんと手前や後ろになるようにした</p>
+        <p>名前入力時にエンターでログインできるようにした</p>
+        <p>2020/04/26 <span style="color:#F9C2FD;">ごまねこ</span>実装</p>
+        <p>windows用専ブラPMbrowserVer1.0配布 提供：<span style="color: red;">闇の帝王</span></p>
+        <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a>
+        <a href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
+        <p>起動手順: distフォルダのp-m-browser Setup 1.0.0をクリックで、setup</p>
+        <p>win10なら、スタート→最近追加されたもの右クリック→その他　でファイルの場所を開く　ってあるので必要な方はそっからショートカット生成</p>
+        <p style="color: yellow;">Mac用の専ブラは誰か手伝ってくれれば作れる、協力者求む！！！</p>
+        <p>edgeでなんか画面グラグラするの修正</p>
+        <p>方向判定修正</p>
+        <p>メッセージのオートコンプリート機能を無効化</p>
+        <p>2020/04/25 鯖落ちエラーの修正、再起動時にメッセージを出力</p>
+        <p>2020/04/22 ごまねこ実装中(途中) 提供：ごまちゃん</p>
+        <p>2020/04/16 アバター残像バグ修正</p>
+        <p>2020/04/15 チャットログに背景画面を設定。提供：ごまちゃん</p>
+        <p>2020/3/26 トリップ実装※2ch非準拠</p>
+        <p>2020/3/13 アボン機能　アバターかテキストクリックでアボン※相手の発言が見えなくなるよ、こっちの発言は伝わるよ、アボンしたことは相手には伝わらないよ。</p>
+        <p>シュモクザメになりたい</p>
+        <p>2020/3/11 users</p>
+        <p>2020/3/7 一応スマホ対応したが、なんかだんだん重くなる、謎、しばらくあんま更新しない</p>
+        <p>2020/3/6 サーバー常駐になった</p>
+        <p>2020/3/5 IE11に完全対応</p>
+        <p>2020/3/4 入力欄に自動でフォーカスが当たるようになった、スマホだと入るとき糞重い問題解決（まだ動けない）、実はログイン回数200までだったのを解除した</p>
+        <p>2020/3/3 汚物は消毒だーーー(エントランス画像差し替え)、　　未入力を無効化</p>
+        <p>2020/3/2 IE11に一応対応(調整中,二回に一回バグる)</p>
+        <p>2020/3/1 更新履歴実装</p>
+        <p>2020/2/29メッセージフォームおっきくした、ログの文字の大きさ調整、文字制限を250字に拡大</p>
+        <p>2020/2/28 表示位置がちょいちょいおかしいの修正、背景色を街にした</p>
+        <p>2020/2/27 テストサーバー公開</p>
+        <a href="https://twitter.com/Project_MACHI" target="_blank">https://twitter.com/Project_MACHI</a>
+        <p>管理人ツイッター　:ここで起こった全てのクレーム苦情罵倒暴言暴力はこちらへ</p>
+      </div>
+      <div id="senburahaihu" class="flexContainer">
+        <p>windows用専ブラPMbrowserVer1.0 提供：</p>
         <p class="rightSpace" style="color:red; font-weight:bold; font-size:17px;">闇の帝王</p>
         <a class="rightSpace" href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a>
         <div class="rightSpace"></div>
         <div class="rightSpace"></div>
         <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a>
-    </div>
+      </div>
+      <p>
+        音量調整：
+        <input type="range" value="0.3" id="sampleVolume" min="0" max="1" step="0.1" onchange="setVolume(this.value)">
+    </p>
     </div>
   </div>
 
@@ -243,4 +256,5 @@
     <p>javascriptが無効になってるみたいやから、有効にしてね！！</p>
   </noscript>
 </body>
+
 </html>

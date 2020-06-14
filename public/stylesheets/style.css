@@ -5,7 +5,6 @@ body {
     margin: 0 0 0 2px;
     background-color: rgb(50, 50, 58);
     /* background-color: rgb(35, 35, 39); こっちとで迷う*/
-    
     display: -webkit-flex;
     display: flex;
     flex-direction: column;
@@ -80,7 +79,8 @@ a {
     flex-shrink: 0;
 }
 
-.rightSpace {/* IE11でも空白を使えるようにするための処置 */
+.rightSpace {
+    /* IE11でも空白を使えるようにするための処置 */
     display: inline-block;
     padding-right: 15px;
 }
@@ -91,6 +91,7 @@ a {
     align-self: flex-end;
     margin-top: auto;
 }
+
 .logNoiseButton {
     background-color: green;
     /* height: 23px; */
@@ -106,7 +107,8 @@ a {
 #graphic {
     display: inline-block;
     position: relative;
-    width: 660px;
+    z-index: 1;
+    /* width: 660px; */
     /* background-color: rgb(76, 76, 82); */
     /* background-size: cover; */
     /* flex-basis: 10000px; */
@@ -156,27 +158,27 @@ a {
 }
 
 #nameForm {
-    width: 660px;
     text-align: right;
     background-color: #939393;
+    width: 125%;
 }
 
 #userName {
     font-size: 19px;
     transform: scale(0.8);
-    width:800px;
+    width: 122%;
     background-color: #E1E1E1;
     -moz-transform-origin: 3px 0px;
     -webkit-transform-origin: 3px 0px;
     -o-transform-origin: 3px 0px;
     -ms-transform-origin: 3px 0px;
     transform-origin: 3px 0px;
-
-    line-height: 20px;/* IE11対策 */
+    line-height: 20px;
+    /* IE11対策 */
 }
 
 #msgForm {
-    width: 660px;
+    width: 125%;
     text-align: right;
     display: none;
     background-color: #939393;
@@ -185,22 +187,28 @@ a {
 #msg {
     font-size: 19px;
     transform: scale(0.8);
-    width: 800px;
+    width: 122%;
     background-color: #E1E1E1;
     -moz-transform-origin: 3px 0px;
     -webkit-transform-origin: 3px 0px;
     -o-transform-origin: 3px 0px;
     -ms-transform-origin: 3px 0px;
     transform-origin: 3px 0px;
-
-    line-height: 20px;/* IE11対策 */
+    line-height: 20px;
+    /* IE11対策 */
 }
+
 #msg::placeholder {
     text-align: right;
-  }
+}
 
 .input {
     height: 21px;
+}
+
+#PmainFooter {
+    background-color: #939393;
+    width: 125%;
 }
 
 #chatLog {
@@ -227,12 +235,6 @@ a {
     color: black;
 }
 
-/* #chatLog img{
-    position: absolute;
-    width: 100%;
-    height: 200%;
-} */
-
 .inlineBlock {
     display: inline-block;
 }
@@ -244,7 +246,7 @@ a {
 #pkun {
     cursor: pointer;
     stroke-linecap: round;
-    fill:skyblue;
+    fill: skyblue;
 }
 
 #pkun.moved {
@@ -287,7 +289,8 @@ a {
     60% {
         transform: rotate(-200deg) scale(1.8) translateX(30px);
         border-radius: 50%;
-        background-color: transparent;/*背景を初期値（透明）にする*/
+        background-color: transparent;
+        /*背景を初期値（透明）にする*/
         /* fill: rgb(233, 200, 12); */
     }
     80% {
@@ -297,7 +300,8 @@ a {
     }
     90% {
         transform: rotate(640deg) scale(5.8) translateX(100px);
-        background-color: transparent;/*背景を初期値（透明）にする*/
+        background-color: transparent;
+        /*背景を初期値（透明）にする*/
     }
     95% {
         transform: rotate(720deg) scale(1.8) translateX(200px);
@@ -317,8 +321,9 @@ a {
 #Q-A {
     font-size: 20px;
 }
-#Q-A a{
-font-size: 18px;
+
+#Q-A a {
+    font-size: 18px;
 }
 
 #kousinrirekiURL {
@@ -424,34 +429,48 @@ select {
     font-family: "microsoft jhenghei UI light";
 }
 
+.mzk {
+    display: inline-block;
+    color: rgba(153, 153, 153, 0.10);
+    /* 文字の色 */
+    font-size: 12pt;
+    /* 文字のサイズ */
+    letter-spacing: 2px;
+    /* 文字間 */
+    text-shadow: 1px 1px 1px #ffffff, -1px 1px 1px #ffffff, 1px -1px 1px #ffffff, -1px -1px 1px #ffffff, 1px 0px 1px #ffffff, 0px 1px 1px #ffffff, -1px 0px 1px #ffffff, 0px -1px 1px #ffffff;
+    /* 文字の影 */
+}
+
+.smartphone{
+    display: none;
+}
+
 @media(max-width: 700px) {
+    .PC {
+        display: none;
+    }
+    .smartphone{
+        display: inline;
+    }
     body {
         background: skyblue;
     }
-    #titleBar {
-        order: 1;
-        flex-wrap: wrap;
-    }
     #Pmachi {
+        flex-wrap: wrap;
+        flex-direction: column;
+    }
+    #graphic {
+        order: 1;
+    }
+    #PmainFooter {
+        position: absolute;
+        height: 50px;
+    }
+    #titleBar {
+        order: 3;
         flex-wrap: wrap;
     }
     #logs {
         flex-direction: column-reverse;
     }
 }
-
-.mzk {
-    display        : inline-block;
-    color          : rgba(153, 153, 153, 0.10);            /* 文字の色 */
-    font-size      : 12pt;               /* 文字のサイズ */
-    letter-spacing : 2px;                /* 文字間 */
-    text-shadow    : 
-         1px  1px 1px #ffffff,
-        -1px  1px 1px #ffffff,
-         1px -1px 1px #ffffff,
-        -1px -1px 1px #ffffff,
-         1px  0px 1px #ffffff,
-         0px  1px 1px #ffffff,
-        -1px  0px 1px #ffffff,
-         0px -1px 1px #ffffff;        /* 文字の影 */
-  }
