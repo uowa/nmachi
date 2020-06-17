@@ -35,10 +35,11 @@ let userName;
 let socketID;
 
 let avaP = [];
+
+//ここ配列にしたほうが良いかいな
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
 let avaS1 = [], avaSW1 = [], avaW1 = [], avaNW1 = [], avaN1 = [], avaNE1 = [], avaE1 = [], avaSE1 = [];
 let avaS2 = [], avaSW2 = [], avaW2 = [], avaNW2 = [], avaN2 = [], avaNE2 = [], avaE2 = [], avaSE2 = [];
-let gomaNecoSleep = [];
 let avaAbon = [];
 
 let avaC = {};
@@ -67,19 +68,9 @@ let daikokubasira;
 let utyu;
 
 
-let gomaNecoFace, necosukeFace;
 
-let gomaNecoS, gomaNecoS1,
-  gomaNecoSW, gomaNecoSW1, gomaNecoSW2,
-  gomaNecoW, gomaNecoW1, gomaNecoW2,
-  gomaNecoNW, gomaNecoNW1, gomaNecoNW2,
-  gomaNecoN, gomaNecoN1,
-  gomaNecoSleep1, gomaNecoSleep2, gomaNecoSleep3;
-let necosukeS, necosukeS1,
-  necosukeSW, necosukeSW1, necosukeSW2,
-  necosukeW, necosukeW1, necosukeW2,
-  necosukeNW, necosukeNW1, necosukeNW2,
-  necosukeN, necosukeN1;
+let gomaneco = {};
+let necosuke = {};
 
 
 let moving = gsap.timeline();
@@ -278,7 +269,7 @@ let gamenLogStyle = {
   wordWrapWidth: 500,
   breakWords: true
 };
-let gamenLog = new PIXI.Text("",gamenLogStyle);
+let gamenLog = new PIXI.Text("", gamenLogStyle);
 
 
 
@@ -301,53 +292,53 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
   //アバターのベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
-  gomaNecoS = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2020, 0, 40, 70));
-  gomaNecoS1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2060, 0, 40, 70));
+  gomaneco.S = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2020, 0, 40, 70));
+  gomaneco.S1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2060, 0, 40, 70));
 
-  gomaNecoSW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2100, 0, 40, 70));
-  gomaNecoSW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2140, 0, 40, 70));
-  gomaNecoSW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2180, 0, 40, 70));
+  gomaneco.SW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2100, 0, 40, 70));
+  gomaneco.SW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2140, 0, 40, 70));
+  gomaneco.SW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2180, 0, 40, 70));
 
-  gomaNecoW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2220, 0, 40, 70));
-  gomaNecoW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2260, 0, 40, 70));
-  gomaNecoW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2300, 0, 40, 70));
+  gomaneco.W = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2220, 0, 40, 70));
+  gomaneco.W1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2260, 0, 40, 70));
+  gomaneco.W2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2300, 0, 40, 70));
 
-  gomaNecoNW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2340, 0, 40, 70));
-  gomaNecoNW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2380, 0, 40, 70));
-  gomaNecoNW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2420, 0, 40, 70));
+  gomaneco.NW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2340, 0, 40, 70));
+  gomaneco.NW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2380, 0, 40, 70));
+  gomaneco.NW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2420, 0, 40, 70));
 
-  gomaNecoN = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2460, 0, 40, 70));
-  gomaNecoN1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2500, 0, 40, 70));
-
-
-  // gomaNecoSleep = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(0, 0, 40, 20));
-  // gomaNecoSleep1= new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(40, 0, 40, 70));
-  // gomaNecoSleep2= new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(80, 0, 40, 70));
+  gomaneco.N = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2460, 0, 40, 70));
+  gomaneco.N1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2500, 0, 40, 70));
 
 
-
-  necosukeS = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2020, 70, 50, 80));
-  necosukeS1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2070, 70, 50, 80));
-
-
-  necosukeSW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2120, 70, 50, 80));
-  necosukeSW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2170, 70, 50, 80));
-  necosukeSW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2220, 70, 50, 80));
-
-  necosukeW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2270, 70, 50, 80));
-  necosukeW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2320, 70, 50, 80));
-  necosukeW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2370, 70, 50, 80));
-
-  necosukeNW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2420, 70, 50, 80));
-  necosukeNW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2470, 70, 50, 80));
-  necosukeNW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2520, 70, 50, 80));
-
-  necosukeN = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2570, 70, 50, 80));
-  necosukeN1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2620, 70, 50, 80));
+  // gomaneco.Sleep = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(0, 0, 40, 20));
+  // gomaneco.Sleep1= new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(40, 0, 40, 70));
+  // gomaneco.Sleep2= new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(80, 0, 40, 70));
 
 
-  gomaNecoFace = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 0, 40, 40));
-  necosukeFace = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 40, 40, 40));
+
+  necosuke.S = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2020, 70, 50, 80));
+  necosuke.S1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2070, 70, 50, 80));
+
+
+  necosuke.SW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2120, 70, 50, 80));
+  necosuke.SW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2170, 70, 50, 80));
+  necosuke.SW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2220, 70, 50, 80));
+
+  necosuke.W = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2270, 70, 50, 80));
+  necosuke.W1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2320, 70, 50, 80));
+  necosuke.W2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2370, 70, 50, 80));
+
+  necosuke.NW = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2420, 70, 50, 80));
+  necosuke.NW1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2470, 70, 50, 80));
+  necosuke.NW2 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2520, 70, 50, 80));
+
+  necosuke.N = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2570, 70, 50, 80));
+  necosuke.N1 = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2620, 70, 50, 80));
+
+
+  gomaneco.Face = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 0, 40, 40));
+  necosuke.Face = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 40, 40, 40));
 
 
   avaAbon = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1980, 1300, 40, 70));
@@ -393,7 +384,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   ///アバターX座標の位置
   AtextX.position.set(560, 400);
   AtextX.zIndex = 10;
-  
+
   //アバターY座標の表示設定
   AtextY = new PIXI.Text("avaY");
   AtextY.style = {//アバターY座標のスタイル
@@ -416,7 +407,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   //マウスX座標の位置
   MtextX.position.set(560, 430);
   MtextX.zIndex = 10;
-  
+
   //マウスY座標の表示位置設定
   MtextY = new PIXI.Text("mouY");
   MtextY.style = {//マウスY座標のスタイル
@@ -446,6 +437,72 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   gameLoop();
 }//function setUpはここで終わり
 
+function avatarSet(thisSocketID, thisAvatar, thisWidth) {
+  avaS[thisSocketID] = new PIXI.Sprite(thisAvatar.S);
+  avaS1[thisSocketID] = new PIXI.Sprite(thisAvatar.S1);
+  avaS2[thisSocketID] = new PIXI.Sprite(thisAvatar.S1);
+  avaS2[thisSocketID].width = -thisWidth;
+  avaSW[thisSocketID] = new PIXI.Sprite(thisAvatar.SW);
+  avaSW1[thisSocketID] = new PIXI.Sprite(thisAvatar.SW1);
+  avaSW2[thisSocketID] = new PIXI.Sprite(thisAvatar.SW2);
+  avaW[thisSocketID] = new PIXI.Sprite(thisAvatar.W);
+  avaW1[thisSocketID] = new PIXI.Sprite(thisAvatar.W1);
+  avaW2[thisSocketID] = new PIXI.Sprite(thisAvatar.W2);
+  avaNW[thisSocketID] = new PIXI.Sprite(thisAvatar.NW);
+  avaNW1[thisSocketID] = new PIXI.Sprite(thisAvatar.NW1);
+  avaNW2[thisSocketID] = new PIXI.Sprite(thisAvatar.NW2);
+  avaN[thisSocketID] = new PIXI.Sprite(thisAvatar.N);
+  avaN1[thisSocketID] = new PIXI.Sprite(thisAvatar.N1);
+  avaN2[thisSocketID] = new PIXI.Sprite(thisAvatar.N1);
+  avaN2[thisSocketID].width = -thisWidth;
+
+  avaNE[thisSocketID] = new PIXI.Sprite(thisAvatar.NW);
+  avaNE[thisSocketID].width = -thisWidth;
+  avaNE1[thisSocketID] = new PIXI.Sprite(thisAvatar.NW1);
+  avaNE1[thisSocketID].width = -thisWidth;
+  avaNE2[thisSocketID] = new PIXI.Sprite(thisAvatar.NW2);
+  avaNE2[thisSocketID].width = -thisWidth;
+  avaE[thisSocketID] = new PIXI.Sprite(thisAvatar.W);
+  avaE[thisSocketID].width = -thisWidth;
+  avaE1[thisSocketID] = new PIXI.Sprite(thisAvatar.W1);
+  avaE1[thisSocketID].width = -thisWidth;
+  avaE2[thisSocketID] = new PIXI.Sprite(thisAvatar.W2);
+  avaE2[thisSocketID].width = -thisWidth;
+  avaSE[thisSocketID] = new PIXI.Sprite(thisAvatar.SW);
+  avaSE[thisSocketID].width = -thisWidth;
+  avaSE1[thisSocketID] = new PIXI.Sprite(thisAvatar.SW1);
+  avaSE1[thisSocketID].width = -thisWidth;
+  avaSE2[thisSocketID] = new PIXI.Sprite(thisAvatar.SW2);
+  avaSE2[thisSocketID].width = -thisWidth;
+
+  avaS[thisSocketID].anchor.set(0.5, 1);
+  avaS1[thisSocketID].anchor.set(0.5, 1);
+  avaS2[thisSocketID].anchor.set(0.5, 1);
+  avaSW[thisSocketID].anchor.set(0.5, 1);
+  avaSW1[thisSocketID].anchor.set(0.5, 1);
+  avaSW2[thisSocketID].anchor.set(0.5, 1);
+  avaW[thisSocketID].anchor.set(0.5, 1);
+  avaW1[thisSocketID].anchor.set(0.5, 1);
+  avaW2[thisSocketID].anchor.set(0.5, 1);
+  avaNW[thisSocketID].anchor.set(0.5, 1);
+  avaNW1[thisSocketID].anchor.set(0.5, 1);
+  avaNW2[thisSocketID].anchor.set(0.5, 1);
+  avaN[thisSocketID].anchor.set(0.5, 1);
+  avaN1[thisSocketID].anchor.set(0.5, 1);
+  avaN2[thisSocketID].anchor.set(0.5, 1);
+  avaNE[thisSocketID].anchor.set(0.5, 1);
+  avaNE1[thisSocketID].anchor.set(0.5, 1);
+  avaNE2[thisSocketID].anchor.set(0.5, 1);
+  avaE[thisSocketID].anchor.set(0.5, 1);
+  avaE1[thisSocketID].anchor.set(0.5, 1);
+  avaE2[thisSocketID].anchor.set(0.5, 1);
+  avaSE[thisSocketID].anchor.set(0.5, 1);
+  avaSE1[thisSocketID].anchor.set(0.5, 1);
+  avaSE2[thisSocketID].anchor.set(0.5, 1);
+};
+
+
+
 socket.on("mySocketID", function (data) {
   socketID = data.socketID;
   //アバターの親コンテナを設定
@@ -455,68 +512,8 @@ socket.on("mySocketID", function (data) {
 
   //画像を追加
   //デフォルト
-  avaP[socketID].avatar = "gomaNeco";
-  avaS[socketID] = new PIXI.Sprite(gomaNecoS);
-  avaS1[socketID] = new PIXI.Sprite(gomaNecoS1);
-  avaS2[socketID] = new PIXI.Sprite(gomaNecoS1);
-  avaS2[socketID].width = -40;
-  avaSW[socketID] = new PIXI.Sprite(gomaNecoSW);
-  avaSW1[socketID] = new PIXI.Sprite(gomaNecoSW1);
-  avaSW2[socketID] = new PIXI.Sprite(gomaNecoSW2);
-  avaW[socketID] = new PIXI.Sprite(gomaNecoW);
-  avaW1[socketID] = new PIXI.Sprite(gomaNecoW1);
-  avaW2[socketID] = new PIXI.Sprite(gomaNecoW2);
-  avaNW[socketID] = new PIXI.Sprite(gomaNecoNW);
-  avaNW1[socketID] = new PIXI.Sprite(gomaNecoNW1);
-  avaNW2[socketID] = new PIXI.Sprite(gomaNecoNW2);
-  avaN[socketID] = new PIXI.Sprite(gomaNecoN);
-  avaN1[socketID] = new PIXI.Sprite(gomaNecoN1);
-  avaN2[socketID] = new PIXI.Sprite(gomaNecoN1);
-  avaN2[socketID].width = -40;
-
-  avaNE[socketID] = new PIXI.Sprite(gomaNecoNW);
-  avaNE[socketID].width = -40;
-  avaNE1[socketID] = new PIXI.Sprite(gomaNecoNW1);
-  avaNE1[socketID].width = -40;
-  avaNE2[socketID] = new PIXI.Sprite(gomaNecoNW2);
-  avaNE2[socketID].width = -40;
-  avaE[socketID] = new PIXI.Sprite(gomaNecoW);
-  avaE[socketID].width = -40;
-  avaE1[socketID] = new PIXI.Sprite(gomaNecoW1);
-  avaE1[socketID].width = -40;
-  avaE2[socketID] = new PIXI.Sprite(gomaNecoW2);
-  avaE2[socketID].width = -40;
-  avaSE[socketID] = new PIXI.Sprite(gomaNecoSW);
-  avaSE[socketID].width = -40;
-  avaSE1[socketID] = new PIXI.Sprite(gomaNecoSW1);
-  avaSE1[socketID].width = -40;
-  avaSE2[socketID] = new PIXI.Sprite(gomaNecoSW2);
-  avaSE2[socketID].width = -40;
-
-  avaS[socketID].anchor.set(0.5, 1);
-  avaS1[socketID].anchor.set(0.5, 1);
-  avaS2[socketID].anchor.set(0.5, 1);
-  avaSW[socketID].anchor.set(0.5, 1);
-  avaSW1[socketID].anchor.set(0.5, 1);
-  avaSW2[socketID].anchor.set(0.5, 1);
-  avaW[socketID].anchor.set(0.5, 1);
-  avaW1[socketID].anchor.set(0.5, 1);
-  avaW2[socketID].anchor.set(0.5, 1);
-  avaNW[socketID].anchor.set(0.5, 1);
-  avaNW1[socketID].anchor.set(0.5, 1);
-  avaNW2[socketID].anchor.set(0.5, 1);
-  avaN[socketID].anchor.set(0.5, 1);
-  avaN1[socketID].anchor.set(0.5, 1);
-  avaN2[socketID].anchor.set(0.5, 1);
-  avaNE[socketID].anchor.set(0.5, 1);
-  avaNE1[socketID].anchor.set(0.5, 1);
-  avaNE2[socketID].anchor.set(0.5, 1);
-  avaE[socketID].anchor.set(0.5, 1);
-  avaE1[socketID].anchor.set(0.5, 1);
-  avaE2[socketID].anchor.set(0.5, 1);
-  avaSE[socketID].anchor.set(0.5, 1);
-  avaSE1[socketID].anchor.set(0.5, 1);
-  avaSE2[socketID].anchor.set(0.5, 1);
+  avaP[socketID].avatar = "gomaneco";
+  avatarSet(socketID, gomaneco, 40);
 
   //色設定//透明度設定
   avaP[socketID].avatarColor = 0XFFFFFF;
@@ -546,141 +543,25 @@ socket.on("mySocketID", function (data) {
   loginBack.addChild(avaP[socketID]);
 
 
-  gomaNecoFace = new PIXI.Sprite(gomaNecoFace);
-  loginBack.addChild(gomaNecoFace);//login画面にgomaNocoFaceを追加
-  gomaNecoFace.interactive = true;//クリックイベントを有効化
-  gomaNecoFace.pointerdown = function () {//ごまねこアイコンクリック時にアバター変更
-    avaP[socketID].avatar = "gomaNeco";//親コンテナにアバターの種類を設定する
-    avaS[socketID] = new PIXI.Sprite(gomaNecoS);
-    avaS1[socketID] = new PIXI.Sprite(gomaNecoS1);
-    avaS2[socketID] = new PIXI.Sprite(gomaNecoS1);
-    avaS2[socketID].width = -40;
-    avaSW[socketID] = new PIXI.Sprite(gomaNecoSW);
-    avaSW1[socketID] = new PIXI.Sprite(gomaNecoSW1);
-    avaSW2[socketID] = new PIXI.Sprite(gomaNecoSW2);
-    avaW[socketID] = new PIXI.Sprite(gomaNecoW);
-    avaW1[socketID] = new PIXI.Sprite(gomaNecoW1);
-    avaW2[socketID] = new PIXI.Sprite(gomaNecoW2);
-    avaNW[socketID] = new PIXI.Sprite(gomaNecoNW);
-    avaNW1[socketID] = new PIXI.Sprite(gomaNecoNW1);
-    avaNW2[socketID] = new PIXI.Sprite(gomaNecoNW2);
-    avaN[socketID] = new PIXI.Sprite(gomaNecoN);
-    avaN1[socketID] = new PIXI.Sprite(gomaNecoN1);
-    avaN2[socketID] = new PIXI.Sprite(gomaNecoN1);
-    avaN2[socketID].width = -40;
-
-    avaNE[socketID] = new PIXI.Sprite(gomaNecoNW);
-    avaNE[socketID].width = -40;
-    avaNE1[socketID] = new PIXI.Sprite(gomaNecoNW1);
-    avaNE1[socketID].width = -40;
-    avaNE2[socketID] = new PIXI.Sprite(gomaNecoNW2);
-    avaNE2[socketID].width = -40;
-    avaE[socketID] = new PIXI.Sprite(gomaNecoW);
-    avaE[socketID].width = -40;
-    avaE1[socketID] = new PIXI.Sprite(gomaNecoW1);
-    avaE1[socketID].width = -40;
-    avaE2[socketID] = new PIXI.Sprite(gomaNecoW2);
-    avaE2[socketID].width = -40;
-    avaSE[socketID] = new PIXI.Sprite(gomaNecoSW);
-    avaSE[socketID].width = -40;
-    avaSE1[socketID] = new PIXI.Sprite(gomaNecoSW1);
-    avaSE1[socketID].width = -40;
-    avaSE2[socketID] = new PIXI.Sprite(gomaNecoSW2);
-    avaSE2[socketID].width = -40;
-
-    avaS[socketID].anchor.set(0.5, 1);
-    avaS1[socketID].anchor.set(0.5, 1);
-    avaS2[socketID].anchor.set(0.5, 1);
-    avaSW[socketID].anchor.set(0.5, 1);
-    avaSW1[socketID].anchor.set(0.5, 1);
-    avaSW2[socketID].anchor.set(0.5, 1);
-    avaW[socketID].anchor.set(0.5, 1);
-    avaW1[socketID].anchor.set(0.5, 1);
-    avaW2[socketID].anchor.set(0.5, 1);
-    avaNW[socketID].anchor.set(0.5, 1);
-    avaNW1[socketID].anchor.set(0.5, 1);
-    avaNW2[socketID].anchor.set(0.5, 1);
-    avaN[socketID].anchor.set(0.5, 1);
-    avaN1[socketID].anchor.set(0.5, 1);
-    avaN2[socketID].anchor.set(0.5, 1);
-    avaNE[socketID].anchor.set(0.5, 1);
-    avaNE1[socketID].anchor.set(0.5, 1);
-    avaNE2[socketID].anchor.set(0.5, 1);
-    avaE[socketID].anchor.set(0.5, 1);
-    avaE1[socketID].anchor.set(0.5, 1);
-    avaE2[socketID].anchor.set(0.5, 1);
-    avaSE[socketID].anchor.set(0.5, 1);
-    avaSE1[socketID].anchor.set(0.5, 1);
-    avaSE2[socketID].anchor.set(0.5, 1);
+  gomaneco.Face = new PIXI.Sprite(gomaneco.Face);
+  loginBack.addChild(gomaneco.Face);//login画面にgomaNocoFaceを追加
+  gomaneco.Face.interactive = true;//クリックイベントを有効化
+  gomaneco.Face.pointerdown = function () {//ごまねこアイコンクリック時にアバター変更
+    localStorage.setItem("avatar", "gomaneco")//ローカルストレージにアバター設定
+    avaP[socketID].avatar = "gomaneco";//親コンテナにアバターの種類を設定する
+    console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
+    avatarSet(socketID, gomaneco, 40);
   };
 
-  necosukeFace = new PIXI.Sprite(necosukeFace);
-  loginBack.addChild(necosukeFace);//login画面にnucosukeFaceを追加
-  necosukeFace.position.set(40, 0);
-  necosukeFace.interactive = true;//クリックイベントを有効化
-  necosukeFace.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
+  necosuke.Face = new PIXI.Sprite(necosuke.Face);
+  loginBack.addChild(necosuke.Face);//login画面にnucosukeFaceを追加
+  necosuke.Face.position.set(40, 0);
+  necosuke.Face.interactive = true;//クリックイベントを有効化
+  necosuke.Face.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
+    localStorage.setItem("avatar", "necosuke");//ローカルストレージにアバター書き込み
     avaP[socketID].avatar = "necosuke";
-    avaS[socketID] = new PIXI.Sprite(necosukeS);
-    avaS1[socketID] = new PIXI.Sprite(necosukeS1);
-    avaS2[socketID] = new PIXI.Sprite(necosukeS1);
-    avaS2[socketID].width = -50;
-    avaSW[socketID] = new PIXI.Sprite(necosukeSW);
-    avaSW1[socketID] = new PIXI.Sprite(necosukeSW1);
-    avaSW2[socketID] = new PIXI.Sprite(necosukeSW2);
-    avaW[socketID] = new PIXI.Sprite(necosukeW);
-    avaW1[socketID] = new PIXI.Sprite(necosukeW1);
-    avaW2[socketID] = new PIXI.Sprite(necosukeW2);
-    avaNW[socketID] = new PIXI.Sprite(necosukeNW);
-    avaNW1[socketID] = new PIXI.Sprite(necosukeNW1);
-    avaNW2[socketID] = new PIXI.Sprite(necosukeNW2);
-    avaN[socketID] = new PIXI.Sprite(necosukeN);
-    avaN1[socketID] = new PIXI.Sprite(necosukeN1);
-    avaN2[socketID] = new PIXI.Sprite(necosukeN1);
-    avaN2[socketID].width = -50;
-
-    avaNE[socketID] = new PIXI.Sprite(necosukeNW);
-    avaNE[socketID].width = -50;
-    avaNE1[socketID] = new PIXI.Sprite(necosukeNW1);
-    avaNE1[socketID].width = -50;
-    avaNE2[socketID] = new PIXI.Sprite(necosukeNW2);
-    avaNE2[socketID].width = -50;
-    avaE[socketID] = new PIXI.Sprite(necosukeW);
-    avaE[socketID].width = -50;
-    avaE1[socketID] = new PIXI.Sprite(necosukeW1);
-    avaE1[socketID].width = -50;
-    avaE2[socketID] = new PIXI.Sprite(necosukeW2);
-    avaE2[socketID].width = -50;
-    avaSE[socketID] = new PIXI.Sprite(necosukeSW);
-    avaSE[socketID].width = -50;
-    avaSE1[socketID] = new PIXI.Sprite(necosukeSW1);
-    avaSE1[socketID].width = -50;
-    avaSE2[socketID] = new PIXI.Sprite(necosukeSW2);
-    avaSE2[socketID].width = -50;
-
-    avaS[socketID].anchor.set(0.5, 1);
-    avaS1[socketID].anchor.set(0.5, 1);
-    avaS2[socketID].anchor.set(0.5, 1);
-    avaSW[socketID].anchor.set(0.5, 1);
-    avaSW1[socketID].anchor.set(0.5, 1);
-    avaSW2[socketID].anchor.set(0.5, 1);
-    avaW[socketID].anchor.set(0.5, 1);
-    avaW1[socketID].anchor.set(0.5, 1);
-    avaW2[socketID].anchor.set(0.5, 1);
-    avaNW[socketID].anchor.set(0.5, 1);
-    avaNW1[socketID].anchor.set(0.5, 1);
-    avaNW2[socketID].anchor.set(0.5, 1);
-    avaN[socketID].anchor.set(0.5, 1);
-    avaN1[socketID].anchor.set(0.5, 1);
-    avaN2[socketID].anchor.set(0.5, 1);
-    avaNE[socketID].anchor.set(0.5, 1);
-    avaNE1[socketID].anchor.set(0.5, 1);
-    avaNE2[socketID].anchor.set(0.5, 1);
-    avaE[socketID].anchor.set(0.5, 1);
-    avaE1[socketID].anchor.set(0.5, 1);
-    avaE2[socketID].anchor.set(0.5, 1);
-    avaSE[socketID].anchor.set(0.5, 1);
-    avaSE1[socketID].anchor.set(0.5, 1);
-    avaSE2[socketID].anchor.set(0.5, 1);
+    avatarSet(socketID, necosuke, 50);
+    console.log("ねこすけ裏設定：クールなまなざしを覗き込むと瞳の奥は燃えている　鳥のように飛べるんじゃないかと考えながら雲から飛び降りている　ごまねこが降りる様を見ると冷や汗をかいてしまう");
   };
 
 
@@ -851,7 +732,7 @@ function moveEnd() {
   AY = avaP[socketID].y;
 }
 function setColor(thisSocketID, colorCode) {
-  avaP[socketID].avatarColor = colorCode;
+  avaP[thisSocketID].avatarColor = colorCode;
   avaS[thisSocketID].tint = colorCode;
   avaS1[thisSocketID].tint = colorCode;
   avaS2[thisSocketID].tint = colorCode;
@@ -1138,7 +1019,6 @@ function tapRange(value) {
             DIR: DIR,
             AX: AX,
             AY: AY,
-            socketID: socketID,
           });
         } else {//ブロックと交わる場合//パターン３
           //distanceが最小値順になるようにcolPointAllを並び変える
@@ -1212,7 +1092,6 @@ function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,C
   tappedMove(socketID, AX, AY, DIR);
   socket.json.emit("tapMap", {
     DIR: DIR,
-    socketID: socketID,
     AX: AX,
     AY: AY,
   });
@@ -1265,12 +1144,8 @@ function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
   });
 }
 
-// クッキーを読み込み      
-function readCookie() {
-  let cookieValue = document.cookie.replace(/(?:(?:^|.*;\s*)mycookie\s*\=\s*([^;]*).*$)|^.*$/, "$1");
-  document.nameForm.userName.value = cookieValue;//名前を出力
-}
-readCookie();
+
+document.nameForm.userName.value = localStorage.getItem('userName');//名前を出力
 
 
 //看板機能
@@ -1311,8 +1186,8 @@ function login() {
     //userNameにフォームの内容を入れる
     room = "entrance";//マップを切り替える
 
-    //クッキー書き込み
-    document.cookie = "mycookie=" + userName;
+
+    localStorage.setItem("userName", userName);//ローカルストレージに名前書き込み
 
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);
@@ -1358,7 +1233,6 @@ function login() {
 
     socket.json.emit("login_room", {//エントランスに入る
       room: "entrance",
-      socketID: socketID,//soket.id
       userName: userName,//ユーザーネーム
       avatar: avaP[socketID].avatar,
       avatarColor: avaP[socketID].avatarColor,
@@ -1401,7 +1275,7 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
       DIR: DIR,
     });
     gamenLog.style.fill = "white";
-  } else if(room == "utyu" && 141 <= AX && AX <=  146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
+  } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
     app.stage.removeChild(utyu);
     room = "entrance";//移動先の部屋を設定
     app.stage.addChild(entrance);//画像を読みこむ
@@ -1418,7 +1292,7 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
       AY: AY,
       DIR: DIR,
     });
-    
+
     gamenLog.style.fill = "black";
   }
 }
@@ -1427,7 +1301,7 @@ function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部�
     entrance.removeChild(avaP[thisSocketID]);
     document.getElementById('users').textContent--;
     moveMsg(nameText[thisSocketID].text + "がutyuに移動しました。");
-  } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
+  } else if (room == "utyu" && 141 <= thisAX && thisAX <= 146 && 73 <= thisAY && thisAY <= 81) {//宇宙の星の範囲内に入った時
     utyu.removeChild(avaP[thisSocketID]);
     document.getElementById('users').textContent--;
     moveMsg(nameText[thisSocketID].text + "がentranceに移動しました。");
@@ -1515,9 +1389,9 @@ function moveMsg(moveMsg) {//移動時のメッセージ出力
     ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
   }
 
-    gamenLog.text =  moveMsg+"\n"+gamenLog.text;
+  gamenLog.text = moveMsg + "\n" + gamenLog.text;
   app.stage.addChild(gamenLog);
-  
+
   if (useLogChime) {//ログチャイムがオンになってたら
     let random = Math.floor(Math.random() * logChime.length);
     logChime[random].play();
@@ -1534,10 +1408,10 @@ function pastLogButtonClicked() {
     usePastLog = false;
   } else {
     document.getElementById("pastLog").style.backgroundColor = 'skyblue';
-    if (window.innerWidth >700) {
+    if (window.innerWidth > 700) {
       chatLog.style.width = windowSize - 528 + "px";
     } else {
-      chatLog.style.width = windowSize+"px";
+      chatLog.style.width = windowSize + "px";
     }
     chatLog.style.height = 470 + "px";
     usePastLog = true;
@@ -1629,9 +1503,9 @@ socket.on("emit_msg", function (data) {
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
 
-      
-        gamenLog.text =  data.userName+ ":"+data.avaMsg+"\n"+gamenLog.text;
-        app.stage.addChild(gamenLog);
+
+      gamenLog.text = data.userName + ":" + data.avaMsg + "\n" + gamenLog.text;
+      app.stage.addChild(gamenLog);
 
       if (useLogChime) {//ログチャイムがオンになってたら
         let random = Math.floor(Math.random() * logChime.length);
@@ -1748,109 +1622,14 @@ socket.on("login_me", function (data) {
   keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
 
     switch (data.user[value].avatar) {//ここらへんは、まあ、あとで関数化する
-      case "gomaNeco":
-        avaS[value] = new PIXI.Sprite(gomaNecoS);
-        avaS1[value] = new PIXI.Sprite(gomaNecoS1);
-        avaS2[value] = new PIXI.Sprite(gomaNecoS1);
-        avaS2[value].width = -40;
-        avaSW[value] = new PIXI.Sprite(gomaNecoSW);
-        avaSW1[value] = new PIXI.Sprite(gomaNecoSW1);
-        avaSW2[value] = new PIXI.Sprite(gomaNecoSW2);
-        avaW[value] = new PIXI.Sprite(gomaNecoW);
-        avaW1[value] = new PIXI.Sprite(gomaNecoW1);
-        avaW2[value] = new PIXI.Sprite(gomaNecoW2);
-        avaNW[value] = new PIXI.Sprite(gomaNecoNW);
-        avaNW1[value] = new PIXI.Sprite(gomaNecoNW1);
-        avaNW2[value] = new PIXI.Sprite(gomaNecoNW2);
-        avaN[value] = new PIXI.Sprite(gomaNecoN);
-        avaN1[value] = new PIXI.Sprite(gomaNecoN1);
-        avaN2[value] = new PIXI.Sprite(gomaNecoN1);
-        avaN2[value].width = -40;
-
-        avaNE[value] = new PIXI.Sprite(gomaNecoNW);
-        avaNE[value].width = -40;
-        avaNE1[value] = new PIXI.Sprite(gomaNecoNW1);
-        avaNE1[value].width = -40;
-        avaNE2[value] = new PIXI.Sprite(gomaNecoNW2);
-        avaNE2[value].width = -40;
-        avaE[value] = new PIXI.Sprite(gomaNecoW);
-        avaE[value].width = -40;
-        avaE1[value] = new PIXI.Sprite(gomaNecoW1);
-        avaE1[value].width = -40;
-        avaE2[value] = new PIXI.Sprite(gomaNecoW2);
-        avaE2[value].width = -40;
-        avaSE[value] = new PIXI.Sprite(gomaNecoSW);
-        avaSE[value].width = -40;
-        avaSE1[value] = new PIXI.Sprite(gomaNecoSW1);
-        avaSE1[value].width = -40;
-        avaSE2[value] = new PIXI.Sprite(gomaNecoSW2);
-        avaSE2[value].width = -40;
+      case "gomaneco":
+        avatarSet(value, gomaneco, 40);
         break;
 
       case "necosuke":
-        avaS[value] = new PIXI.Sprite(necosukeS);
-        avaS1[value] = new PIXI.Sprite(necosukeS1);
-        avaS2[value] = new PIXI.Sprite(necosukeS1);
-        avaS2[value].width = -50;
-        avaSW[value] = new PIXI.Sprite(necosukeSW);
-        avaSW1[value] = new PIXI.Sprite(necosukeSW1);
-        avaSW2[value] = new PIXI.Sprite(necosukeSW2);
-        avaW[value] = new PIXI.Sprite(necosukeW);
-        avaW1[value] = new PIXI.Sprite(necosukeW1);
-        avaW2[value] = new PIXI.Sprite(necosukeW2);
-        avaNW[value] = new PIXI.Sprite(necosukeNW);
-        avaNW1[value] = new PIXI.Sprite(necosukeNW1);
-        avaNW2[value] = new PIXI.Sprite(necosukeNW2);
-        avaN[value] = new PIXI.Sprite(necosukeN);
-        avaN1[value] = new PIXI.Sprite(necosukeN1);
-        avaN2[value] = new PIXI.Sprite(necosukeN1);
-        avaN2[value].width = -50;
-
-        avaNE[value] = new PIXI.Sprite(necosukeNW);
-        avaNE[value].width = -50;
-        avaNE1[value] = new PIXI.Sprite(necosukeNW1);
-        avaNE1[value].width = -50;
-        avaNE2[value] = new PIXI.Sprite(necosukeNW2);
-        avaNE2[value].width = -50;
-        avaE[value] = new PIXI.Sprite(necosukeW);
-        avaE[value].width = -50;
-        avaE1[value] = new PIXI.Sprite(necosukeW1);
-        avaE1[value].width = -50;
-        avaE2[value] = new PIXI.Sprite(necosukeW2);
-        avaE2[value].width = -50;
-        avaSE[value] = new PIXI.Sprite(necosukeSW);
-        avaSE[value].width = -50;
-        avaSE1[value] = new PIXI.Sprite(necosukeSW1);
-        avaSE1[value].width = -50;
-        avaSE2[value] = new PIXI.Sprite(necosukeSW2);
-        avaSE2[value].width = -50;
+        avatarSet(value, necosuke, 50)
         break;
     }
-
-    avaS[value].anchor.set(0.5, 1);
-    avaS1[value].anchor.set(0.5, 1);
-    avaS2[value].anchor.set(0.5, 1);
-    avaSW[value].anchor.set(0.5, 1);
-    avaSW1[value].anchor.set(0.5, 1);
-    avaSW2[value].anchor.set(0.5, 1);
-    avaW[value].anchor.set(0.5, 1);
-    avaW1[value].anchor.set(0.5, 1);
-    avaW2[value].anchor.set(0.5, 1);
-    avaNW[value].anchor.set(0.5, 1);
-    avaNW1[value].anchor.set(0.5, 1);
-    avaNW2[value].anchor.set(0.5, 1);
-    avaN[value].anchor.set(0.5, 1);
-    avaN1[value].anchor.set(0.5, 1);
-    avaN2[value].anchor.set(0.5, 1);
-    avaNE[value].anchor.set(0.5, 1);
-    avaNE1[value].anchor.set(0.5, 1);
-    avaNE2[value].anchor.set(0.5, 1);
-    avaE[value].anchor.set(0.5, 1);
-    avaE1[value].anchor.set(0.5, 1);
-    avaE2[value].anchor.set(0.5, 1);
-    avaSE[value].anchor.set(0.5, 1);
-    avaSE1[value].anchor.set(0.5, 1);
-    avaSE2[value].anchor.set(0.5, 1);
 
     avaAbon[value] = new PIXI.Sprite(avaAbon);
     avaAbon[value].anchor.set(0.5, 1);
@@ -1978,115 +1757,17 @@ socket.on("loadAvatar", function (data) {
   avaAbon[data.socketID].anchor.set(0.5, 1);
 
   switch (data.avatar) {
-    case "gomaNeco":
-      avaP[data.socketID].avatar = "gomaNeco";
-      avaS[data.socketID] = new PIXI.Sprite(gomaNecoS);
-      avaS1[data.socketID] = new PIXI.Sprite(gomaNecoS1);
-      avaS2[data.socketID] = new PIXI.Sprite(gomaNecoS1);
-      avaS2[data.socketID].width = -40;
-      avaSW[data.socketID] = new PIXI.Sprite(gomaNecoSW);
-      avaSW1[data.socketID] = new PIXI.Sprite(gomaNecoSW1);
-      avaSW2[data.socketID] = new PIXI.Sprite(gomaNecoSW2);
-      avaW[data.socketID] = new PIXI.Sprite(gomaNecoW);
-      avaW1[data.socketID] = new PIXI.Sprite(gomaNecoW1);
-      avaW2[data.socketID] = new PIXI.Sprite(gomaNecoW2);
-      avaNW[data.socketID] = new PIXI.Sprite(gomaNecoNW);
-      avaNW1[data.socketID] = new PIXI.Sprite(gomaNecoNW1);
-      avaNW2[data.socketID] = new PIXI.Sprite(gomaNecoNW2);
-      avaN[data.socketID] = new PIXI.Sprite(gomaNecoN);
-      avaN1[data.socketID] = new PIXI.Sprite(gomaNecoN1);
-      avaN2[data.socketID] = new PIXI.Sprite(gomaNecoN1);
-      avaN2[data.socketID].width = -40;
-
-      avaNE[data.socketID] = new PIXI.Sprite(gomaNecoNW);
-      avaNE[data.socketID].width = -40;
-      avaNE1[data.socketID] = new PIXI.Sprite(gomaNecoNW1);
-      avaNE1[data.socketID].width = -40;
-      avaNE2[data.socketID] = new PIXI.Sprite(gomaNecoNW2);
-      avaNE2[data.socketID].width = -40;
-      avaE[data.socketID] = new PIXI.Sprite(gomaNecoW);
-      avaE[data.socketID].width = -40;
-      avaE1[data.socketID] = new PIXI.Sprite(gomaNecoW1);
-      avaE1[data.socketID].width = -40;
-      avaE2[data.socketID] = new PIXI.Sprite(gomaNecoW2);
-      avaE2[data.socketID].width = -40;
-      avaSE[data.socketID] = new PIXI.Sprite(gomaNecoSW);
-      avaSE[data.socketID].width = -40;
-      avaSE1[data.socketID] = new PIXI.Sprite(gomaNecoSW1);
-      avaSE1[data.socketID].width = -40;
-      avaSE2[data.socketID] = new PIXI.Sprite(gomaNecoSW2);
-      avaSE2[data.socketID].width = -40;
+    case "gomaneco":
+      avaP[data.socketID].avatar = "gomaneco";
+      avatarSet(data.socketID, gomaneco, 40);
       break;
     case "necosuke":
       avaP[data.socketID].avatar = "necosuke";
-      avaS[data.socketID] = new PIXI.Sprite(necosukeS);
-      avaS1[data.socketID] = new PIXI.Sprite(necosukeS1);
-      avaS2[data.socketID] = new PIXI.Sprite(necosukeS1);
-      avaS2[data.socketID].width = -50;
-      avaSW[data.socketID] = new PIXI.Sprite(necosukeSW);
-      avaSW1[data.socketID] = new PIXI.Sprite(necosukeSW1);
-      avaSW2[data.socketID] = new PIXI.Sprite(necosukeSW2);
-      avaW[data.socketID] = new PIXI.Sprite(necosukeW);
-      avaW1[data.socketID] = new PIXI.Sprite(necosukeW1);
-      avaW2[data.socketID] = new PIXI.Sprite(necosukeW2);
-      avaNW[data.socketID] = new PIXI.Sprite(necosukeNW);
-      avaNW1[data.socketID] = new PIXI.Sprite(necosukeNW1);
-      avaNW2[data.socketID] = new PIXI.Sprite(necosukeNW2);
-      avaN[data.socketID] = new PIXI.Sprite(necosukeN);
-      avaN1[data.socketID] = new PIXI.Sprite(necosukeN1);
-      avaN2[data.socketID] = new PIXI.Sprite(necosukeN1);
-      avaN2[data.socketID].width = -50;
-
-      avaNE[data.socketID] = new PIXI.Sprite(necosukeNW);
-      avaNE[data.socketID].width = -50;
-      avaNE1[data.socketID] = new PIXI.Sprite(necosukeNW1);
-      avaNE1[data.socketID].width = -50;
-      avaNE2[data.socketID] = new PIXI.Sprite(necosukeNW2);
-      avaNE2[data.socketID].width = -50;
-      avaE[data.socketID] = new PIXI.Sprite(necosukeW);
-      avaE[data.socketID].width = -50;
-      avaE1[data.socketID] = new PIXI.Sprite(necosukeW1);
-      avaE1[data.socketID].width = -50;
-      avaE2[data.socketID] = new PIXI.Sprite(necosukeW2);
-      avaE2[data.socketID].width = -50;
-      avaSE[data.socketID] = new PIXI.Sprite(necosukeSW);
-      avaSE[data.socketID].width = -50;
-      avaSE1[data.socketID] = new PIXI.Sprite(necosukeSW1);
-      avaSE1[data.socketID].width = -50;
-      avaSE2[data.socketID] = new PIXI.Sprite(necosukeSW2);
-      avaSE2[data.socketID].width = -50;
+      avatarSet(data.socketID, necosuke,50);
       break;
   }
   setColor(data.socketID, data.avatarColor);
   setAlpha(data.socketID, data.avatarAlpha);
-
-  avaS[data.socketID].anchor.set(0.5, 1);
-  avaS1[data.socketID].anchor.set(0.5, 1);
-  avaS2[data.socketID].anchor.set(0.5, 1);
-  avaSW[data.socketID].anchor.set(0.5, 1);
-  avaSW1[data.socketID].anchor.set(0.5, 1);
-  avaSW2[data.socketID].anchor.set(0.5, 1);
-  avaW[data.socketID].anchor.set(0.5, 1);
-  avaW1[data.socketID].anchor.set(0.5, 1);
-  avaW2[data.socketID].anchor.set(0.5, 1);
-  avaNW[data.socketID].anchor.set(0.5, 1);
-  avaNW1[data.socketID].anchor.set(0.5, 1);
-  avaNW2[data.socketID].anchor.set(0.5, 1);
-  avaN[data.socketID].anchor.set(0.5, 1);
-  avaN1[data.socketID].anchor.set(0.5, 1);
-  avaN2[data.socketID].anchor.set(0.5, 1);
-  avaNE[data.socketID].anchor.set(0.5, 1);
-  avaNE1[data.socketID].anchor.set(0.5, 1);
-  avaNE2[data.socketID].anchor.set(0.5, 1);
-  avaE[data.socketID].anchor.set(0.5, 1);
-  avaE1[data.socketID].anchor.set(0.5, 1);
-  avaE2[data.socketID].anchor.set(0.5, 1);
-  avaSE[data.socketID].anchor.set(0.5, 1);
-  avaSE1[data.socketID].anchor.set(0.5, 1);
-  avaSE2[data.socketID].anchor.set(0.5, 1);
-
-
-
 
   //画像をあげる
   avaC[data.socketID] = avaS[data.socketID];
@@ -2167,21 +1848,12 @@ function gameLoop() {
   loginMY = app.renderer.plugins.interaction.mouse.global.y;
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
-  if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY <=460) {
+  if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY <= 460) {
     MtextX.text = "mouX" + loginMX;
     MtextY.text = "mouY" + loginMY;
   }
   requestAnimationFrame(gameLoop);
 }
-
-// avaPScale(socketID);
-// function avaPScale(value) {
-
-//   avaP[value].scale.x = avaP[value].y / 500 + 0.5;
-//   avaP[value].scale.y = avaP[value].y / 500 + 0.5;
-//   requestAnimationFrame(function () { avaPScale(socketID) });
-// }
-
 
 
 //再起動用メッセージ
@@ -2255,40 +1927,40 @@ window.addEventListener("resize", function () {
 
 function windowResize() {
   if (windowSize <= 700) {//windowSizeが700以下の時//あああ、IE11で横に謎の隙間できるの不安やなぁ,現状は問題ないけど、スマホとかで問題でそう。とりあえず、Pmainのscale前の状態を参照しとるっぽい。(たぶｎ)
-    let PMscale = windowSize / 660 -0.015;
+    let PMscale = windowSize / 660 - 0.015;
     let scale = "scale(" + PMscale + ")";
     StyleDeclarationSetTransform(Pmain.style, scale);
-    
+
     loginID.style.left = loginID.offsetWidth * PMscale / 2 + 660 / 2 * PMscale + "px";
-     
-    
+
+
     PmainFooter.style.position = "absolute";
     PmainFooter.style.top = 23 + graphic.clientHeight + "px";
     // PmainFooterChild.style.top = 23 + graphic.clientHeight + "px";
     document.getElementById('users').style.position = "absolute";
     document.getElementById('users').style.top = 25 + "px";
     document.getElementById('users').style.right = 0 + "px";
-    
+
     document.getElementById('pastLog').style.position = "absolute";
-    document.getElementById('pastLog').style.top = 20+ "px";
-    document.getElementById('pastLog').style.right = 210+ "px";
+    document.getElementById('pastLog').style.top = 20 + "px";
+    document.getElementById('pastLog').style.right = 210 + "px";
     document.getElementById('PmainFooterChildUsers').style.position = "absolute";
-    document.getElementById('PmainFooterChildUsers').style.top = 25+ "px";
-    document.getElementById('PmainFooterChildUsers').style.right = 8+ "px";
+    document.getElementById('PmainFooterChildUsers').style.top = 25 + "px";
+    document.getElementById('PmainFooterChildUsers').style.right = 8 + "px";
     document.getElementById('logNoiseButton').style.position = "absolute";
-    document.getElementById('logNoiseButton').style.top = 20+ "px";
-    document.getElementById('logNoiseButton').style.right = 60+ "px";
+    document.getElementById('logNoiseButton').style.top = 20 + "px";
+    document.getElementById('logNoiseButton').style.right = 60 + "px";
     document.getElementById('unVisibleLog').style.position = "absolute";
-    document.getElementById('unVisibleLog').style.top = 20+ "px";
-    document.getElementById('unVisibleLog').style.right = 115+ "px";
-    
-    
+    document.getElementById('unVisibleLog').style.top = 20 + "px";
+    document.getElementById('unVisibleLog').style.right = 115 + "px";
+
+
     // chatLog.style.fontSize = "13px";
-    
+
     StyleDeclarationSetTransform(fontSousenkyo.style, scale);
-    
+
     footer.appendChild(chatLog);
-    footer.insertBefore(chatLog,document.getElementById('firstFooter'));
+    footer.insertBefore(chatLog, document.getElementById('firstFooter'));
     footer.style.position = "absolute";
 
     //画面
@@ -2297,10 +1969,10 @@ function windowResize() {
     chatLog.style.height = 0 + "px";
     usePastLog = false;
 
-    footer.style.top = 26+26+ 480 * PMscale + "px";
+    footer.style.top = 26 + 26 + 480 * PMscale + "px";
     footer.appendChild(fontSousenkyo);
     footer.appendChild(titleBar);
-    
+
     //IE11対策
     footer.style.width = windowSize + "px";
     // footer.style.width = kousinrireki.clientWidth + "px";
@@ -2359,7 +2031,6 @@ function StyleDeclarationSetTransform(style, value) {//設定したい要素,設
 
 
 
-console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
 
 
 
