@@ -1,5 +1,6 @@
 'use strict';
 
+
 //大雑把に
 //変数宣言等
 //フォント切り替え※後で消すからこの位置
@@ -61,6 +62,7 @@ let nameTextY = -105;
 let inRoom = 0;
 
 let room = "login";
+let roomSE;
 let loginBack;
 let entrance, ground, croud, bonfire;
 let daikokubasira;
@@ -83,6 +85,49 @@ let rightY, leftY;
 let flag = false;
 let setAbon = [];
 
+//ログ音
+let msgSE = {};
+msgSE.login = {};
+msgSE.login.in = [];
+msgSE.login.in[0] = new Audio('sound/login/tirin1.mp3');
+
+msgSE.other = {};
+msgSE.other.in = [];
+msgSE.other.log = [];
+msgSE.other.out = [];
+msgSE.other.logout = [];
+msgSE.other.in[0] = new Audio('sound/otherRoomIn/cursor7.mp3');
+msgSE.other.in[1] = new Audio('sound/otherRoomIn/touch1.mp3');
+msgSE.other.log[0] = new Audio('sound/otherRoomLog/cute-motion1.mp3');
+msgSE.other.log[1] = new Audio('sound/otherRoomLog/nyu3.mp3');
+msgSE.other.log[2] = new Audio('sound/otherRoomLog/papa1.mp3');
+msgSE.other.log[3] = new Audio('sound/otherRoomLog/se_maoudamashii_onepoint05.mp3');
+msgSE.other.log[4] = new Audio('sound/otherRoomLog/se_maoudamashii_system10.mp3');
+msgSE.other.out[0] = new Audio('sound/otherRoomOut/pa1.mp3');
+msgSE.other.out[1] = new Audio('sound/otherRoomOut/se_maoudamashii_element_wind02.mp3');
+msgSE.other.out[2] = new Audio('sound/otherRoomOut/se_maoudamashii_system39.mp3');
+msgSE.other.out[3] = new Audio('sound/otherRoomOut/suck1.mp3');
+msgSE.other.logout[0] = new Audio('sound/otherRoomLogout/cancel1.mp3');
+msgSE.other.logout[1] = new Audio('sound/otherRoomLogout/decision15.mp3');
+
+
+msgSE.utyu = {};
+msgSE.utyu.in = [];
+msgSE.utyu.log = [];
+msgSE.utyu.out = [];
+msgSE.utyu.logout = [];
+msgSE.utyu.in[0] = new Audio('sound/utyuIn/se_maoudamashii_system11.mp3');
+msgSE.utyu.in[1] = new Audio('sound/utyuIn/se_maoudamashii_system13.mp3');
+msgSE.utyu.log[0] = new Audio('sound/utyuLog/se_maoudamashii_retro16.mp3');
+msgSE.utyu.log[1] = new Audio('sound/utyuLog/se_maoudamashii_se_sound15.mp3');
+msgSE.utyu.log[2] = new Audio('sound/utyuLog/se_maoudamashii_system42.mp3');
+msgSE.utyu.log[3] = new Audio('sound/utyuLog/se_maoudamashii_system45.mp3');
+msgSE.utyu.log[4] = new Audio('sound/utyuLog/se_maoudamashii_system48.mp3');
+msgSE.utyu.out[0] = new Audio('sound/utyuOut/se_maoudamashii_se_sound10.mp3');
+msgSE.utyu.out[1] = new Audio('sound/utyuOut/se_maoudamashii_system33.mp3');
+msgSE.utyu.logout[0] = new Audio('sound/utyuLogout/se_maoudamashii_onepoint31.mp3');
+msgSE.utyu.logout[1] = new Audio('sound/utyuLogout/se_maoudamashii_system32.mp3');
+
 
 
 //エイリアス
@@ -94,7 +139,7 @@ let title = document.getElementById("title");
 
 let Pmachi = document.getElementById("Pmachi");
 let Pmain = document.getElementById("Pmain");
-let loginID = document.getElementById("login");
+let loginButton = document.getElementById("loginButton");
 let graphic = document.getElementById("graphic");
 let fontSousenkyo = document.getElementById("fontSousenkyo");
 let chatLog = document.getElementById("chatLog");
@@ -103,7 +148,15 @@ let kousinrireki = document.getElementById("kousinrireki");
 let day = document.getElementById('day');
 let form = document.getElementById('form');
 let nameForm = document.getElementById('nameForm');
+let msgForm = document.getElementById('msgForm');
+let usersDisplay = document.getElementById('usersDisplay');
+let usersNumber = document.getElementById('usersNumber');
 let PmainFooterChild = document.getElementsByClassName("PmainFooterChild");
+let visibleLogButton = document.getElementById('visibleLogButton');
+let logs = document.getElementById('logs');
+let logNoiseButton = document.getElementById('logNoiseButton');
+let pastLog = document.getElementById('pastLog');
+let effectVolume = document.getElementById('effectVolume');
 
 
 //ここはフォント総選挙消したときに消していい
@@ -238,7 +291,7 @@ let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
 
 
 // レンダラーのviewをDOMに追加する
-document.getElementById("graphic").appendChild(app.view);
+graphic.appendChild(app.view);
 app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 
 PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
@@ -425,8 +478,8 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   //セッション開始時に入力欄にフォーカスを合わせる
   document.querySelector('input').focus();
   //名前を出力、名前がsubmitされたらログイン
-  document.querySelector("#nameForm").addEventListener("submit", function (e) {
-    nameText[socketID].text = (document.nameForm.userName.value);//名前タグに出力
+  nameForm.addEventListener("submit", function (e) {
+    nameText[socketID].text = (nameForm.userName.value);//名前タグに出力
     e.preventDefault();//画面遷移を防ぐ
     login();
   });
@@ -437,7 +490,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   gameLoop();
 }//function setUpはここで終わり
 
-function avatarSet(thisSocketID, thisAvatar, thisWidth) {
+function setAvatar(thisSocketID, thisAvatar, thisWidth) {
   avaS[thisSocketID] = new PIXI.Sprite(thisAvatar.S);
   avaS1[thisSocketID] = new PIXI.Sprite(thisAvatar.S1);
   avaS2[thisSocketID] = new PIXI.Sprite(thisAvatar.S1);
@@ -502,8 +555,8 @@ function avatarSet(thisSocketID, thisAvatar, thisWidth) {
 };
 
 
-
 socket.on("mySocketID", function (data) {
+  nameForm.userName.value = localStorage.getItem('userName');//名前を出力
   socketID = data.socketID;
   //アバターの親コンテナを設定
   avaP[socketID] = new PIXI.Container();
@@ -511,19 +564,33 @@ socket.on("mySocketID", function (data) {
   avaP[socketID].position.set(320, 200);
 
   //画像を追加
-  //デフォルト
-  avaP[socketID].avatar = "gomaneco";
-  avatarSet(socketID, gomaneco, 40);
+  avaP[socketID].avatar = localStorage.getItem('avatar');
+  if (avaP[socketID].avatar == "necosuke") {
+    console.log("ねこすけ裏設定：クールなまなざしを覗き込むと瞳の奥は燃えている　鳥のように飛べるんじゃないかと考えながら雲から飛び降りている　ごまねこが降りる様を見ると冷や汗をかいてしまう");
+    avaP[socketID].avatar = "necosuke";
+    setAvatar(socketID, necosuke, 50);
+  } else {//デフォルト
+    avaP[socketID].avatar = "gomaneco";
+    setAvatar(socketID, gomaneco, 40);
+    console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
+  }
 
   //色設定//透明度設定
-  avaP[socketID].avatarColor = 0XFFFFFF;
+  if (localStorage.getItem("colorCode")) {
+    setColor(socketID, localStorage.getItem("colorCode"));
+  } else {
+    avaP[socketID].avatarColor = 0XFFFFFF;
+  }
+
   avaP[socketID].avatarAlpha = 1;
+
+
   //avaPに追加
   avaC[socketID] = avaS[socketID];
   avaP[socketID].addChild(avaC[socketID]);
 
   //名前タグを生成
-  nameText[socketID] = new PIXI.Text(document.nameForm.userName.value, nameTextStyle);
+  nameText[socketID] = new PIXI.Text(localStorage.getItem("avatarUserName"), nameTextStyle);
   nameText[socketID].zIndex = 10;
   nameText[socketID].anchor.set(0.5);
   nameText[socketID].position.set(0, -avaC[socketID].height - 15);
@@ -550,7 +617,8 @@ socket.on("mySocketID", function (data) {
     localStorage.setItem("avatar", "gomaneco")//ローカルストレージにアバター設定
     avaP[socketID].avatar = "gomaneco";//親コンテナにアバターの種類を設定する
     console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
-    avatarSet(socketID, gomaneco, 40);
+    setAvatar(socketID, gomaneco, 40);
+    localStorage.removeItem("colorCode");
   };
 
   necosuke.Face = new PIXI.Sprite(necosuke.Face);
@@ -560,7 +628,8 @@ socket.on("mySocketID", function (data) {
   necosuke.Face.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
     localStorage.setItem("avatar", "necosuke");//ローカルストレージにアバター書き込み
     avaP[socketID].avatar = "necosuke";
-    avatarSet(socketID, necosuke, 50);
+    setAvatar(socketID, necosuke, 50);
+    localStorage.removeItem("colorCode");
     console.log("ねこすけ裏設定：クールなまなざしを覗き込むと瞳の奥は燃えている　鳥のように飛べるんじゃないかと考えながら雲から飛び降りている　ごまねこが降りる様を見ると冷や汗をかいてしまう");
   };
 
@@ -595,7 +664,7 @@ socket.on("mySocketID", function (data) {
     colorPalette.interactive = true;
     if (paletteColor) {//paletteColorの色を変更してる場合
       colorPalette.beginFill(paletteColor);
-      colorPalette.zIndex = 1000;
+      colorPalette.zIndex = 1000;//zIndexを前に持ってくる
     } else {
       colorPalette.beginFill(colorCode);
       colorPalette.zIndex = -1;//zIndexをアバター以下にする
@@ -606,6 +675,7 @@ socket.on("mySocketID", function (data) {
     loginBack.addChild(colorPalette);
     colorPalette.pointerdown = function () {
       setColor(socketID, colorCode);
+      localStorage.setItem("colorCode", colorCode);
     }
   }
 
@@ -1145,49 +1215,51 @@ function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
 }
 
 
-document.nameForm.userName.value = localStorage.getItem('userName');//名前を出力
+
 
 
 //看板機能
 let isDownedShift = false;
-document.querySelector("#msgForm").addEventListener("keydown", function (e) {
+msgForm.addEventListener("keydown", function (e) {
   isDownedShift = e.shiftKey;
 });
-document.querySelector("#msgForm").addEventListener("keyup", function (e) {
+msgForm.addEventListener("keyup", function (e) {
   isDownedShift = e.shiftKey;
 });
-document.querySelector("#msgForm").addEventListener("submit", function (e) {
+msgForm.addEventListener("submit", function (e) {
   if (isDownedShift) {//シフトが押されてる場合
     socket.json.emit("emit_msg", {
       socketID: socketID,
-      msg: (document.msgForm.msg.value),
+      msg: (msgForm.msg.value),
       kanban: true,
     });
-    document.msgForm.msg.value = "";
-    document.msgForm.msg.focus();
+    msgForm.msg.value = "";
+    msgForm.msg.focus();
   } else {//シフトが推されてない時
     socket.json.emit("emit_msg", {
       socketID: socketID,
-      msg: (document.msgForm.msg.value),
+      msg: (msgForm.msg.value),
       kanban: false,
     });
-    document.msgForm.msg.value = "";//メッセージ入力欄を空にする
-    document.msgForm.msg.focus();//メッセージ入力欄にフォーカスを合わせる
+    msgForm.msg.value = "";//メッセージ入力欄を空にする
+    msgForm.msg.focus();//メッセージ入力欄にフォーカスを合わせる
   }
   e.preventDefault();
 });
 
 //ログイン時の処理
 function login() {
-  userName = document.nameForm.userName.value;
+  userName = nameForm.userName.value;
   if (userName) {//名前が空だと移動しない
+    localStorage.setItem("userName", userName);//ローカルストレージに名前書き込み
+
     entrance = new PIXI.Sprite(entrance);
     entrance.name = "entrance";//名前を割り振る※これをやらないとgetChildByNameメソッドが使えない
     //userNameにフォームの内容を入れる
     room = "entrance";//マップを切り替える
+    roomSE = "other";
 
 
-    localStorage.setItem("userName", userName);//ローカルストレージに名前書き込み
 
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);
@@ -1230,6 +1302,11 @@ function login() {
     AX = 457;//座標を切り替える
     AY = 80;
 
+    function volumeRandom(room, move) {
+      let random = Math.floor(Math.random() * msgSE[room][move].length);
+      return random;
+    }
+
 
     socket.json.emit("login_room", {//エントランスに入る
       room: "entrance",
@@ -1241,10 +1318,10 @@ function login() {
 
 
     //フォームを切り替える
-    document.getElementById("nameForm").style.display = "none";
-    document.getElementById("msgForm").style.display = "block";
-    document.getElementById("login").parentNode.removeChild(document.getElementById("login"));
-    document.msgForm.msg.focus();
+    nameForm.style.display = "none";
+    msgForm.style.display = "block";
+    loginButton.parentNode.removeChild(loginButton);
+    msgForm.msg.focus();
     inRoom = 1;
 
   }
@@ -1260,6 +1337,7 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
   if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {//大黒柱の範囲内に入った時
     app.stage.removeChild(entrance);
     room = "utyu";//移動先の部屋を設定
+    roomSE = "utyu";
     app.stage.addChild(utyu);//画像を読みこむ
     avaP[socketID].removeChild(avaC[socketID]);
     AX = 300;
@@ -1278,6 +1356,7 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
   } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
     app.stage.removeChild(utyu);
     room = "entrance";//移動先の部屋を設定
+    roomSE = "other";
     app.stage.addChild(entrance);//画像を読みこむ
     avaP[socketID].removeChild(avaC[socketID]);
     AX = 150;
@@ -1299,11 +1378,11 @@ function selfChengeRoom() {//自分自身の部屋が変わった時
 function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部屋を移動するとき
   if (room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
     entrance.removeChild(avaP[thisSocketID]);
-    document.getElementById('users').textContent--;
+    usersNumber.textContent--;
     moveMsg(nameText[thisSocketID].text + "がutyuに移動しました。");
   } else if (room == "utyu" && 141 <= thisAX && thisAX <= 146 && 73 <= thisAY && thisAY <= 81) {//宇宙の星の範囲内に入った時
     utyu.removeChild(avaP[thisSocketID]);
-    document.getElementById('users').textContent--;
+    usersNumber.textContent--;
     moveMsg(nameText[thisSocketID].text + "がentranceに移動しました。");
   }
 }
@@ -1315,7 +1394,7 @@ function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部�
 socket.on("join_self", function (data) {//自分が部屋に入室した時
   moveMsg(data.msg);
   msg[socketID].text = "";
-  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
+  usersNumber.textContent = data.users;//部屋人数の表記を変える
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
     if (data.user[value].room == data.room) {
@@ -1359,13 +1438,16 @@ socket.on("join_self", function (data) {//自分が部屋に入室した時
         liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
         liKanban.style.color = "white";//likanbanの文字を指定
         liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
-        document.getElementById("logs").appendChild(liKanban);//logsの末尾に入れる
+        logs.appendChild(liKanban);//logsの末尾に入れる
       }
 
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
       app.stage.getChildByName(data.room).addChild(avaP[value]);//部屋にアバターを入れる
     }
   });
+  if (useLogChime) {//部屋入室の音を鳴らす
+    msgSE[roomSE].in[data.random].play();
+  }
 });
 
 socket.on("join_nonself", function (data) {//自分以外が部屋に入室した時
@@ -1373,8 +1455,19 @@ socket.on("join_nonself", function (data) {//自分以外が部屋に入室し�
   avaP[data.socketID].position.set(data.AX, data.AY);
   msg[data.socketID].text = "";
   moveMsg(data.msg);
-  document.getElementById('users').textContent = data.users;//部屋人数の表記を変える
+  usersNumber.textContent = data.users;//部屋人数の表記を変える
+  if (useLogChime) {//部屋入室の音を鳴らす
+    msgSE[roomSE].in[data.random].play();
+  }
 });
+socket.on("remove_nonself", function (data) {//自分以外が部屋から出た時
+  if (useLogChime) {//ログインの音を鳴らす
+    msgSE[roomSE].out[data.random].play();
+    console.log(roomSE);
+    console.log(data.random);
+  }
+});
+
 
 
 function moveMsg(moveMsg) {//移動時のメッセージ出力
@@ -1383,31 +1476,27 @@ function moveMsg(moveMsg) {//移動時のメッセージ出力
   const ul = document.querySelector("ul");
   //メッセージを出力
   if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
     chatLog.scrollTop = chatLog.scrollHeight;
   } else {
-    ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+    ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
   }
 
   gamenLog.text = moveMsg + "\n" + gamenLog.text;
   app.stage.addChild(gamenLog);
 
-  if (useLogChime) {//ログチャイムがオンになってたら
-    let random = Math.floor(Math.random() * logChime.length);
-    logChime[random].play();
-  }
 }
 
 //過去ログ表示
 let usePastLog = false;
-document.getElementById("pastLog").style.backgroundColor = 'red';
+pastLog.style.backgroundColor = 'red';
 function pastLogButtonClicked() {
   if (usePastLog) {
-    document.getElementById("pastLog").style.backgroundColor = 'red';
+    pastLog.style.backgroundColor = 'red';
     chatLog.style.height = 0 + "px";
     usePastLog = false;
   } else {
-    document.getElementById("pastLog").style.backgroundColor = 'skyblue';
+    pastLog.style.backgroundColor = 'skyblue';
     if (window.innerWidth > 700) {
       chatLog.style.width = windowSize - 528 + "px";
     } else {
@@ -1417,64 +1506,76 @@ function pastLogButtonClicked() {
     usePastLog = true;
   }
 }
-document.getElementById("pastLog").addEventListener('click', pastLogButtonClicked);
-document.getElementById("pastLog").addEventListener('mousedown', function (e) { e.preventDefault(); });
+pastLog.addEventListener('click', pastLogButtonClicked);
+pastLog.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
 //画面ログ非表示
 let visibleLog = false;
-document.getElementById("unVisibleLog").style.backgroundColor = 'red';
-function unVisibleLogButtonClicked() {
+visibleLogButton.style.backgroundColor = 'red';
+function visibleLogButtonClicked() {
   if (visibleLog) {
-    document.getElementById("unVisibleLog").style.backgroundColor = 'red';
+    visibleLogButton.style.backgroundColor = 'red';
     gamenLog.visible = false;
     visibleLog = false;
   } else {
-    document.getElementById("unVisibleLog").style.backgroundColor = 'skyblue';
+    visibleLogButton.style.backgroundColor = 'skyblue';
     gamenLog.visible = true;
     visibleLog = true;
   }
 }
-document.getElementById("unVisibleLog").addEventListener('click', unVisibleLogButtonClicked);
-document.getElementById("unVisibleLog").addEventListener('mousedown', function (e) { e.preventDefault(); });
+visibleLogButton.addEventListener('click', visibleLogButtonClicked);
+visibleLogButton.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
 
 
-//ログ音
-let logChime = [];
-logChime[0] = new Audio('sound/papa1.mp3');
-logChime[1] = new Audio('sound/cancel1.mp3');
-logChime[2] = new Audio('sound/cursor7.mp3');
-logChime[3] = new Audio('sound/cute-motion1.mp3');
-logChime[4] = new Audio('sound/decision15.mp3');
-logChime[5] = new Audio('sound/electric-fan-off1.mp3');
-logChime[6] = new Audio('sound/nyu3.mp3');
-logChime[7] = new Audio('sound/pa1.mp3');
-logChime[8] = new Audio('sound/suck1.mp3');
-logChime[9] = new Audio('sound/tirin1.mp3');
-logChime[10] = new Audio('sound/touch1.mp3');
 
-for (let i = 0; i < logChime.length; i++) {//デフォの音量
-  logChime[i].volume = 0.3;
+
+
+if (localStorage.getItem("volume")) {
+  effectVolume.value = localStorage.getItem("volume");
 }
 
-let useLogChime = true;
-document.getElementById("logNoiseButton").style.backgroundColor = 'skyblue';
+setMsgSE();
+
+function setMsgSE() {
+  const msgSEKeys = Object.keys(msgSE);
+  msgSEKeys.forEach(function (room) {
+    const roomKeys = Object.keys(msgSE[room]);
+    roomKeys.forEach(function (move) {
+      for (let i = 0; i < msgSE[room][move].length; i++) {
+        msgSE[room][move][i].volume = effectVolume.value;
+      }
+    });
+  });
+}
+
+
+
+
+let useLogChime = Boolean(parseInt(localStorage.getItem("useLogChime"), 10));
+if (useLogChime) {
+  logNoiseButton.style.backgroundColor = 'skyblue';
+} else {
+  logNoiseButton.style.backgroundColor = 'red';
+}
+
 function logChimeButtonClicked() {
   if (useLogChime) {
-    document.getElementById("logNoiseButton").style.backgroundColor = 'red';
+    logNoiseButton.style.backgroundColor = 'red';
+    localStorage.setItem("useLogChime", 0);
     useLogChime = false;
   } else {
-    document.getElementById("logNoiseButton").style.backgroundColor = 'skyblue';
+    logNoiseButton.style.backgroundColor = 'skyblue';
+    localStorage.setItem("useLogChime", 1);
     useLogChime = true;
   }
 }
-document.getElementById("logNoiseButton").addEventListener('click', logChimeButtonClicked);
-document.getElementById("logNoiseButton").addEventListener('mousedown', function (e) { e.preventDefault(); });
+logNoiseButton.addEventListener('click', logChimeButtonClicked);
+logNoiseButton.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
 function setVolume(value) {//音量調整
-  for (let i = 0; i < logChime.length; i++) {
-    logChime[i].volume = value;
-  }
+  localStorage.setItem("volume", value);
+  setMsgSE();
 }
 
 
@@ -1507,17 +1608,13 @@ socket.on("emit_msg", function (data) {
       gamenLog.text = data.userName + ":" + data.avaMsg + "\n" + gamenLog.text;
       app.stage.addChild(gamenLog);
 
-      if (useLogChime) {//ログチャイムがオンになってたら
-        let random = Math.floor(Math.random() * logChime.length);
-        logChime[random].play();
-      }
 
       //メッセージを出力
       if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-        ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+        ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
         chatLog.scrollTop = chatLog.scrollHeight;
       } else {
-        ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+        ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
       }
 
       // 発言したテキストをクリックした時アボンする
@@ -1538,6 +1635,9 @@ socket.on("emit_msg", function (data) {
       // });
     }
   }
+  if (useLogChime) {//部屋入室の音を鳴らす
+    msgSE[roomSE].log[data.random].play();
+  }
 });
 
 //アボンした時の処理
@@ -1550,20 +1650,20 @@ socket.on("abonSetting", function (data) {
 
     //メッセージを出力
     if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
       chatLog.scrollTop = chatLog.scrollHeight;
     } else {
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
     }
     msg[data.socketID].style.fill = "red";
   } else {//アボンを解除する時
     li.style.color = "blue";
     //メッセージを出力
     if (window.innerWidth > 700 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが700以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
       chatLog.scrollTop = chatLog.scrollHeight;
     } else {
-      ul.insertBefore(li, document.getElementById("logs").querySelectorAll("li")[li.length]);
+      ul.insertBefore(li, logs.querySelectorAll("li")[li.length]);
     }
     msg[data.socketID].style.fill = "white";
     avaP[data.socketID].x = data.AX;
@@ -1612,10 +1712,10 @@ socket.on("abonSetting", function (data) {
 
 //ルーム入室時に自分と他人のアバターを生成する
 socket.on("login_me", function (data) {
+  localStorage.setItem("avatarUserName", data.user[socketID].userName);
   moveMsg(data.msg);//移動時のメッセージ出力
-
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.users;
+  usersNumber.textContent = data.users;
 
 
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
@@ -1623,19 +1723,16 @@ socket.on("login_me", function (data) {
 
     switch (data.user[value].avatar) {//ここらへんは、まあ、あとで関数化する
       case "gomaneco":
-        avatarSet(value, gomaneco, 40);
+        setAvatar(value, gomaneco, 40);
         break;
 
       case "necosuke":
-        avatarSet(value, necosuke, 50)
+        setAvatar(value, necosuke, 50)
         break;
     }
 
     avaAbon[value] = new PIXI.Sprite(avaAbon);
     avaAbon[value].anchor.set(0.5, 1);
-
-
-
 
 
     // アバターの親コンテナを作成
@@ -1715,7 +1812,7 @@ socket.on("login_me", function (data) {
       liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
       liKanban.style.color = "white";//likanbanの文字を指定
       liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
-      document.getElementById("logs").appendChild(liKanban);//logsの末尾に入れる
+      logs.appendChild(liKanban);//logsの末尾に入れる
     }
 
 
@@ -1738,11 +1835,12 @@ socket.on("login_me", function (data) {
         });
       }
     };
-
+    
     avaLoop(value);
   });
-
-
+  if (useLogChime) {//ログインの音を鳴らす
+    msgSE.login.in[data.random].play();
+  }
 });
 
 
@@ -1759,11 +1857,11 @@ socket.on("loadAvatar", function (data) {
   switch (data.avatar) {
     case "gomaneco":
       avaP[data.socketID].avatar = "gomaneco";
-      avatarSet(data.socketID, gomaneco, 40);
+      setAvatar(data.socketID, gomaneco, 40);
       break;
     case "necosuke":
       avaP[data.socketID].avatar = "necosuke";
-      avatarSet(data.socketID, necosuke,50);
+      setAvatar(data.socketID, necosuke, 50);
       break;
   }
   setColor(data.socketID, data.avatarColor);
@@ -1820,24 +1918,29 @@ socket.on("loadAvatar", function (data) {
   avaLoop(data.socketID);
 });
 
-//自分以外がルームに入ってきた時のアバター作成とアナウンス
+//自分以外がログイン
 socket.on("login_room", function (data) {
-  entrance.addChild(avaP[data.socketID]);
-  moveMsg(data.msg);//移動時のメッセージ出力
+  entrance.addChild(avaP[data.socketID]);//アバター生成
+  moveMsg(data.msg);//アナウンス
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.users;
-})
+  usersNumber.textContent = data.users;
+
+  if (useLogChime) {//ログインの音を鳴らす
+    msgSE.login.in[data.random].play();
+  }
+});
 
 //ログアウトした時の処理
 socket.on("logout", function (data) {
   moveMsg(data.msg);//移動時のメッセージ出力
   //部屋人数の表記を変える
-  document.getElementById('users').textContent = data.users;
+  usersNumber.textContent = data.users;
   //アバターを消す
   app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
 
-  // data.room.removeChild(avaP[data.socketID]);
-  // entrance.removeChild(avaP[data.socketID]);
+  if (useLogChime) {//ログチャイムがオンになってたら
+    msgSE[roomSE].logout[data.random].play();
+  }
 });
 
 let loginMX;
@@ -1867,7 +1970,7 @@ socket.on("emitSaikiMsg", function (data) {
 
 let windowSize = window.innerWidth;
 StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
-loginID.style.position = windowSize / 2 - 10 + "px"
+loginButton.style.position = windowSize / 2 - 10 + "px"
 
 Pmain.style.width = 528 + "px";
 Pmain.style.height = 460 + "px";
@@ -1931,28 +2034,28 @@ function windowResize() {
     let scale = "scale(" + PMscale + ")";
     StyleDeclarationSetTransform(Pmain.style, scale);
 
-    loginID.style.left = loginID.offsetWidth * PMscale / 2 + 660 / 2 * PMscale + "px";
+    loginButton.style.left = loginButton.offsetWidth * PMscale / 2 + 660 / 2 * PMscale + "px";
 
 
     PmainFooter.style.position = "absolute";
     PmainFooter.style.top = 23 + graphic.clientHeight + "px";
     // PmainFooterChild.style.top = 23 + graphic.clientHeight + "px";
-    document.getElementById('users').style.position = "absolute";
-    document.getElementById('users').style.top = 25 + "px";
-    document.getElementById('users').style.right = 0 + "px";
+    usersNumber.style.position = "absolute";
+    usersNumber.style.top = 25 + "px";
+    usersNumber.style.right = 0 + "px";
 
-    document.getElementById('pastLog').style.position = "absolute";
-    document.getElementById('pastLog').style.top = 20 + "px";
-    document.getElementById('pastLog').style.right = 210 + "px";
-    document.getElementById('PmainFooterChildUsers').style.position = "absolute";
-    document.getElementById('PmainFooterChildUsers').style.top = 25 + "px";
-    document.getElementById('PmainFooterChildUsers').style.right = 8 + "px";
-    document.getElementById('logNoiseButton').style.position = "absolute";
-    document.getElementById('logNoiseButton').style.top = 20 + "px";
-    document.getElementById('logNoiseButton').style.right = 60 + "px";
-    document.getElementById('unVisibleLog').style.position = "absolute";
-    document.getElementById('unVisibleLog').style.top = 20 + "px";
-    document.getElementById('unVisibleLog').style.right = 115 + "px";
+    pastLog.style.position = "absolute";
+    pastLog.style.top = 20 + "px";
+    pastLog.style.right = 210 + "px";
+    usersDisplay.style.position = "absolute";
+    usersDisplay.style.top = 25 + "px";
+    usersDisplay.style.right = 8 + "px";
+    logNoiseButton.style.position = "absolute";
+    logNoiseButton.style.top = 20 + "px";
+    logNoiseButton.style.right = 60 + "px";
+    visibleLogButton.style.position = "absolute";
+    visibleLogButton.style.top = 20 + "px";
+    visibleLogButton.style.right = 115 + "px";
 
 
     // chatLog.style.fontSize = "13px";
@@ -1963,9 +2066,8 @@ function windowResize() {
     footer.insertBefore(chatLog, document.getElementById('firstFooter'));
     footer.style.position = "absolute";
 
-    //画面
     //過去ログ
-    document.getElementById("pastLog").style.backgroundColor = 'red';
+    pastLog.style.backgroundColor = 'red';
     chatLog.style.height = 0 + "px";
     usePastLog = false;
 
@@ -1981,18 +2083,18 @@ function windowResize() {
     StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
     chatLog.style.width = windowSize - 528 + "px";
     Pmain.style.width = 528 + "px";
-    loginID.style.left = loginID.offsetWidth * 0.8 / 2 + 660 / 2 * 0.8 + "px";
+    loginButton.style.left = loginButton.offsetWidth * 0.8 / 2 + 660 / 2 * 0.8 + "px";
 
 
     PmainFooter.style.position = "static";
-    document.getElementById('users').style.position = "static";
-    document.getElementById('PmainFooterChildUsers').style.position = "static";
-    document.getElementById('logNoiseButton').style.position = "static";
-    document.getElementById('unVisibleLog').style.position = "static";
+    usersNumber.style.position = "static";
+    usersDisplay.style.position = "static";
+    logNoiseButton.style.position = "static";
+    visibleLogButton.style.position = "static";
 
     Pmachi.appendChild(chatLog);
     chatLog.style.position = "static";
-    document.getElementById("pastLog").style.backgroundColor = 'skyblue';
+    pastLog.style.backgroundColor = 'skyblue';
     chatLog.style.height = 470 + "px";
     usePastLog = true;
 
@@ -2004,6 +2106,8 @@ function windowResize() {
 
 
     chatLog.style.fontSize = "17px";
+    //画面ログ
+    gamenLog.visible = false;
   }
 }
 

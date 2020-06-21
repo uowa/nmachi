@@ -82,6 +82,30 @@ function tripCreate(isTrip) {
   return trip;
 }
 
+let msgSE = {};
+msgSE.login = {};
+msgSE.login.in = new Array(1);
+msgSE.login.logout = new Array(0);
+msgSE.other = {};
+msgSE.other.in = new Array(2);
+msgSE.other.log = new Array(5);
+msgSE.other.out = new Array(4);
+msgSE.other.logout = new Array(2);
+msgSE.utyu = {};
+msgSE.utyu.in = new Array(2);
+msgSE.utyu.log = new Array(5);
+msgSE.utyu.out = new Array(2);
+msgSE.utyu.logout = new Array(2);
+
+function volumeRandom(room, move) {
+  let random;
+  if (room = "entrance") {//※部屋数が増えたら||で継ぎ足す
+    random = Math.floor(Math.random() * msgSE.other[move].length);
+  } else {
+    random = Math.floor(Math.random() * msgSE[room][move].length);
+  }
+  return random;
+}
 
 io.on('connection', function (socket) {
   //フォント切り替え
@@ -132,28 +156,32 @@ io.on('connection', function (socket) {
       user[socket.id].room = data.room;//ユーザー情報に部屋を入れる
       users[data.room]++;//部屋人数を変更
       socket.join("entrance");
-     
+
+
+
       time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間
 
-      
+
       socket.broadcast.emit("loadAvatar", {//全体に新規入場者を読みこます、後々全体人数もここで管理していいかな
         socketID: socket.id,
-        avatar:data.avatar,
+        avatar: data.avatar,
         userName: user[socket.id].userName,
-        avatarColor:user[socket.id].avatarColor,
-        avatarAlpha:user[socket.id].avatarAlpha,
+        avatarColor: user[socket.id].avatarColor,
+        avatarAlpha: user[socket.id].avatarAlpha,
       });
 
       io.to(socket.id).json.emit("login_me", {
         user: user,
         users: users[data.room],
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
+        random: volumeRandom("login", "in"),
       });
 
       socket.broadcast.to(data.room).emit("login_room", {
         socketID: socket.id,
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
         users: users[data.room],
+        random: volumeRandom("login", "in"),
       });
     } else {
       saikiMsg();//再起動メッセージを送る
@@ -169,28 +197,33 @@ io.on('connection', function (socket) {
       socket.join(after);
       users[before]--//入室前の部屋人数を減らす
       users[after]++;//入室後の部屋人数を増やす
-      
+
       user[data.socketID].room = data.afterRoom;
       user[data.socketID].AX = data.AX;
       user[data.socketID].AY = data.AY;
       user[data.socketID].DIR = data.DIR;
       user[data.socketID].msg = "";
+
       io.to(socket.id).json.emit("join_self", {
         user: user,
         room: data.afterRoom,
         msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
         users: users[after],
+        random: volumeRandom(data.afterRoom, "in"),
       });
 
       socket.broadcast.to(after).emit("join_nonself", {
         socketID: data.socketID,
-        room:data.afterRoom,
-        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。"+time,
+        room: data.afterRoom,
+        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
         users: users[data.afterRoom],
         AX: data.AX,
         AY: data.AY,
+        random: volumeRandom(data.afterRoom, "in"),
       });
-        
+      socket.broadcast.to(before).emit("remove_nonself", {
+        random: volumeRandom(data.beforeRoom, "out"),
+      });
     } else {
       saikiMsg();
     }
@@ -219,6 +252,7 @@ io.on('connection', function (socket) {
         avaMsg: data.msg,
         abonClass: user[socket.id].socketID,//あとで考える！！！！！！！！！
         kanban: data.kanban,
+        random: volumeRandom(user[socket.id].room, "log"),
       });
     } else {
       saikiMsg();
@@ -290,6 +324,7 @@ io.on('connection', function (socket) {
       msg: user[socket.id].userName + "が退出しました。" + time,
       room: user[socket.id].room,
       users: users[user[socket.id].room],
+      random: volumeRandom(user[socket.id].room, "logout"),
     });
     delete user[socket.id];
 

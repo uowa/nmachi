@@ -43,7 +43,7 @@
 
       <div id="Pmain" class="flexContainerColumn">
         <div id="graphic">
-          <button id="login" onclick="login()">LOGIN</button>
+          <button id="loginButton" onclick="login()">LOGIN</button>
         </div>
         <div id="form">
           <form name="nameForm" id="nameForm">
@@ -58,10 +58,9 @@
           <span class="PC">　　shift+Enterでログ残し</span>
           <button type="button" class="smartphone" id="pastLog">過去ログ表示</button>
           <div class="right">　</div>
-          <div class="right" id="users">0</div>
-          <div class="right" id="PmainFooterChildUsers"> users:</div>
-          <button type="button" class="right" id="logNoiseButton">ログ音</button>
-          <button type="button" class="right" id="unVisibleLog">画面ログ表示</button>
+          <div class="right" id="usersDisplay"> users:<span id="usersNumber">0</span></div>
+          <button type="button" class="right" id="logNoiseButton">みゅーと</button>
+          <button type="button" class="right" id="visibleLogButton">画面ログ表示</button>
         </div>
 
    
@@ -160,6 +159,8 @@
       <div id="kousinrireki">
         <br>
         <p>更新履歴</p>
+        <p>2020/6/20 SE割り振り、増やした</p>
+        <p>2020/6/18 設定が保存されるようになった</p>
         <p>2020/6/14 宇宙から生還 音量調整入れた</p>
         <p>2020/6/13 もう完全にスマホ対応した</p>
         <p>2020/6/11 ちょっとＵＩ変えた、iOSで文字入力時に拡大されるの直した</p>
@@ -246,7 +247,7 @@
       </div>
       <p>
         音量調整：
-        <input type="range" value="0.3" id="sampleVolume" min="0" max="1" step="0.1" onchange="setVolume(this.value)">
+        <input type="range" value="0.3" id="effectVolume" min="0" max="1" step="0.1" onchange="setVolume(this.value)">
     </p>
     </div>
   </div>
