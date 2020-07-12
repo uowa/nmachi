@@ -45,9 +45,7 @@ server.on('listening', onListening);
 let user = {};
 // user={socketID:{userName,msg,socketID,room,AX,AY,DIR}};
 
-let time;
 let users = { "entrance": 0, "utyu": 0 };
-let room;
 
 var crypto = require("crypto");
 // var cipers = crypto.getCiphers();
@@ -84,18 +82,18 @@ function tripCreate(isTrip) {
 
 let msgSE = {};
 msgSE.login = {};
-msgSE.login.in = new Array(1);
+msgSE.login.in = new Array(0);
 msgSE.login.logout = new Array(0);
 msgSE.other = {};
-msgSE.other.in = new Array(2);
-msgSE.other.log = new Array(5);
-msgSE.other.out = new Array(4);
-msgSE.other.logout = new Array(2);
+msgSE.other.in = new Array(1);
+msgSE.other.log = new Array(3);
+msgSE.other.out = new Array(3);
+msgSE.other.logout = new Array(1);
 msgSE.utyu = {};
-msgSE.utyu.in = new Array(2);
-msgSE.utyu.log = new Array(5);
-msgSE.utyu.out = new Array(2);
-msgSE.utyu.logout = new Array(2);
+msgSE.utyu.in = new Array(1);
+msgSE.utyu.log = new Array(4);
+msgSE.utyu.out = new Array(1);
+msgSE.utyu.logout = new Array(1);
 
 function volumeRandom(room, move) {
   let random;
@@ -133,7 +131,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on("login_room", function (data) {//ログイン処理
-    if (user[socket.id]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+    if (user[socket.id] && data.userName.length<28) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       //トリップを作る
       data.userName = data.userName.replace(/◆/g, '□');
       if (data.userName.match(/#/)) {
@@ -170,17 +168,25 @@ io.on('connection', function (socket) {
         avatarAlpha: user[socket.id].avatarAlpha,
       });
 
-      io.to(socket.id).json.emit("login_me", {
+      io.to(socket.id).json.emit("roomInSelf", {
+        beforeRoom:"login",
         user: user,
+        room: "entrance",
         users: users[data.room],
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
+        roomSE:"login",
         random: volumeRandom("login", "in"),
       });
 
-      socket.broadcast.to(data.room).emit("login_room", {
+      socket.broadcast.to(data.room).emit("roomInNonSelf", {
+        room:"entrance",
         socketID: socket.id,
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
         users: users[data.room],
+        AX: 457,
+        AY:80,
+        DIR: "S",
+        roomSE:"login",
         random: volumeRandom("login", "in"),
       });
     } else {
@@ -188,7 +194,7 @@ io.on('connection', function (socket) {
     }
   });
 
-  socket.on("join_room", function (data) {
+  socket.on("roomIn", function (data) {
     if (user[data.socketID]) {////サバ再起動前に開かれていたクライアントからの入力を阻止する。
       time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間
       let before = data.beforeRoom;
@@ -204,24 +210,28 @@ io.on('connection', function (socket) {
       user[data.socketID].DIR = data.DIR;
       user[data.socketID].msg = "";
 
-      io.to(socket.id).json.emit("join_self", {
+      io.to(socket.id).json.emit("roomInSelf", {
         user: user,
         room: data.afterRoom,
         msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
         users: users[after],
+        roomSE:data.afterRoom,
         random: volumeRandom(data.afterRoom, "in"),
       });
 
-      socket.broadcast.to(after).emit("join_nonself", {
+      socket.broadcast.to(after).emit("roomInNonSelf", {
         socketID: data.socketID,
         room: data.afterRoom,
         msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
         users: users[data.afterRoom],
         AX: data.AX,
         AY: data.AY,
+        DIR: data.DIR,
+        roomSE:data.afterRoom,
         random: volumeRandom(data.afterRoom, "in"),
       });
-      socket.broadcast.to(before).emit("remove_nonself", {
+      socket.broadcast.to(before).emit("roomOutNonSelf", {
+        room:data.afterRoom,
         random: volumeRandom(data.beforeRoom, "out"),
       });
     } else {
@@ -233,7 +243,7 @@ io.on('connection', function (socket) {
 
   //クライアントからメッセージを受け取って送信
   socket.on("emit_msg", function (data) {
-    if (user[socket.id]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+    if (user[socket.id]&&data.msg.length<251) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       if (data.kanban) {
         user[socket.id].msg = data.msg;
 
@@ -286,6 +296,8 @@ io.on('connection', function (socket) {
     }
   });
 
+  
+
   //クリックイベント
   socket.on('tapMap', function (data) {
     if (user[socket.id]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
@@ -304,9 +316,9 @@ io.on('connection', function (socket) {
     }
   });
 
-  socket.on("alphaChenge", function (data) {
+  socket.on("alphaChange", function (data) {
     user[socket.id].avatarAlpha = data.alpha;//アバターの透明度を設定
-    socket.broadcast.emit("alphaChenge", {
+    socket.broadcast.emit("alphaChange", {
       socketID: socket.id,
       alpha: data.alpha,
     });

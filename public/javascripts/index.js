@@ -1,7 +1,5 @@
 'use strict';
-
-
-//大雑把に
+//大雑把に目次
 //変数宣言等
 //フォント切り替え※後で消すからこの位置
 //webGL(PIXIJS)の設定開始
@@ -9,18 +7,15 @@
 //setUp()・・・画像切り取り、画像設定、座標表示設定、submit設定、gameLoop();
 //socket.on("mySocketID"
 //ブロックの配置、タップやアニメの設定、クッキー読み込み、看板機能
-//login()・・・名前出力、クッキー書き込み、ログイン画面消去、エントランスの設定、座標関連、フォーム切り替え、chengeRoomPoint()
-//部屋移動・・chengeRoomPoint()、socket.on("leave_room"、socket.on("join_me"、socket.on("join_room")、moveMsg()//移動時のメッセージ
+//login()・・・名前出力、クッキー書き込み、ログイン画面消去、エントランスの設定、座標関連、フォーム切り替え、changeRoomPoint()
+//部屋移動・・changeRoomPoint()、socket.on("leave_room"、socket.on("join_me"、socket.on("join_room")、moveMsg()//移動時のメッセージ
 // メッセージ関連・・・socket.on("emit_msg"、アボン処理
-//socket.on("mySocketID"、socket.on("login_me"、socket.on("loadAvatar"、 socket.on("login_room"
+//socket.on("mySocketID"、socket.on("login_me"、socket.on("loadAvatar")
 //ログアウト処理
 //function gameLoop()
 //再起動用メッセージ
 //背景色を変える、画面リサイズの処理
 //Ｐくｎ
-
-
-
 
 //ソケットIOをonにする
 let socket = io.connect('153.127.33.40:3000');
@@ -74,8 +69,6 @@ let utyu;
 let gomaneco = {};
 let necosuke = {};
 
-
-let moving = gsap.timeline();
 let moveX, moveY;
 let moveX1, moveY1;
 let moveX2, moveY2;
@@ -84,6 +77,8 @@ let rightY, leftY;
 
 let flag = false;
 let setAbon = [];
+
+
 
 //ログ音
 let msgSE = {};
@@ -101,8 +96,7 @@ msgSE.other.in[1] = new Audio('sound/otherRoomIn/touch1.mp3');
 msgSE.other.log[0] = new Audio('sound/otherRoomLog/cute-motion1.mp3');
 msgSE.other.log[1] = new Audio('sound/otherRoomLog/nyu3.mp3');
 msgSE.other.log[2] = new Audio('sound/otherRoomLog/papa1.mp3');
-msgSE.other.log[3] = new Audio('sound/otherRoomLog/se_maoudamashii_onepoint05.mp3');
-msgSE.other.log[4] = new Audio('sound/otherRoomLog/se_maoudamashii_system10.mp3');
+msgSE.other.log[3] = new Audio('sound/otherRoomLog/se_maoudamashii_system10.mp3');
 msgSE.other.out[0] = new Audio('sound/otherRoomOut/pa1.mp3');
 msgSE.other.out[1] = new Audio('sound/otherRoomOut/se_maoudamashii_element_wind02.mp3');
 msgSE.other.out[2] = new Audio('sound/otherRoomOut/se_maoudamashii_system39.mp3');
@@ -180,7 +174,7 @@ nameTextFont.options[1].selected = true;//選択位置を変更
 chatFont.options[2].selected = true;
 titleFont.options[8].selected = true;
 sonotaFont.options[2].selected = true;
-function fontChenge(value) {
+function fontChange(value) {
   switch (value) {
     case "chatLog":
       obj = chatFont;
@@ -296,6 +290,7 @@ app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 
 PIXI.Loader.shared//画像を読みこんでから処理を始める為のローダー、画像はそのうち１つか２つの画像に纏めたい
   .add("all", "img/allgraphics.png")
+  .add("sound0", "sound/login/tirin1.mp3")
   .on("progress", loadProgressHandler)//プログラミングローダー
   .load(setUp);//画像読み込み後の処理は基本ここに書いてく
 
@@ -326,8 +321,6 @@ let gamenLog = new PIXI.Text("", gamenLogStyle);
 
 
 
-
-
 let tyui = new PIXI.Text("※一応トリップ使えるけど、流出対策はあんましてないです");
 tyui.zIndex = 0;
 tyui.position.set(0, 464);
@@ -337,12 +330,8 @@ loginBack.addChild(tyui);
 
 
 function setUp() {//画像読み込み後の処理はここに書いていく
-
   // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
   app.renderer.autoDensity = true;
-
-
-
 
   //アバターのベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
   gomaneco.S = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(2020, 0, 40, 70));
@@ -408,8 +397,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
   //エントランス画面
   entrance = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1320, 0, 660, 480));
-
-
   ground = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(660, 0, 660, 480));
   croud = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(660, 480, 660, 200));
   bonfire = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(660, 680, 660, 280));
@@ -419,11 +406,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
   socket.emit("getMySocketID", {});//サーバーに入ったことを伝える
-
-
-
-
-
 
 
   // 座標確認用のオブジェクトの表示
@@ -486,7 +468,11 @@ function setUp() {//画像読み込み後の処理はここに書いていく
 
 
 
-
+  // マウス座標を表示
+  app.stage.addChild(MtextX);
+  app.stage.addChild(MtextY);
+  app.stage.addChild(AtextX);
+  app.stage.addChild(AtextY);
   gameLoop();
 }//function setUpはここで終わり
 
@@ -680,10 +666,11 @@ socket.on("mySocketID", function (data) {
   }
 
 
+
   //タイトルを触った時に背景色を変えて、色を増やす
   let uiColor = 0;
   let skyblue, mikaniro, kyuiro, siniro;
-  title.addEventListener("touchstart", function () {
+  title.addEventListener("touchstart", function () {//タップの場合
     flag = true;
     switch (uiColor) {
       case 0:
@@ -708,8 +695,7 @@ socket.on("mySocketID", function (data) {
         break;
     }
   });
-
-  title.addEventListener("click", function () {
+  title.addEventListener("click", function () {//クリックの場合
     if (flag) {
       flag = false;
     } else {
@@ -742,66 +728,46 @@ socket.on("mySocketID", function (data) {
 
 
   //日付を触った時に半透明にする
-  day.addEventListener("touchstart", function () {
+  day.addEventListener("touchstart", function () {//タップの場合
     flag = true;
     if (avaP[socketID].avatarAlpha == 1) {
       setAlpha(socketID, 0.3);
-      socket.json.emit("alphaChenge", {
+      socket.json.emit("alphaChange", {
         alpha: 0.3,
       })
     } else {
       setAlpha(socketID, 1);
-      socket.json.emit("alphaChenge", {
+      socket.json.emit("alphaChange", {
         alpha: 1,
       });
     }
   });
-
-
-
-
-  day.addEventListener("click", function () {
+  day.addEventListener("click", function () {//クリックの場合
     if (flag) {
       flag = false;
     } else {
       if (avaP[socketID].avatarAlpha == 1) {
         setAlpha(socketID, 0.3);
-        socket.json.emit("alphaChenge", {
+        socket.json.emit("alphaChange", {
           alpha: 0.3,
         });
       } else {
         setAlpha(socketID, 1);
-        socket.json.emit("alphaChenge", {
+        socket.json.emit("alphaChange", {
           alpha: 1,
         });
       }
     }
   });
 
-  socket.on("alphaChenge", function (data) {
+  socket.on("alphaChange", function (data) {
     setAlpha(data.socketID, data.alpha);
   });
 
 
 });
 
-function avaLoop(value) {
-  if (0 < avaP[value].y && avaP[value].y <= 180 && room == "entrance") {
-    avaP[value].scale.x = avaP[value].y / 180;
-    avaP[value].scale.y = avaP[value].y / 180;
-  } else if (180 < avaP[value].y && room == "entrance") {
-    avaP[value].scale.x = 1;
-    avaP[value].scale.y = 1;
-  }
-  avaP[value].zIndex = avaP[value].y;
-  requestAnimationFrame(function () { avaLoop(value) });
-}
-
-function moveEnd() {
-  AX = avaP[socketID].x;
-  AY = avaP[socketID].y;
-}
-function setColor(thisSocketID, colorCode) {
+function setColor(thisSocketID, colorCode) {//色を変える
   avaP[thisSocketID].avatarColor = colorCode;
   avaS[thisSocketID].tint = colorCode;
   avaS1[thisSocketID].tint = colorCode;
@@ -829,7 +795,7 @@ function setColor(thisSocketID, colorCode) {
   avaSE2[thisSocketID].tint = colorCode;
 }
 
-function setAlpha(thisSocketID, alpha) {
+function setAlpha(thisSocketID, alpha) {//透明度を変える
   avaP[thisSocketID].avatarAlpha = alpha;
   avaS[thisSocketID].alpha = alpha;
   avaS1[thisSocketID].alpha = alpha;
@@ -860,6 +826,26 @@ function setAlpha(thisSocketID, alpha) {
 
 
 
+function avaLoop(value) {//アバターの大きさを常に変える
+  if (0 < avaP[value].y && avaP[value].y <= 180 && room == "entrance") {//エントランスにいるとき
+    avaP[value].scale.x = avaP[value].y / 180;
+    avaP[value].scale.y = avaP[value].y / 180;
+  } else if (180 < avaP[value].y && room == "entrance") {
+    avaP[value].scale.x = 1;
+    avaP[value].scale.y = 1;
+  }
+
+
+  // if (value==!socketID && avaP[value].room == room) {
+  //   console.log("TEST:"+avaP[value].room);
+  //   app.stage.getChildByName(room).addChild(avaP[value]);
+  // } else if(value==!socketID){
+  //   console.log("MISS:"+avaP[value].room);
+  //   app.stage.getChildByName(room).removeChild(avaP[value]);
+  // }
+  avaP[value].zIndex = avaP[value].y;
+  requestAnimationFrame(function () { avaLoop(value) });
+}
 
 
 //エントランスでタップ可能なブロックを配置
@@ -933,6 +919,47 @@ croudBlock2.drawPolygon([
   421, 94,
 ]);
 
+//wa_iボタンをクリックか、ctrlを押してる間、wa_iをtrueにする
+
+//既にtrueならfalseにする
+let wa_i = false;
+if (wa_i) {
+  // マウスか、スマホをおしっぱにしてる間、線を出力
+  app.stage.getChildByName(room).pointerdown = function () {
+    //10px移動するごとに点を出力
+  
+  }
+
+
+  //マウスを離したら、
+  //離した瞬間の点を出力
+
+  //点と色情報をサーバーにアップロード
+
+}
+//wa_iを受け取ったら,ブロックを作る
+
+//ブロックにぶつかったら動けないようにする
+
+//クリアボタンでブロックを全て消すよう指示
+
+//クリアボタンの指示を受け取ったらブロックを部屋のブロックを消す
+
+//線はカラーパレットをクリックで色を変える
+
+//ホワイトキャンバス部屋に居る時
+//落書きがされてたら
+//部屋出力ボタンを作る
+//出力ボタンが押されたら、部屋の左下に扉を出現
+
+//扉の色は最後に使用した色
+
+//扉の先にwhitecanvasNに繋がるようにする
+
+
+
+
+
 //groundBlock配置
 let groundBlock = new PIXI.Graphics();//ブロックを置く宣言
 groundBlock.beginFill(0xf0f8ff);
@@ -989,6 +1016,7 @@ function iniColPoint(blockSize) {//checkColpointで設定したcolPointを初期
 function checkColPoint(BX, BY) { //(collisionPointの略)
   //移動前の点と移動後の点との直線で、最も近い物体の交点を求める
   for (let i = 0; i < BX.length - 1; i++) {//このままだと壁に対して完全に平行な移動をしようとしたときに,colPoint.LXかLYがinfinityになって動かないってバグがあるな、どうすっかな
+    
     //まず、移動前と移動後を結ぶ直線とそれぞれの物体の辺を横切る直線との交点を全て得る
     colPoint[i].LX = ((BY[i + 1] - AY) * (MX - AX) * (BX[i] - BX[i + 1])
       - BX[i + 1] * (BY[i] - BY[i + 1]) * (MX - AX)
@@ -1003,7 +1031,7 @@ function checkColPoint(BX, BY) { //(collisionPointの略)
     //移動前の点から移動後の点への直線に物体との交点があるかどうかで絞り込む
     if (
       //辺の直線との交点が道中にあるかどうか、
-      ((MX < colPoint[i].LX && colPoint[i].LX < AX) || (AX < colPoint[i].LX && colPoint[i].LX < MX))
+      ((MX <= colPoint[i].LX && colPoint[i].LX <= AX) || (AX <= colPoint[i].LX && colPoint[i].LX <= MX))
       &&
       //交点が物体の辺のＸ座標の間に収まってるかどうか
       ((BX[i] <= colPoint[i].LX && colPoint[i].LX <= BX[i + 1]) || (BX[i + 1] <= colPoint[i].LX && colPoint[i].LX <= BX[i]))
@@ -1031,10 +1059,10 @@ function tapRange(value) {
   value.pointerdown = function (event) {
     MX = event.data.getLocalPosition(value).x;
     MY = event.data.getLocalPosition(value).y;
-    // console.log("clickMX" + app.renderer.plugins.interaction.mouse.global.x);//マウスのクリック座標
-    // console.log("clickMY" + app.renderer.plugins.interaction.mouse.global.y);
+
     if (AX != MX || AY != MY) {//同一点なら移動しない//パターン１
       let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
+
       if (inRoom == 0) {//ログイン画面に居るとき
         if (sin <= -0.9239) {
           anime(avaN, avaN1, avaN2, socketID);
@@ -1059,6 +1087,12 @@ function tapRange(value) {
         gsap.to(avaP[socketID], {
           duration: 0.4, x: MX, y: MY, onComplete: function () { moveEnd(); }
         });
+
+        function moveEnd() {
+          AX = avaP[socketID].x;
+          AY = avaP[socketID].y;
+        }
+
       } else {//ログイン画面以外に居るとき
         // 方向に合わせて画像を変えて表示
         if (sin <= -0.9239) {
@@ -1168,7 +1202,7 @@ function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,C
 }
 
 
-//移動時のソケット受け取り
+//移動時のソケット受け取り//自分以外の時にだけ使ってる
 socket.on("tapMap", function (data) {
   if (setAbon[data.socketID] == false) {
     tappedMove(data.socketID, data.AX, data.AY, data.DIR);
@@ -1203,17 +1237,158 @@ function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
       anime(avaW, avaW1, avaW2, thisSocketID);
       break;
   }
-  moving.to(avaP[thisSocketID], {
+  gsap.to(avaP[thisSocketID], {
     duration: 0.4, x: thisAX, y: thisAY, onComplete: function () {
-      if (thisSocketID == socketID) {
-        selfChengeRoom();
+      if (thisSocketID == socketID) {//オブジェクトの数が増えた時はここを書き換える
+        if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {
+          changeSelfRoom("entrance", entrance, "utyu", utyu, 200, 300, "S", "utyu", "white");
+        } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {
+          changeSelfRoom("utyu", utyu, "entrance", entrance, 150, 130, "S", "other", "black");
+        }
       } else {
-        nonSelfChengeRoom(thisSocketID, thisAX, thisAY);
+        if (avaP[thisSocketID].room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
+          changeNonSelfRoomOut(thisSocketID, "utyu");
+        } else if (avaP[thisSocketID].room == "utyu" && 141 <= thisAX && thisAX <= 146 && 73 <= thisAY && thisAY <= 81) {//宇宙の星の範囲内に入った時
+          changeNonSelfRoomOut(thisSocketID, "entrance");
+        }
+        if (avaP[thisSocketID].roomIn > 1) {//バックグラウンド復帰時
+          switch (DIR) {
+            case "NE":
+              avaC[thisSocketID] = avaNE[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "SE":
+              avaC[thisSocketID] = avaSE[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "SW":
+              avaC[thisSocketID] = avaSW[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "NW":
+              avaC[thisSocketID] = avaNW[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "N":
+              avaC[thisSocketID] = avaN[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "E":
+              avaC[thisSocketID] = avaE[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            case "S":
+              avaC[thisSocketID] = avaS[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+            default:
+              avaC[thisSocketID] = avaW[thisSocketID];
+              avaP[thisSocketID].addChild(avaC[thisSocketID]);
+              break;
+          }
+          avaP[thisSocketID].position.set(thisAX, thisAY);
+        }
       }
     }
   });
 }
 
+function changeSelfRoom(beforeRoomString, beforeRoom, afterRoomString, afterRoom, thisAX, thisAY, thisDIR, thisSE, logCollor) {//自分自身の部屋が変わった時
+  app.stage.removeChild(beforeRoom);
+  room = afterRoomString;//移動先の部屋を設定
+  roomSE = thisSE;
+  app.stage.addChild(afterRoom);//画像を読みこむ
+  avaP[socketID].removeChild(avaC[socketID]);
+  AX = thisAX;
+  AY = thisAY;
+  DIR = thisDIR;
+  socket.json.emit("roomIn", {
+    socketID: socketID,//soket.id
+    userName: userName,
+    beforeRoom: beforeRoomString,
+    afterRoom: afterRoomString,
+    AX: AX,
+    AY: AY,
+    DIR: DIR,
+  });
+  gamenLog.style.fill = logCollor;
+}
+
+function changeNonSelfRoomOut(thisSocketID, afterRoom) {//自分以外が部屋から出るとき
+  if (avaP[thisSocketID].roomIn == 1) {
+    app.stage.getChildByName(avaP[thisSocketID].room).removeChild(avaP[thisSocketID]);
+    avaP[thisSocketID].room = afterRoom;
+  }
+  avaP[thisSocketID].roomIn--;
+  usersNumber.textContent--;
+  moveMsg(nameText[thisSocketID].text + "が" + afterRoom + "に移動しました。");
+}
+
+
+
+
+
+
+
+socket.on("roomInNonSelf", function (data) {//自分以外が部屋にログインor入室してきた時
+  app.stage.getChildByName(data.room).addChild(avaP[data.socketID]);//部屋にアバターを入れる
+  avaP[data.socketID].room = data.room;
+  avaP[data.socketID].position.set(data.AX, data.AY);
+  avaP[data.socketID].roomIn++;
+  avaP[data.socketID].removeChild(avaC[data.socketID]);
+  switch (data.DIR) {
+    case "NE":
+      avaC[data.socketID] = avaNE[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "SE":
+      avaC[data.socketID] = avaSE[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "SW":
+      avaC[data.socketID] = avaSW[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "NW":
+      avaC[data.socketID] = avaNW[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "N":
+      avaC[data.socketID] = avaN[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "E":
+      avaC[data.socketID] = avaE[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    case "S":
+      avaC[data.socketID] = avaS[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+    default:
+      avaC[data.socketID] = avaW[data.socketID];
+      avaP[data.socketID].addChild(avaC[data.socketID]);
+      break;
+  }
+  moveMsg(data.msg);
+  usersNumber.textContent = data.users;//部屋人数の表記を変える
+  if (useLogChime) {//部屋入室の音を鳴らす
+    msgSE[roomSE].in[data.random].play();
+  }
+
+  //こっからは入室時のみあればいい
+  msg[data.socketID].text = "";
+  if (avaP[data.socketID].roomIn > 1) {//バックグラウンド復帰時に指示を出す
+    tappedMove(data.socketID, data.AX, data.AY, data.DIR);
+  }
+});
+
+
+socket.on("roomOutNonSelf", function (data) {//自分以外が部屋から退室した時
+  if (useLogChime) {//ログチャイムがオンになってたら退室の音を鳴らす
+    msgSE[roomSE].out[data.random].play();
+  }
+});
 
 
 
@@ -1302,10 +1477,6 @@ function login() {
     AX = 457;//座標を切り替える
     AY = 80;
 
-    function volumeRandom(room, move) {
-      let random = Math.floor(Math.random() * msgSE[room][move].length);
-      return random;
-    }
 
 
     socket.json.emit("login_room", {//エントランスに入る
@@ -1325,150 +1496,8 @@ function login() {
     inRoom = 1;
 
   }
-  // マウス座標を表示
-  app.stage.addChild(MtextX);
-  app.stage.addChild(MtextY);
-  app.stage.addChild(AtextX);
-  app.stage.addChild(AtextY);
+
 }
-
-
-function selfChengeRoom() {//自分自身の部屋が変わった時
-  if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {//大黒柱の範囲内に入った時
-    app.stage.removeChild(entrance);
-    room = "utyu";//移動先の部屋を設定
-    roomSE = "utyu";
-    app.stage.addChild(utyu);//画像を読みこむ
-    avaP[socketID].removeChild(avaC[socketID]);
-    AX = 300;
-    AY = 200;
-    DIR = "S";
-    socket.json.emit("join_room", {
-      socketID: socketID,//soket.id
-      userName: userName,
-      beforeRoom: "entrance",
-      afterRoom: "utyu",
-      AX: AX,
-      AY: AY,
-      DIR: DIR,
-    });
-    gamenLog.style.fill = "white";
-  } else if (room == "utyu" && 141 <= AX && AX <= 146 && 73 <= AY && AY <= 81) {//宇宙の星の範囲内に入った時
-    app.stage.removeChild(utyu);
-    room = "entrance";//移動先の部屋を設定
-    roomSE = "other";
-    app.stage.addChild(entrance);//画像を読みこむ
-    avaP[socketID].removeChild(avaC[socketID]);
-    AX = 150;
-    AY = 130;
-    DIR = "S";
-    socket.json.emit("join_room", {
-      socketID: socketID,//soket.id
-      userName: userName,
-      beforeRoom: "utyu",
-      afterRoom: "entrance",
-      AX: AX,
-      AY: AY,
-      DIR: DIR,
-    });
-
-    gamenLog.style.fill = "black";
-  }
-}
-function nonSelfChengeRoom(thisSocketID, thisAX, thisAY) {//自分以外が部屋を移動するとき
-  if (room == "entrance" && 125 <= thisAX && thisAX <= 175 && 200 <= thisAY && thisAY <= 300) {
-    entrance.removeChild(avaP[thisSocketID]);
-    usersNumber.textContent--;
-    moveMsg(nameText[thisSocketID].text + "がutyuに移動しました。");
-  } else if (room == "utyu" && 141 <= thisAX && thisAX <= 146 && 73 <= thisAY && thisAY <= 81) {//宇宙の星の範囲内に入った時
-    utyu.removeChild(avaP[thisSocketID]);
-    usersNumber.textContent--;
-    moveMsg(nameText[thisSocketID].text + "がentranceに移動しました。");
-  }
-}
-
-
-
-
-
-socket.on("join_self", function (data) {//自分が部屋に入室した時
-  moveMsg(data.msg);
-  msg[socketID].text = "";
-  usersNumber.textContent = data.users;//部屋人数の表記を変える
-  const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
-  keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
-    if (data.user[value].room == data.room) {
-      // 画像とメッセージと名前を追加してステージに上げる
-      switch (data.user[value].DIR) {
-        case "NE":
-          avaC[value] = avaNE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "SE":
-          avaC[value] = avaSE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "SW":
-          avaC[value] = avaSW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "NW":
-          avaC[value] = avaNW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "N":
-          avaC[value] = avaN[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "E":
-          avaC[value] = avaE[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        case "S":
-          avaC[value] = avaS[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-        default:
-          avaC[value] = avaW[value];
-          avaP[value].addChild(avaC[value]);
-          break;
-      }
-      if (data.user[value].msg != "" && data.user[value].room == data.room) {
-        const liKanban = document.createElement("li");//likanbanを作る
-        liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
-        liKanban.style.color = "white";//likanbanの文字を指定
-        liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
-        logs.appendChild(liKanban);//logsの末尾に入れる
-      }
-
-      avaP[value].position.set(data.user[value].AX, data.user[value].AY);
-      app.stage.getChildByName(data.room).addChild(avaP[value]);//部屋にアバターを入れる
-    }
-  });
-  if (useLogChime) {//部屋入室の音を鳴らす
-    msgSE[roomSE].in[data.random].play();
-  }
-});
-
-socket.on("join_nonself", function (data) {//自分以外が部屋に入室した時
-  app.stage.getChildByName(data.room).addChild(avaP[data.socketID]);//部屋にアバターを入れる
-  avaP[data.socketID].position.set(data.AX, data.AY);
-  msg[data.socketID].text = "";
-  moveMsg(data.msg);
-  usersNumber.textContent = data.users;//部屋人数の表記を変える
-  if (useLogChime) {//部屋入室の音を鳴らす
-    msgSE[roomSE].in[data.random].play();
-  }
-});
-socket.on("remove_nonself", function (data) {//自分以外が部屋から出た時
-  if (useLogChime) {//ログインの音を鳴らす
-    msgSE[roomSE].out[data.random].play();
-    console.log(roomSE);
-    console.log(data.random);
-  }
-});
-
-
 
 function moveMsg(moveMsg) {//移動時のメッセージ出力
   const li = document.createElement("li");
@@ -1553,19 +1582,19 @@ function setMsgSE() {
 
 
 let useLogChime = Boolean(parseInt(localStorage.getItem("useLogChime"), 10));
-if (useLogChime) {
-  logNoiseButton.style.backgroundColor = 'skyblue';
-} else {
+if (useLogChime) {//ログチャイムを使う時
   logNoiseButton.style.backgroundColor = 'red';
+} else {//使わない時
+  logNoiseButton.style.backgroundColor = 'skyblue';
 }
 
 function logChimeButtonClicked() {
-  if (useLogChime) {
-    logNoiseButton.style.backgroundColor = 'red';
+  if (useLogChime) {//ログチャイム使わない時
+    logNoiseButton.style.backgroundColor = 'skyblue';
     localStorage.setItem("useLogChime", 0);
     useLogChime = false;
-  } else {
-    logNoiseButton.style.backgroundColor = 'skyblue';
+  } else {//ログチャイムを使う時
+    logNoiseButton.style.backgroundColor = 'red';
     localStorage.setItem("useLogChime", 1);
     useLogChime = true;
   }
@@ -1594,12 +1623,12 @@ socket.on("emit_msg", function (data) {
         msg[data.socketID].style.fill = "white";
       }
 
-      //、Ｂって文字列が含まれてたら
       let msgText = data.msg;
-      let regexp = /、b|、ｂ/i
-      if (regexp.test(msgText)) {
-        msgText += "　ちゃりーｎ、りーん";
-      }
+      // //、Ｂって文字列が含まれてたら
+      // let regexp = /、b|、ｂ/i
+      // if (regexp.test(msgText)) {
+      //   msgText += "　ちゃりーｎ、りーん";
+      // }
 
       li.textContent = "（　´∀｀)" + data.userName + ": " + msgText;
       const ul = document.querySelector("ul");
@@ -1710,136 +1739,151 @@ socket.on("abonSetting", function (data) {
 
 
 
-//ルーム入室時に自分と他人のアバターを生成する
-socket.on("login_me", function (data) {
-  localStorage.setItem("avatarUserName", data.user[socketID].userName);
+//ログインか入室時に自分と他人のアバターを生成する
+socket.on("roomInSelf", function (data) {
+  if (data.beforeRoom) {//ログイン時
+    localStorage.setItem("avatarUserName", data.user[socketID].userName);
+  }
   moveMsg(data.msg);//移動時のメッセージ出力
   //部屋人数の表記を変える
   usersNumber.textContent = data.users;
 
-
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {//引数valueにsocketIDを入れて順番に実行
+    if (data.beforeRoom) {//ログインする時
+      switch (data.user[value].avatar) {
+        case "gomaneco":
+          setAvatar(value, gomaneco, 40);
+          break;
 
-    switch (data.user[value].avatar) {//ここらへんは、まあ、あとで関数化する
-      case "gomaneco":
-        setAvatar(value, gomaneco, 40);
-        break;
-
-      case "necosuke":
-        setAvatar(value, necosuke, 50)
-        break;
-    }
-
-    avaAbon[value] = new PIXI.Sprite(avaAbon);
-    avaAbon[value].anchor.set(0.5, 1);
-
-
-    // アバターの親コンテナを作成
-    avaP[value] = new PIXI.Container();
-    avaP[value].sortableChildren = true;//子要素のzIndexをonにする
-    avaP[value].position.set(data.user[value].AX, data.user[value].AY);
-    if (data.user[value].room == "entrance") {
-      entrance.addChild(avaP[value]);
-    }
-
-
-    // 画像とメッセージと名前を追加してステージに上げる
-    switch (data.user[value].DIR) {
-      case "NE":
-        avaC[value] = avaNE[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "SE":
-        avaC[value] = avaSE[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "SW":
-        avaC[value] = avaSW[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "NW":
-        avaC[value] = avaNW[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "N":
-        avaC[value] = avaN[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "E":
-        avaC[value] = avaE[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      case "S":
-        avaC[value] = avaS[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-      default:
-        avaC[value] = avaW[value];
-        avaP[value].addChild(avaC[value]);
-        break;
-    }
-    setColor(value, data.user[value].avatarColor);
-    setAlpha(value, data.user[value].avatarAlpha);
-
-    //名前を追加
-    nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
-    nameText[value].zIndex = 10;
-    nameText[value].anchor.set(0.5);
-    nameText[value].position.set(0, -avaC[value].height - 15);
-    avaP[value].addChild(nameText[value]);
-
-    nameTag[value] = new PIXI.Graphics();
-    nameTag[value].lineStyle(1, 0x000000, 0.5);
-    nameTag[value].beginFill(0x000000);
-    nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
-    nameTag[value].endFill();
-    nameTag[value].x = -nameText[value].width / 2;
-    nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
-    nameTag[value].alpha = 0.3;
-
-    avaP[value].addChild(nameTag[value]);
-    // アバターのメッセージを追加する
-    msg[value] = new PIXI.Text(data.user[value].msg);
-    msg[value].zIndex = 20;
-    msg[value].position.set(0, -avaC[value].height - 5);
-    msg[value].style.fontSize = 16;
-    msg[value].style.fill = "0x1e90ff";
-    avaP[value].addChild(msg[value]);
-
-    if (data.user[value].msg != "" && data.user[value].room == "entrance") {
-      const liKanban = document.createElement("li");//likanbanを作る
-      liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
-      liKanban.style.color = "white";//likanbanの文字を指定
-      liKanban.style.background = "rgba(0,0,205,0.3)";//likanbanの背景色を指定
-      logs.appendChild(liKanban);//logsの末尾に入れる
-    }
-
-
-    //アバタークリックでアボン
-    avaP[value].interactive = true;//クリックイベントを有効化
-    setAbon[value] = false;
-    avaP[value].rightclick = function () {
-      if (value != socketID) {//自アバターは省く 
-        if (setAbon[value]) {
-          setAbon[value] = false;
-        } else {
-          setAbon[value] = true;
-          avaP[value].removeChild(avaC[value]);
-          avaC[value] = avaAbon[value];
-          avaP[value].addChild(avaC[value]);
-        }
-        socket.json.emit("abonSetting", {
-          setAbon: setAbon[value],
-          socketID: value,
-        });
+        case "necosuke":
+          setAvatar(value, necosuke, 50)
+          break;
       }
-    };
-    
-    avaLoop(value);
+      avaAbon[value] = new PIXI.Sprite(avaAbon);
+      avaAbon[value].anchor.set(0.5, 1);
+
+      // アバターの親コンテナを作成
+      avaP[value] = new PIXI.Container();
+      avaP[value].sortableChildren = true;//子要素のzIndexをonにする
+
+      avaP[value].room = data.user[value].room;
+      setColor(value, data.user[value].avatarColor);
+      //名前を追加
+      nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
+      nameText[value].zIndex = 10;
+      nameText[value].anchor.set(0.5);
+      // nameText[value].position.set(0, -avaC[value].height - 15);
+      avaP[value].addChild(nameText[value]);
+
+      nameTag[value] = new PIXI.Graphics();
+      nameTag[value].lineStyle(1, 0x000000, 0.5);
+      nameTag[value].beginFill(0x000000);
+      nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
+      nameTag[value].endFill();
+      nameTag[value].x = -nameText[value].width / 2;
+      // nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
+      nameTag[value].alpha = 0.3;
+
+      avaP[value].addChild(nameTag[value]);
+
+      // アバターのメッセージを追加する
+      msg[value] = new PIXI.Text(data.user[value].msg);
+      msg[value].zIndex = 20;
+      // msg[value].position.set(0, -avaC[value].height - 5);
+      msg[value].style.fontSize = 16;
+      msg[value].style.fill = "0x1e90ff";
+      avaP[value].addChild(msg[value]);
+
+
+      //アバタークリックでアボン
+      avaP[value].interactive = true;//クリックイベントを有効化
+      setAbon[value] = false;
+      avaP[value].rightclick = function () {
+        if (value != socketID) {//自アバターは省く 
+          if (setAbon[value]) {
+            setAbon[value] = false;
+          } else {
+            setAbon[value] = true;
+            avaP[value].removeChild(avaC[value]);
+            avaC[value] = avaAbon[value];
+            avaP[value].addChild(avaC[value]);
+          }
+          socket.json.emit("abonSetting", {
+            setAbon: setAbon[value],
+            socketID: value,
+          });
+        }
+      };
+      avaLoop(value);
+    } else {
+      msg[socketID].text = "";
+    }
+
+
+    avaP[value].position.set(data.user[value].AX, data.user[value].AY);
+
+    avaP[value].roomIn = 1;//入室回数をリセット
+    if (data.user[value].room == data.room) {//部屋に存在してるユーザーのアバを作る
+      app.stage.getChildByName(data.room).addChild(avaP[value]);
+
+      avaP[value].removeChild(avaC[value]);
+      // 画像とメッセージと名前を追加してステージに上げる
+      switch (data.user[value].DIR) {
+        case "NE":
+          avaC[value] = avaNE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SE":
+          avaC[value] = avaSE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "SW":
+          avaC[value] = avaSW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "NW":
+          avaC[value] = avaNW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "N":
+          avaC[value] = avaN[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "E":
+          avaC[value] = avaE[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        case "S":
+          avaC[value] = avaS[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+        default:
+          avaC[value] = avaW[value];
+          avaP[value].addChild(avaC[value]);
+          break;
+      }
+      if (data.beforeRoom) {//ログインする時
+        nameText[value].position.set(0, -avaC[value].height - 15);
+        nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
+        msg[value].position.set(0, -avaC[value].height - 5);
+      }
+
+      setAlpha(value, data.user[value].avatarAlpha);
+
+      if (data.user[value].msg != "") {
+        const liKanban = document.createElement("li");//likanbanを作る
+        liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
+        logs.appendChild(liKanban);//logsの末尾に入れる
+      }
+    }
   });
-  if (useLogChime) {//ログインの音を鳴らす
-    msgSE.login.in[data.random].play();
+  if (useLogChime) {//部屋入室の音を鳴らす
+    if (data.roomSE == "login") {
+      msgSE.login.in[data.random].play();
+    } else {
+      msgSE[roomSE].in[data.random].play();
+    }
   }
 });
 
@@ -1848,7 +1892,7 @@ socket.on("loadAvatar", function (data) {
   // アバターの親コンテナを作成
   avaP[data.socketID] = new PIXI.Container();
   avaP[data.socketID].sortableChildren = true;//子要素のzIndexをonにする
-  avaP[data.socketID].position.set(457, 80);
+  avaP[data.socketID].roomIn = 0;
 
   //ここらへんは、後で画像纏めた時に関数化したいな
   avaAbon[data.socketID] = new PIXI.Sprite(avaAbon);
@@ -1918,17 +1962,6 @@ socket.on("loadAvatar", function (data) {
   avaLoop(data.socketID);
 });
 
-//自分以外がログイン
-socket.on("login_room", function (data) {
-  entrance.addChild(avaP[data.socketID]);//アバター生成
-  moveMsg(data.msg);//アナウンス
-  //部屋人数の表記を変える
-  usersNumber.textContent = data.users;
-
-  if (useLogChime) {//ログインの音を鳴らす
-    msgSE.login.in[data.random].play();
-  }
-});
 
 //ログアウトした時の処理
 socket.on("logout", function (data) {
@@ -1938,7 +1971,7 @@ socket.on("logout", function (data) {
   //アバターを消す
   app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
 
-  if (useLogChime) {//ログチャイムがオンになってたら
+  if (useLogChime) {//ログチャイムがオンになってたら、ログアウトの音を鳴らす
     msgSE[roomSE].logout[data.random].play();
   }
 });
@@ -1967,7 +2000,7 @@ socket.on("emitSaikiMsg", function (data) {
 
 
 
-
+//ウィンドウサイズ変更時の処理
 let windowSize = window.innerWidth;
 StyleDeclarationSetTransform(Pmain.style, "scale(0.8)");
 loginButton.style.position = windowSize / 2 - 10 + "px"

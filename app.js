@@ -8,6 +8,7 @@ var indexRouter = require('./routes/index');
 
 var kousinrireki = require("./routes/kousinrireki");//更新履歴へのルーティング
 var QandA = require("./routes/Q-A");//Q-Aへのルーティング
+var link = require("./routes/link");//Q-Aへのルーティング
 var dominionrule = require("./routes/dominionrule");
 
 
@@ -27,6 +28,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use("/kousinrireki", kousinrireki);//更新履歴へのルーティング?
 app.use("/Q-A", QandA);//Q-Aへのルーティング?
+app.use("/link", link);//リンク集へのルーティング?
 app.use("/dominionrule", dominionrule);
 
 
