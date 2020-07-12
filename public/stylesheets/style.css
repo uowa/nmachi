@@ -313,8 +313,10 @@ a {
     }
 }
 
+.Q-AColor{
+    color: rgb(169, 255, 111);
+}
 #Q-AURL {
-    color: yellow;
     font-size: 25px;
 }
 
@@ -323,6 +325,21 @@ a {
 }
 
 #Q-A a {
+    font-size: 18px;
+}
+
+
+.linkColor{
+    color: rgb(236, 236, 55);
+}
+#linkURL {
+    font-size: 25px;
+}
+#link {
+    font-size: 20px;
+}
+
+#link a {
     font-size: 18px;
 }
 
@@ -387,6 +404,10 @@ a {
     font-family: Q-A;
     src: url("/stylesheets/Q-A.ttf") format("truetype");
 }
+@font-face {
+    font-family: link;
+    src: url("/stylesheets/link.ttf") format("truetype");
+}
 
 select {
     font-family: "鉄瓶ゴシック", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
@@ -441,7 +462,7 @@ select {
     /* 文字の影 */
 }
 
-.smartphone{
+.smartphone {
     display: none;
 }
 
@@ -449,7 +470,7 @@ select {
     .PC {
         display: none;
     }
-    .smartphone{
+    .smartphone {
         display: inline;
     }
     body {
