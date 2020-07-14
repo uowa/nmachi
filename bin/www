@@ -95,6 +95,14 @@ msgSE.utyu.log = new Array(4);
 msgSE.utyu.out = new Array(1);
 msgSE.utyu.logout = new Array(1);
 
+let oekaki = {};
+oekaki["entrance"] = {};
+oekaki["entrance"].X = [];
+oekaki["entrance"].Y = [];
+oekaki["utyu"] = {};
+oekaki["utyu"].X = [];
+oekaki["utyu"].Y = [];
+
 function volumeRandom(room, move) {
   let random;
   if (room = "entrance") {//※部屋数が増えたら||で継ぎ足す
@@ -131,7 +139,7 @@ io.on('connection', function (socket) {
   });
 
   socket.on("login_room", function (data) {//ログイン処理
-    if (user[socket.id] && data.userName.length<28) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+    if (user[socket.id] && data.userName.length < 28) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       //トリップを作る
       data.userName = data.userName.replace(/◆/g, '□');
       if (data.userName.match(/#/)) {
@@ -169,24 +177,26 @@ io.on('connection', function (socket) {
       });
 
       io.to(socket.id).json.emit("roomInSelf", {
-        beforeRoom:"login",
+        beforeRoom: "login",
         user: user,
         room: "entrance",
         users: users[data.room],
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
-        roomSE:"login",
+        roomSE: "login",
         random: volumeRandom("login", "in"),
+        oekakiX:oekaki[user[socket.id].room].X,
+        oekakiY:oekaki[user[socket.id].room].Y,
       });
 
       socket.broadcast.to(data.room).emit("roomInNonSelf", {
-        room:"entrance",
+        room: "entrance",
         socketID: socket.id,
         msg: user[socket.id].userName + "が" + data.room + "に入室しました。" + time,
         users: users[data.room],
         AX: 457,
-        AY:80,
+        AY: 80,
         DIR: "S",
-        roomSE:"login",
+        roomSE: "login",
         random: volumeRandom("login", "in"),
       });
     } else {
@@ -213,10 +223,12 @@ io.on('connection', function (socket) {
       io.to(socket.id).json.emit("roomInSelf", {
         user: user,
         room: data.afterRoom,
-        msg: user[data.socketID].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
+        msg: user[socket.id].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
         users: users[after],
-        roomSE:data.afterRoom,
+        roomSE: data.afterRoom,
         random: volumeRandom(data.afterRoom, "in"),
+        oekakiX:oekaki[user[socket.id].room].X,
+        oekakiY:oekaki[user[socket.id].room].Y,
       });
 
       socket.broadcast.to(after).emit("roomInNonSelf", {
@@ -227,11 +239,11 @@ io.on('connection', function (socket) {
         AX: data.AX,
         AY: data.AY,
         DIR: data.DIR,
-        roomSE:data.afterRoom,
+        roomSE: data.afterRoom,
         random: volumeRandom(data.afterRoom, "in"),
       });
       socket.broadcast.to(before).emit("roomOutNonSelf", {
-        room:data.afterRoom,
+        room: data.afterRoom,
         random: volumeRandom(data.beforeRoom, "out"),
       });
     } else {
@@ -243,7 +255,7 @@ io.on('connection', function (socket) {
 
   //クライアントからメッセージを受け取って送信
   socket.on("emit_msg", function (data) {
-    if (user[socket.id]&&data.msg.length<251) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+    if (user[socket.id] && data.msg.length < 251) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
       if (data.kanban) {
         user[socket.id].msg = data.msg;
 
@@ -296,7 +308,7 @@ io.on('connection', function (socket) {
     }
   });
 
-  
+
 
   //クリックイベント
   socket.on('tapMap', function (data) {
@@ -321,6 +333,23 @@ io.on('connection', function (socket) {
     socket.broadcast.emit("alphaChange", {
       socketID: socket.id,
       alpha: data.alpha,
+    });
+  });
+
+ 
+
+  socket.on("oekaki", function (data) {
+      oekaki[user[socket.id].room].X.push(data.oekakiX);
+    oekaki[user[socket.id].room].Y.push(data.oekakiY);
+    io.to(user[socket.id].room).emit("oekaki", {
+      oekakiX: data.oekakiX,
+      oekakiY: data.oekakiY,
+    });
+  });
+  socket.on("clearCanvas", function (data) {
+    oekaki[user[socket.id].room].X = [];
+    oekaki[user[socket.id].room].Y = [];
+    io.to(user[socket.id].room).emit("clearCanvas", {
     });
   });
 

@@ -123,6 +123,16 @@ msgSE.utyu.logout[0] = new Audio('sound/utyuLogout/se_maoudamashii_onepoint31.mp
 msgSE.utyu.logout[1] = new Audio('sound/utyuLogout/se_maoudamashii_system32.mp3');
 
 
+//お絵かき
+let oekaki = [];
+let isDownCtrl = false;
+let clickedWa_iButtun = false;
+let pointDown = false;
+let lastPosition = { x: null, y: null };
+let oekakityu = false;
+let oekakiNum = [];
+
+
 
 //エイリアス
 let html = document.querySelector('html')
@@ -150,6 +160,8 @@ let visibleLogButton = document.getElementById('visibleLogButton');
 let logs = document.getElementById('logs');
 let logNoiseButton = document.getElementById('logNoiseButton');
 let pastLog = document.getElementById('pastLog');
+let wa_i = document.getElementById('wa_i');
+let clear = document.getElementById('clear');
 let effectVolume = document.getElementById('effectVolume');
 
 
@@ -268,6 +280,8 @@ let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
   fill: "white",
   trim: true,
 });
+
+
 
 
 // let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
@@ -835,17 +849,55 @@ function avaLoop(value) {//アバターの大きさを常に変える
     avaP[value].scale.y = 1;
   }
 
-
-  // if (value==!socketID && avaP[value].room == room) {
-  //   console.log("TEST:"+avaP[value].room);
-  //   app.stage.getChildByName(room).addChild(avaP[value]);
-  // } else if(value==!socketID){
-  //   console.log("MISS:"+avaP[value].room);
-  //   app.stage.getChildByName(room).removeChild(avaP[value]);
-  // }
   avaP[value].zIndex = avaP[value].y;
+
+
+
   requestAnimationFrame(function () { avaLoop(value) });
 }
+
+
+
+function draw(x, y) {
+  if (!pointDown) {//いらんかも
+    return;
+  }
+  if (lastPosition.x === null || lastPosition.y === null) {
+    // ドラッグ開始時の線の開始位置
+    oekaki[0].moveTo(x, y);
+    oekaki[0].X = [x];
+    oekaki[0].Y = [y];
+  } else {
+    // ドラッグ中の線の開始位置
+    oekaki[0].moveTo(lastPosition.x, lastPosition.y);
+    oekaki[0].X.push(x);
+    oekaki[0].Y.push(y);
+  }
+  oekaki[0].lineTo(x, y);
+  oekaki[0].zIndex = 1000;
+  app.stage.getChildByName(room).addChild(oekaki[0]);
+
+  lastPosition.x = x;
+  lastPosition.y = y;
+}
+
+socket.on("oekaki", function (data) {
+  oekaki[room][oekakiNum[room]] = new PIXI.Graphics();
+  oekaki[room][oekakiNum[room]].zIndex = 1000;
+  oekaki[room][oekakiNum[room]].lineStyle(2, 0xffffff);
+  oekaki[room][oekakiNum[room]].moveTo(data.oekakiX[0], data.oekakiY[0])
+  for (let i = 1; i < data.oekakiX.length; i++) {
+    oekaki[room][oekakiNum[room]].lineTo(data.oekakiX[i], data.oekakiY[i]);
+  }
+  app.stage.getChildByName(room).addChild(oekaki[room][oekakiNum[room]]);
+  oekakiNum[room]++;
+});
+
+socket.on("clearCanvas", function (data) {
+  for (let i = 0; i < oekaki[room].length; i++) {
+    app.stage.getChildByName(room).removeChild(oekaki[room][i]);
+  }
+});
 
 
 //エントランスでタップ可能なブロックを配置
@@ -919,42 +971,7 @@ croudBlock2.drawPolygon([
   421, 94,
 ]);
 
-//wa_iボタンをクリックか、ctrlを押してる間、wa_iをtrueにする
 
-//既にtrueならfalseにする
-let wa_i = false;
-if (wa_i) {
-  // マウスか、スマホをおしっぱにしてる間、線を出力
-  app.stage.getChildByName(room).pointerdown = function () {
-    //10px移動するごとに点を出力
-  
-  }
-
-
-  //マウスを離したら、
-  //離した瞬間の点を出力
-
-  //点と色情報をサーバーにアップロード
-
-}
-//wa_iを受け取ったら,ブロックを作る
-
-//ブロックにぶつかったら動けないようにする
-
-//クリアボタンでブロックを全て消すよう指示
-
-//クリアボタンの指示を受け取ったらブロックを部屋のブロックを消す
-
-//線はカラーパレットをクリックで色を変える
-
-//ホワイトキャンバス部屋に居る時
-//落書きがされてたら
-//部屋出力ボタンを作る
-//出力ボタンが押されたら、部屋の左下に扉を出現
-
-//扉の色は最後に使用した色
-
-//扉の先にwhitecanvasNに繋がるようにする
 
 
 
@@ -1016,7 +1033,7 @@ function iniColPoint(blockSize) {//checkColpointで設定したcolPointを初期
 function checkColPoint(BX, BY) { //(collisionPointの略)
   //移動前の点と移動後の点との直線で、最も近い物体の交点を求める
   for (let i = 0; i < BX.length - 1; i++) {//このままだと壁に対して完全に平行な移動をしようとしたときに,colPoint.LXかLYがinfinityになって動かないってバグがあるな、どうすっかな
-    
+
     //まず、移動前と移動後を結ぶ直線とそれぞれの物体の辺を横切る直線との交点を全て得る
     colPoint[i].LX = ((BY[i + 1] - AY) * (MX - AX) * (BX[i] - BX[i + 1])
       - BX[i + 1] * (BY[i] - BY[i + 1]) * (MX - AX)
@@ -1294,6 +1311,11 @@ function tappedMove(thisSocketID, thisAX, thisAY, DIR) {
 }
 
 function changeSelfRoom(beforeRoomString, beforeRoom, afterRoomString, afterRoom, thisAX, thisAY, thisDIR, thisSE, logCollor) {//自分自身の部屋が変わった時
+  if (oekaki[room]) {
+    for (let i = 0; i < oekaki[room].length; i++) {
+      app.stage.getChildByName(room).removeChild(oekaki[room][i]);
+    }
+  }
   app.stage.removeChild(beforeRoom);
   room = afterRoomString;//移動先の部屋を設定
   roomSE = thisSE;
@@ -1433,8 +1455,8 @@ function login() {
     //userNameにフォームの内容を入れる
     room = "entrance";//マップを切り替える
     roomSE = "other";
-
-
+    oekaki["entrance"] = [];
+    oekakiNum["entrance"] = 0;
 
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);
@@ -1497,6 +1519,89 @@ function login() {
 
   }
 
+
+  //wa_iButtunがオフの時
+  window.addEventListener("keydown", function (e) {
+    if (clickedWa_iButtun == false) {
+      isDownCtrl = e.ctrlKey;
+      if (e.ctrlKey) {
+        wa_i.style.backgroundColor = 'skyblue';
+      }
+    }
+  });
+  window.addEventListener("keyup", function (e) {
+    if (clickedWa_iButtun == false) {
+      isDownCtrl = e.ctrlKey;
+      if (e.ctrlKey == false) {
+        wa_i.style.backgroundColor = 'red';
+      }
+    }
+  });
+
+
+
+  app.stage.getChildByName("entrance").interactive = true;
+  // マウスか、スマホをおしっぱにしてる間、ctrlを押してるか、wa_iがonになってたら線を出力
+  app.stage.getChildByName("entrance").pointerdown = function () {
+    pointDown = true;
+  }
+
+  app.stage.getChildByName("entrance").pointermove = function (e) {//カーソルを動かし中
+    if (pointDown && (isDownCtrl || clickedWa_iButtun)) {
+      draw(e.data.getLocalPosition(app.stage.getChildByName("entrance")).x, e.data.getLocalPosition(app.stage.getChildByName("entrance")).y);
+      oekakityu = true;
+    }
+  }
+  app.stage.getChildByName("entrance").pointerup = function () {//カーソルを離したとき
+    if (oekakityu) {//お絵かき中なら
+      app.stage.getChildByName(room).removeChild(oekaki[0]);
+      socket.json.emit("oekaki", {
+        oekakiX: oekaki[0].X,
+        oekakiY: oekaki[0].Y,
+      });
+      app.stage.getChildByName(room).removeChild(oekaki[0]);
+      lastPosition.x = null;
+      lastPosition.y = null;
+      oekaki[0] = new PIXI.Graphics();
+      oekaki[0].lineStyle(2, 0xffffff);
+      oekakityu = false;
+    }
+    pointDown = false;
+  }
+  app.stage.getChildByName("entrance").mouseup = function () {
+    pointDown = false;
+  }
+
+
+  oekaki[0] = new PIXI.Graphics();
+  oekaki[0].lineStyle(2, 0xffffff);
+  app.stage.getChildByName(room).addChild(oekaki[0]);
+
+  //点と色情報をサーバーにアップロード
+
+  //wa_iを受け取ったら,ブロックを作る
+
+  //ブロックにぶつかったら動けないようにする
+
+  //クリアボタンでブロックを全て消すよう指示
+  // function clearCanvas() {
+  //   for (let i = 0; i < oekaki.length; i++) {
+  //     app.stage.getChildByName(room).removeChild(oekaki[i]);
+  //   }
+  // }
+
+  //クリアボタンの指示を受け取ったらブロックを部屋のブロックを消す
+
+  //線はカラーパレットをクリックで色を変える
+
+  //ホワイトキャンバス部屋に居る時
+  //落書きがされてたら
+  //部屋出力ボタンを作る
+  //出力ボタンが押されたら、部屋の左下に扉を出現
+
+  //扉の色は最後に使用した色
+
+  //扉の先にwhitecanvasNに繋がるようにする
 }
 
 function moveMsg(moveMsg) {//移動時のメッセージ出力
@@ -1557,6 +1662,31 @@ visibleLogButton.addEventListener('mousedown', function (e) { e.preventDefault()
 
 
 
+wa_i.style.backgroundColor = 'red';
+function wa_iButtonClicked() {
+  if (clickedWa_iButtun) {
+    wa_i.style.backgroundColor = 'red';
+    clickedWa_iButtun = false;
+  } else {
+    wa_i.style.backgroundColor = 'skyblue';
+    clickedWa_iButtun = true;
+  }
+}
+wa_i.addEventListener('click', wa_iButtonClicked);
+wa_i.addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+clear.style.backgroundColor = 'skyblue';
+function clearButtonClicked() {
+  socket.emit("clearCanvas", {});
+  clear.style.backgroundColor = '#BCE1DF';
+}
+
+clear.addEventListener('mousedown', clearButtonClicked);
+
+function clearButtonUp() {
+  clear.style.backgroundColor = 'skyblue';
+}
+clear.addEventListener('mouseup', clearButtonUp);
 
 
 
@@ -1815,6 +1945,8 @@ socket.on("roomInSelf", function (data) {
           });
         }
       };
+
+
       avaLoop(value);
     } else {
       msg[socketID].text = "";
@@ -1884,6 +2016,19 @@ socket.on("roomInSelf", function (data) {
     } else {
       msgSE[roomSE].in[data.random].play();
     }
+  }
+
+  //お絵かきブロック生成
+  for (let n = 0; n < data.oekakiX.length; n++) {
+    oekaki[room][n] = new PIXI.Graphics();
+    oekaki[room][n].zIndex = 1000;
+    oekaki[room][n].lineStyle(2, 0xffffff);
+    oekaki[room][n].moveTo(data.oekakiX[n][0], data.oekakiY[n][0])
+    for (let i = 1; i < data.oekakiX[n].length; i++) {
+      oekaki[room][n].lineTo(data.oekakiX[n][i], data.oekakiY[n][i]);
+    }
+    app.stage.getChildByName(room).addChild(oekaki[room][n]);
+    oekakiNum[room]++;
   }
 });
 
@@ -1990,6 +2135,8 @@ function gameLoop() {
   }
   requestAnimationFrame(gameLoop);
 }
+
+
 
 
 //再起動用メッセージ
