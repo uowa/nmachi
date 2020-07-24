@@ -593,7 +593,7 @@ socket.on("mySocketID", function (data) {
   nameText[socketID] = new PIXI.Text(localStorage.getItem("avatarUserName"), nameTextStyle);
   nameText[socketID].zIndex = 10;
   nameText[socketID].anchor.set(0.5);
-  nameText[socketID].position.set(0, -avaC[socketID].height - 15);
+  nameText[socketID].position.set(0, -avaC[socketID].height - 10);
   avaP[socketID].addChild(nameText[socketID]);
 
   nameTag[socketID] = new PIXI.Graphics();
@@ -602,7 +602,7 @@ socket.on("mySocketID", function (data) {
   nameTag[socketID].drawRect(0, 0, nameText[socketID].width, nameText[socketID].height);
   nameTag[socketID].endFill();
   nameTag[socketID].x = -nameText[socketID].width / 2;
-  nameTag[socketID].y = -avaC[socketID].height - 15 - nameText[socketID].height / 2;
+  nameTag[socketID].y = -avaC[socketID].height - 10 - nameText[socketID].height / 2;
   nameTag[socketID].alpha = 0.3;
 
   avaP[socketID].addChild(nameTag[socketID]);
@@ -616,19 +616,23 @@ socket.on("mySocketID", function (data) {
   gomaneco.Face.pointerdown = function () {//ごまねこアイコンクリック時にアバター変更
     localStorage.setItem("avatar", "gomaneco")//ローカルストレージにアバター設定
     avaP[socketID].avatar = "gomaneco";//親コンテナにアバターの種類を設定する
-    console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
     setAvatar(socketID, gomaneco, 40);
+    nameText[socketID].position.set(0, -avaS[socketID].height - 10);
+    nameTag[socketID].y = -avaS[socketID].height - 10 - nameText[socketID].height / 2;
     localStorage.removeItem("colorCode");
+    console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
   };
 
   necosuke.Face = new PIXI.Sprite(necosuke.Face);
   loginBack.addChild(necosuke.Face);//login画面にnucosukeFaceを追加
-  necosuke.Face.position.set(40, 0);
+  necosuke.Face.position.set(40, 0);//位置を設定
   necosuke.Face.interactive = true;//クリックイベントを有効化
   necosuke.Face.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
     localStorage.setItem("avatar", "necosuke");//ローカルストレージにアバター書き込み
     avaP[socketID].avatar = "necosuke";
     setAvatar(socketID, necosuke, 50);
+      nameText[socketID].position.set(0, -avaS[socketID].height - 10);
+  nameTag[socketID].y = -avaS[socketID].height - 10 - nameText[socketID].height / 2;
     localStorage.removeItem("colorCode");
     console.log("ねこすけ裏設定：クールなまなざしを覗き込むと瞳の奥は燃えている　鳥のように飛べるんじゃないかと考えながら雲から飛び降りている　ごまねこが降りる様を見ると冷や汗をかいてしまう");
   };
@@ -1316,7 +1320,12 @@ function changeSelfRoom(beforeRoomString, beforeRoom, afterRoomString, afterRoom
       app.stage.getChildByName(room).removeChild(oekaki[room][i]);
     }
   }
-  app.stage.removeChild(beforeRoom);
+  const keys = Object.keys(avaP);//入室時の全員のソケットＩＤを取得
+  keys.forEach(function (value) {//移動前の部屋のアバターを消す
+    app.stage.getChildByName(room).removeChild(avaP[value]);
+  });
+  app.stage.removeChild(beforeRoom);//移動前の部屋を消す
+
   room = afterRoomString;//移動先の部屋を設定
   roomSE = thisSE;
   app.stage.addChild(afterRoom);//画像を読みこむ
@@ -1392,6 +1401,11 @@ socket.on("roomInNonSelf", function (data) {//自分以外が部屋にログイ�
       avaP[data.socketID].addChild(avaC[data.socketID]);
       break;
   }
+
+  nameText[data.socketID].position.set(0, -avaC[data.socketID].height - 10);
+  nameTag[data.socketID].y = -avaC[data.socketID].height - 10 - nameText[data.socketID].height / 2;
+  msg[data.socketID].position.set(0, -avaC[data.socketID].height - 5);
+
   moveMsg(data.msg);
   usersNumber.textContent = data.users;//部屋人数の表記を変える
   if (useLogChime) {//部屋入室の音を鳴らす
@@ -1903,7 +1917,7 @@ socket.on("roomInSelf", function (data) {
       nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
       nameText[value].zIndex = 10;
       nameText[value].anchor.set(0.5);
-      // nameText[value].position.set(0, -avaC[value].height - 15);
+
       avaP[value].addChild(nameText[value]);
 
       nameTag[value] = new PIXI.Graphics();
@@ -1912,7 +1926,7 @@ socket.on("roomInSelf", function (data) {
       nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
       nameTag[value].endFill();
       nameTag[value].x = -nameText[value].width / 2;
-      // nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
+
       nameTag[value].alpha = 0.3;
 
       avaP[value].addChild(nameTag[value]);
@@ -1920,7 +1934,7 @@ socket.on("roomInSelf", function (data) {
       // アバターのメッセージを追加する
       msg[value] = new PIXI.Text(data.user[value].msg);
       msg[value].zIndex = 20;
-      // msg[value].position.set(0, -avaC[value].height - 5);
+
       msg[value].style.fontSize = 16;
       msg[value].style.fill = "0x1e90ff";
       avaP[value].addChild(msg[value]);
@@ -1955,8 +1969,8 @@ socket.on("roomInSelf", function (data) {
 
     avaP[value].position.set(data.user[value].AX, data.user[value].AY);
 
-    avaP[value].roomIn = 1;//入室回数をリセット
     if (data.user[value].room == data.room) {//部屋に存在してるユーザーのアバを作る
+      avaP[value].roomIn = 1;//入室回数をリセット
       app.stage.getChildByName(data.room).addChild(avaP[value]);
 
       avaP[value].removeChild(avaC[value]);
@@ -1995,11 +2009,12 @@ socket.on("roomInSelf", function (data) {
           avaP[value].addChild(avaC[value]);
           break;
       }
-      if (data.beforeRoom) {//ログインする時
-        nameText[value].position.set(0, -avaC[value].height - 15);
-        nameTag[value].y = -avaC[value].height - 15 - nameText[value].height / 2;
-        msg[value].position.set(0, -avaC[value].height - 5);
-      }
+
+      //この位置だと、部屋に存在してないアバを作れない
+      nameText[value].position.set(0, -avaC[value].height - 10);
+      nameTag[value].y = -avaC[value].height - 10 - nameText[value].height / 2;
+      msg[value].position.set(0, -avaC[value].height - 5);
+
 
       setAlpha(value, data.user[value].avatarAlpha);
 
@@ -2008,6 +2023,8 @@ socket.on("roomInSelf", function (data) {
         liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
         logs.appendChild(liKanban);//logsの末尾に入れる
       }
+    } else {
+      avaP[value].roomIn = 0;
     }
   });
   if (useLogChime) {//部屋入室の音を鳴らす
@@ -2064,7 +2081,7 @@ socket.on("loadAvatar", function (data) {
   nameText[data.socketID] = new PIXI.Text(data.userName, nameTextStyle);
   nameText[data.socketID].zIndex = 10;
   nameText[data.socketID].anchor.set(0.5);
-  nameText[data.socketID].position.set(0, -avaC[data.socketID].height - 15);
+  nameText[data.socketID].position.set(0, -avaC[data.socketID].height - 10);
   avaP[data.socketID].addChild(nameText[data.socketID]);
 
   nameTag[data.socketID] = new PIXI.Graphics();
@@ -2073,7 +2090,7 @@ socket.on("loadAvatar", function (data) {
   nameTag[data.socketID].drawRect(0, 0, nameText[data.socketID].width, nameText[data.socketID].height);
   nameTag[data.socketID].endFill();
   nameTag[data.socketID].x = -nameText[data.socketID].width / 2;
-  nameTag[data.socketID].y = -avaC[data.socketID].height - 15 - nameText[data.socketID].height / 2;
+  nameTag[data.socketID].y = -avaC[data.socketID].height - 10 - nameText[data.socketID].height / 2;
   nameTag[data.socketID].alpha = 0.3;
   avaP[data.socketID].addChild(nameTag[data.socketID]);
 
@@ -2113,12 +2130,13 @@ socket.on("logout", function (data) {
   moveMsg(data.msg);//移動時のメッセージ出力
   //部屋人数の表記を変える
   usersNumber.textContent = data.users;
-  //アバターを消す
   app.stage.getChildByName(data.room).removeChild(avaP[data.socketID]);
 
   if (useLogChime) {//ログチャイムがオンになってたら、ログアウトの音を鳴らす
     msgSE[roomSE].logout[data.random].play();
   }
+  //アバターを消す
+
 });
 
 let loginMX;
