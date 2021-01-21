@@ -17,6 +17,6 @@
     "legacy": "0.0.3",
     "morgan": "~1.9.1",
     "pixi.js": "^5.2.1",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.4.0"
   }
 }
