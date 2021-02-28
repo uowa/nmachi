@@ -1,0 +1,692 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('pmachi5:server');
+// var http = require('http');
+
+var fs = require('fs');
+var https = require('https');
+var nmachi_key = '../../../../usr/local/nginx/nmachi20201226.key';
+var nmachi_crt = '../../../../usr/local/nginx/nmachi20201226.crt';
+var nmachi_chain = '../../../../usr/local/nginx/nmachi20201226.pem';
+var options = {
+  key: fs.readFileSync(nmachi_key),
+  cert: fs.readFileSync(nmachi_crt),
+  ca: fs.readFileSync(nmachi_chain)
+};
+
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+
+// var server = http.createServer(app);
+var server = https.createServer(options, app);
+
+
+/**
+ * ADDED!! Require Socket.IO
+ */
+var io = require('socket.io')(server);
+
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+
+
+/**
+ * ADDED!! Socket.IO Connection.
+ */
+
+
+
+let user = {};
+// user={token:{userName,msg,token,room,AX,AY,DIR}};
+
+let tokenNum = 0;
+let tokenID = [];
+
+let users = { "entrance": 0, "utyu": 0 };
+
+var crypto = require("crypto");
+const { setInterval } = require('timers');
+// var cipers = crypto.getCiphers();
+// console.log(cipers);
+// var hashes = crypto.getHashes();
+// console.log(hashes);
+
+function tripCreate(isTrip) {
+  let tripkey = isTrip;
+  let salt = tripkey + "H.";//未入力、又は1文字入れ用にH.を追加？？
+  salt = salt.substr(1, 2);//2文字目と3文字目を切り出す
+  salt = salt.replace(/[^.-z]/g, ".");
+  salt = salt.replace(/:/g, "A");
+  salt = salt.replace(/;/g, "B");
+  salt = salt.replace(/</g, "C");
+  salt = salt.replace(/=/g, "D");
+  salt = salt.replace(/>/g, "E");
+  salt = salt.replace(/\?/g, "F");
+  salt = salt.replace(/@/g, "G");
+  salt = salt.replace(/\[/g, "a");
+  salt = salt.replace(/\\/g, "b");
+  salt = salt.replace(/]/g, "c");
+  salt = salt.replace(/\^/g, "d");
+  salt = salt.replace(/_/g, "e");
+  salt = salt.replace(/`/g, "f");
+  let cipher = crypto.createCipher("des", salt);
+  cipher.update(tripkey, 'utf-8', 'base64');
+  let cipheredText = cipher.final('base64');
+  let trip = cipheredText.substr(-10);
+  trip = trip.replace(/=/g, "");//なんかよくわからんけど、高確率で後ろに==が付くので消す
+  trip = "◆" + trip;
+  return trip;
+}
+
+let msgSE = {};
+msgSE.login = {};
+msgSE.login.in = new Array(0);
+msgSE.login.logout = new Array(0);
+msgSE.other = {};
+msgSE.other.in = new Array(1);
+msgSE.other.out = new Array(3);
+msgSE.other.logout = new Array(1);
+msgSE.utyu = {};
+msgSE.utyu.in = new Array(1);
+msgSE.utyu.out = new Array(1);
+msgSE.utyu.logout = new Array(1);
+
+let oekaki = {};
+oekaki["loginBack"] = {};
+oekaki["loginBack"].X = [];
+oekaki["loginBack"].Y = [];
+oekaki["loginBack"].color = [];
+oekaki["loginBack"].alpha = [];
+oekaki["entrance"] = {};
+oekaki["entrance"].X = [];
+oekaki["entrance"].Y = [];
+oekaki["entrance"].color = [];
+oekaki["entrance"].alpha = [];
+oekaki["utyu"] = {};
+oekaki["utyu"].X = [];
+oekaki["utyu"].Y = [];
+oekaki["utyu"].color = [];
+oekaki["utyu"].alpha = [];
+
+function volumeRandom(room, move) {
+  let random;
+  if (room == "entrance") {//※部屋数が増えたら||で継ぎ足す
+    random = Math.floor(Math.random() * msgSE.other[move].length);
+  } else {
+    random = Math.floor(Math.random() * msgSE[room][move].length);
+  }
+  return random;
+}
+
+
+io.on('connection', function (socket) {
+  //フォント切り替え
+  function saikiMsg() {
+    io.to(socket.id).json.emit("emitSaikiMsg", {
+      msg: "ブラウザを更新してください",
+    });
+  }
+
+  //時間で眠ってる時に眠らせる？←表示を起きるに切り替え解いたらいい
+  //自分で眠らせた時に時間で眠る←このまま
+
+  //自分で眠ってる時はそのまま
+  //時間で眠ってる時は動かしたら動く
+
+  socket.on("getMyUser", function () {//soundNumを作る
+    tokenID[socket.id] = "tokenID" + tokenNum;
+    user[tokenID[socket.id]] = {
+      userName: "名もなき名無し",
+      token: tokenID[socket.id],
+      AX: 457,
+      AY: 80,
+      DIR: "S",
+      msg: "",
+      avatar: "gomaneco",
+      room: "loginBack",
+      selfSleep: false,
+      sleepTimeNum: 0,
+      countSleep: function () {
+        let setTimeoutSleep;
+        if (user[socket.id]) {
+          user[socket.id].sleepTimeNum++;
+          if (user[socket.id].sleepTimeNum == 30 * 60) {
+            user[socket.id].sleep = true;
+            io.sockets.emit("sleep", {
+              token: tokenID[socket.id],
+              sleep: user[tokenID[socket.id]].sleep,
+            });
+          }
+          setTimeoutSleep = setTimeout(user[tokenID[socket.id]].countSleep, 1000);
+        } else {
+          clearTimeout(setTimeoutSleep);
+        }
+      },
+    }
+    tokenNum++;
+    io.to(socket.id).json.emit("myToken", {
+      token: tokenID[socket.id],
+    });
+
+    user[tokenID[socket.id]].countSleep();
+  });
+
+  socket.on("login_room", function (data) {//ログイン処理
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      if(data.userName.length < 28) {//名前が２８以上のを阻止
+      //トリップを作る
+      data.userName = data.userName.replace(/◆/g, '□');
+      if (data.userName.match(/#/)) {
+        let index = data.userName.indexOf("#");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      if (data.userName.match(/＃/)) {
+        let index = data.userName.indexOf("＃");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+
+      user[tokenID[socket.id]].userName = data.userName;//名前をサバに保存
+      user[tokenID[socket.id]].avatar = data.avatar;//アバターを設定
+      user[tokenID[socket.id]].avatarColor = data.avatarColor;//アバターの色を設定
+      user[tokenID[socket.id]].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
+
+      user[tokenID[socket.id]].room = data.room;//ユーザー情報に部屋を入れる
+      users[data.room]++;//部屋人数を変更
+      socket.join("entrance");
+
+      //soundNumの決定
+      user[tokenID[socket.id]].soundNum = data.userName.length;
+      if (data.avatar == "necosuke" || data.avatar == "necosukeMono") {
+        user[tokenID[socket.id]].soundNum++;
+      }
+      user[tokenID[socket.id]].soundNum += data.avatarColor;
+      user[tokenID[socket.id]].soundNum = user[tokenID[socket.id]].soundNum % 9;
+
+
+
+
+      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間を設定
+
+
+      socket.broadcast.emit("loadAvatar", {//全体に新規入場者を読みこます、後々全体人数もここで管理していいかな
+        token: tokenID[socket.id],
+        avatar: data.avatar,
+        userName: user[tokenID[socket.id]].userName,
+        avatarColor: user[tokenID[socket.id]].avatarColor,
+        avatarAlpha: user[tokenID[socket.id]].avatarAlpha,
+      });
+
+      io.to(socket.id).json.emit("roomInSelf", {
+        beforeRoom: "login",
+        user: user,
+        room: "entrance",
+        users: users[data.room],
+        msg: user[tokenID[socket.id]].userName + "が" + data.room + "に入室しました。" + time,
+        roomSE: "login",
+        random: volumeRandom("login", "in"),
+        oekakiX: oekaki[user[tokenID[socket.id]].room].X,
+        oekakiY: oekaki[user[tokenID[socket.id]].room].Y,
+        oekakiColor: oekaki[user[tokenID[socket.id]].room].color,
+        oekakiAlpha: oekaki[user[tokenID[socket.id]].room].alpha,
+      });
+
+      socket.broadcast.to(data.room).emit("roomInNonSelf", {
+        token: tokenID[socket.id],
+        room: "entrance",
+        msg: user[tokenID[socket.id]].userName + "が" + data.room + "に入室しました。" + time,
+        users: users[data.room],//人数
+        AX: 457,
+        AY: 80,
+        DIR: "S",
+        roomSE: "login",
+        random: volumeRandom("login", "in"),
+        sleep: user[tokenID[socket.id]].sleep,
+        userName: user[tokenID[socket.id]].userName,
+      });
+
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    }
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+  socket.on("roomIn", function (data) {
+    if (user[tokenID[socket.id]]) {////サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";//入室時の時間
+      let before = data.beforeRoom;
+      let after = data.afterRoom;
+      socket.leave(before);
+      socket.join(after);
+      users[before]--//入室前の部屋人数を減らす
+      users[after]++;//入室後の部屋人数を増やす
+
+      user[tokenID[socket.id]].room = data.afterRoom;
+      user[tokenID[socket.id]].AX = data.AX;
+      user[tokenID[socket.id]].AY = data.AY;
+      user[tokenID[socket.id]].DIR = data.DIR;
+      user[tokenID[socket.id]].msg = "";
+
+      io.to(socket.id).json.emit("roomInSelf", {
+        user: user,
+        room: data.afterRoom,
+        msg: user[tokenID[socket.id]].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
+        users: users[after],
+        roomSE: data.afterRoom,
+        random: volumeRandom(data.afterRoom, "in"),
+        oekakiX: oekaki[user[tokenID[socket.id]].room].X,
+        oekakiY: oekaki[user[tokenID[socket.id]].room].Y,
+        oekakiColor: oekaki[user[tokenID[socket.id]].room].color,
+        oekakiAlpha: oekaki[user[tokenID[socket.id]].room].alpha,
+        sleep: user[tokenID[socket.id]].sleep,
+      });
+
+      socket.broadcast.to(after).emit("roomInNonSelf", {//自分以外が部屋に入った場合
+        token: tokenID[socket.id],
+        room: data.afterRoom,
+        msg: user[tokenID[socket.id]].userName + "が" + data.beforeRoom + "から移動してきました。" + time,
+        users: users[data.afterRoom],//人数
+        AX: data.AX,
+        AY: data.AY,
+        DIR: data.DIR,
+        roomSE: data.afterRoom,
+        random: volumeRandom(data.afterRoom, "in"),
+        sleep: user[tokenID[socket.id]].sleep,
+
+      });
+      socket.broadcast.to(before).emit("roomOutNonSelf", {//自分以外が部屋を出た場合
+        token: tokenID[socket.id],
+        room: data.afterRoom,
+        random: volumeRandom(data.beforeRoom, "out"),
+      });
+    } else {
+      saikiMsg();
+    }
+  });
+
+
+
+  //クライアントからメッセージを受け取って送信
+  socket.on("emit_msg", function (data) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+        let fontColor = "black";
+        if (data.msg == "スシ" || data.msg == "ｽｼ" || data.msg == "すし" || data.msg == "🍣" || data.msg == "寿司" || data.msg == "鮨" || data.msg == "susi") {
+          data.msg += "(" + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + ")";
+          fontColor = "white";
+        }
+      
+        if (data.kanban) {
+          user[tokenID[socket.id]].msg = data.msg;
+        
+          //最後に発言したkanbanをuserの最後に入れなおす
+          let value = user[tokenID[socket.id]];
+          delete user[tokenID[socket.id]];
+          user[tokenID[socket.id]] = value;
+        } else {//kanbanじゃないなら、userのメッセージ情報は消しとく
+          user[tokenID[socket.id]].msg = "";
+        }
+
+ 
+      
+        io.to(user[tokenID[socket.id]].room).emit("emit_msg", {
+          userName: user[tokenID[socket.id]].userName,
+          msg: data.msg,
+          token: tokenID[socket.id],
+          avaMsg: data.msg,
+          kanban: data.kanban,
+          fontColor: fontColor,
+          soundNum: user[tokenID[socket.id]].soundNum,
+        });
+        if (user[tokenID[socket.id]].userName.sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+          user[tokenID[socket.id]].sleep = false;
+          io.sockets.emit("sleep", {
+            token: tokenID[socket.id],
+            sleep: user[tokenID[socket.id]].sleep,
+          });
+        }
+        user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();
+    }
+  });
+
+  //アボンの時
+  socket.on("abonSetting", function (data) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      let abonMsg;
+      let abonAvaMsg;
+      if (user[data.token] == null) {
+        abonMsg = "その住民は退出済みです";
+        io.to(socket.id).json.emit("abonSetting", {
+          msg: abonMsg,
+          token: data.token,
+          avaMsg: abonAvaMsg,
+        });
+      } else if (data.setAbon) {
+        abonMsg = user[data.token].userName + "をアボンしました。";
+        abonAvaMsg = "アボン";//吹き出しをアボンにする。
+        io.to(socket.id).json.emit("abonSetting", {
+          msg: abonMsg,
+          token: data.token,
+          avaMsg: abonAvaMsg,
+          AX: user[data.token].AX,
+          AY: user[data.token].AY,
+          DIR: user[data.token].DIR,
+          room: user[data.token].room,
+        });
+      } else {
+        abonMsg = user[data.token].userName + "のあぼんをやめました";
+        abonAvaMsg = "";
+        io.to(socket.id).json.emit("abonSetting", {
+          msg: abonMsg,
+          token: data.token,
+          avaMsg: abonAvaMsg,
+          AX: user[data.token].AX,
+          AY: user[data.token].AY,
+          DIR: user[data.token].DIR,
+          room: user[data.token].room,
+        });
+      }
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+
+
+  //クリックイベント
+  socket.on('tapMap', function (data) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      user[tokenID[socket.id]].DIR = data.DIR;
+      user[tokenID[socket.id]].AX = data.AX;
+      user[tokenID[socket.id]].AY = data.AY;
+
+      socket.broadcast.to(user[tokenID[socket.id]].room).emit("tapMap", {
+        DIR: data.DIR,
+        token: tokenID[socket.id],
+        AX: data.AX,
+        AY: data.AY,
+      });
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+  socket.on("alphaChange", function (data) {//透明にする
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      user[tokenID[socket.id]].avatarAlpha = data.alpha;//アバターの透明度を設定
+      if (user[tokenID[socket.id]].room !== "loginBack") {
+        socket.broadcast.emit("alphaChange", {
+          token: tokenID[socket.id],
+          alpha: data.alpha,
+        });
+      }
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+  socket.on("sleep", function () {//sleepに関して,受け取ったら自分以外の部屋の人にスリープ情報を送る
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      if (user[tokenID[socket.id]].sleep) {//寝てた時
+        user[tokenID[socket.id]].sleep = false;
+        user[tokenID[socket.id]].selfSleep = false;
+        user[tokenID[socket.id]].DIR = "S";
+      } else {//起きてた時
+        user[tokenID[socket.id]].sleep = true;
+        user[tokenID[socket.id]].selfSleep = true;
+      }
+      socket.broadcast.to(user[tokenID[socket.id]].room).emit("sleep", {
+        token: tokenID[socket.id],
+        sleep: user[tokenID[socket.id]].sleep,
+      });
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+
+  socket.on("oekaki", function (data) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      oekaki[user[tokenID[socket.id]].room].X.push(data.oekakiX);
+      oekaki[user[tokenID[socket.id]].room].Y.push(data.oekakiY);
+      oekaki[user[tokenID[socket.id]].room].color.push(data.oekakiColor);
+      oekaki[user[tokenID[socket.id]].room].alpha.push(data.oekakiAlpha);
+      io.to(user[tokenID[socket.id]].room).emit("oekaki", {
+        token: tokenID[socket.id],
+        oekakiX: data.oekakiX,
+        oekakiY: data.oekakiY,
+        oekakiColor: data.oekakiColor,
+        oekakiAlpha: data.oekakiAlpha,
+      });
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+  socket.on("clearCanvas", function (data) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      oekaki[user[tokenID[socket.id]].room].X = [];
+      oekaki[user[tokenID[socket.id]].room].Y = [];
+      oekaki[user[tokenID[socket.id]].room].color = [];
+      oekaki[user[tokenID[socket.id]].room].alpha = [];
+      io.to(user[tokenID[socket.id]].room).emit("clearCanvas", {
+        token: tokenID[socket.id],
+      });
+      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
+        user[tokenID[socket.id]].sleep = false;
+        io.sockets.emit("sleep", {
+          token: tokenID[socket.id],
+          sleep: user[tokenID[socket.id]].sleep,
+        });
+      }
+      user[tokenID[socket.id]].sleepTimeNum = 0;
+    } else {
+      saikiMsg();//再起動メッセージを送る
+    }
+  });
+
+  // ---- multi room ----
+
+
+  // function emitMessageBroadcast(type, message) {
+  //   // ----- multi room ----
+  //   if (user[tokenID[socket.id]].room) {
+  //     //console.log('===== message broadcast to room -->' + roomname);
+  //     socket.broadcast.to(user[tokenID[socket.id]].room).emit(type, message);
+  //   }
+  //   // else {//部屋名を取得できなかったら
+  //   //   console.log('===== message broadcast all');
+  //   //   socket.broadcast.emit(type, message);
+  //   // }
+  // }
+
+  // When a user send a SDP message
+  // broadcast to all users in the room
+  socket.on('message', function (message) {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      message.from = tokenID[socket.id];
+
+
+      // get send target
+      if (message.sendto) {//sendtoの送り先
+        let sendID;
+        Object.keys(tokenID).forEach(function (key) {
+          if (tokenID[key] === message.sendto) {
+            sendID = key;
+          }
+        });
+        socket.to(sendID).emit('message', message);
+        return;
+      }
+
+      // broadcast in room
+      // emitMessageBroadcast('message', message);//自分以外に
+
+      if (user[tokenID[socket.id]].room) {
+        //console.log('===== message broadcast to room -->' + roomname);
+        socket.broadcast.to(user[tokenID[socket.id]].room).emit('message', message);
+      }
+
+    }    
+  });
+
+
+  // 退出時
+  socket.on("disconnect", function () {
+    if (user[tokenID[socket.id]]) {//サバ再起動前に開かれていたクライアントからの入力を阻止する。
+      if (user[tokenID[socket.id]].room !== "loginBack") {
+        users[user[tokenID[socket.id]].room]--;
+
+        time = " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
+
+        io.to(user[tokenID[socket.id]].room).emit("logout", {
+          token: tokenID[socket.id],
+          msg: user[tokenID[socket.id]].userName + "が退出しました。" + time,
+          room: user[tokenID[socket.id]].room,
+          users: users[user[tokenID[socket.id]].room],
+          random: volumeRandom(user[tokenID[socket.id]].room, "logout"),
+        });
+      }
+    }
+    delete user[tokenID[socket.id]];
+
+
+    // close user connection
+    console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
+
+    // --- emit ----
+    // emitMessageBroadcast('user disconnected', { id: tokenID[socket.id]});
+
+    // --- leave room --socket.roomname = roomname;
+    // if (socket.roomname) {
+    //   socket.leave(socket.roomname);
+    // }
+  });
+});
+
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
