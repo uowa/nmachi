@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <link rel="canonical" href="https:/nuco.moe">
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>
+    <%= title %>
+  </title>
+  <!-- <meta name="keywords" content="Necoject街, 猫街, necoject,プロジェクト街,Project街,プロ街,p街,pro街,チャット,牛丼"> -->
+  <meta name="description"
+    content="チャットサイトproject街の後継,Necoject街。Necoject街, 猫街, necoject,プロジェクト街,Project街,プロ街,p街,pro街,チャット,牛丼">
+  <meta name="google-site-verification" content="2-dgALIrrcUCpiJ44mdiBI8rdcOLkvbICL5CLBFnTLc" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script> -->
+  <script src="//cdn.jsdelivr.net/npm/pixi.js-legacy@5.2.2/dist/pixi-legacy.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.9/mediaelement-and-player.js"></script>
+  <!-- <script src="https://github.com/Jam3/voice-activity-detection.git"></script> -->
+  <!-- ↑audio用だけど失敗してる -->
+  <script type="text/javascript">
+
+  </script>
+
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+  <script>
+    function _assert(desc, v) {
+      if (v) {
+        return;
+      }
+      else {
+        let caller = _assert.caller || 'Top level';
+        console.error('ASSERT in %s, %s is :', caller, desc, v);
+      }
+    }
+  </script>
+</head>
+
+
+
+<body>
+  <script type="text/javascript">
+    let type = "WebGL";
+    if (!PIXI.utils.isWebGLSupported()) {
+      type = "canvas";
+    }
+    PIXI.utils.sayHello(type);
+  </script>
+
+  <!-- audioの自動再生の許可をとるための無音ファイル -->
+  <!-- https://webty.jp/staffblog/production/post-907/ -->
+  <audio allow="autoplay" preload id="muonAudio" style="display:none">
+    <source src='sound/etc/muon.mp3'>
+  </audio>
+
+
+
+  <div id="mainFrame">
+    <div role="main" id="main" class="flexContainerColumn">
+      <div id="titleBar" class="flexContainer">
+        <!--日付-->
+        <div id="day"></div>
+        <div id="title">
+          <%= title %>
+        </div>
+      </div>
+
+
+      <!--元プロ街の画面比率は11:8-->
+
+      <div id="contextmenu">
+        <!-- 右クリックメニュー -->
+        <ul>
+          <li onClick="menu1()">座る</li>
+          <li id="sleep" onClick="menu2()">寝る</li>
+          <li id="abon" onClick="menu3(setAbonID)">アボン</li>
+        </ul>
+      </div>
+      <div id="Pmachi" class="flexContainerColumn">
+        <div id="Pmain" class="flexContainer">
+          <div id="PmainLeft" class="flexContainerColumn">
+            <div id="graphic" onContextmenu="return false;">
+              <button id="loginButton" onclick="login()">LOGIN</button>
+            </div>
+
+            <div id="form">
+              <form name="nameForm" id="nameForm" class="flexCenter">
+                <input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須じゃなぃよ">
+              </form>
+              <form name="msgForm" id="msgForm" class="flexCenter">
+                <input type="text" name="msg" id="msg" maxlength='10000' placeholder="メッセージはこちらへ" autocomplete="off">
+              </form>
+            </div>
+
+            <!-- スイッチ類 -->
+            <div id="switchBar" class="flexspaceBetween">
+              <!-- <span class="PC">shift+Enterでログ残し</span> -->
+              <div class="flexContainer">
+                <button class="defaultRed" id="startVideo" type="button" onclick="startVideo();">動画配信</button>
+                <button class="defaultRed" id="startAudio" type="button" onclick="startAudio();">音声配信</button>
+              </div>
+              <div class="flexContainer">
+                <button id="checkAllListen" type="button" onclick="checkAllListenFunk();">自動受信</button>
+              </div>
+              <div class="flexContainer">
+                <button type="button" id="pastLog" class="smartphone" class="defaultRed">過去ログ表示</button>
+                <button type="button" id="visibleLogButton" class="smartphone" class="right">画面ログ表示</button>
+              </div>
+              <div class="flexContainer">
+                <button type="button" class="right" id="wa_i">wa-i!</button>
+                <button type="button" class="right" id="clear">clear</button>
+              </div>
+              <button type="button" class="right" class=rightSpace id="logNoiseButton">SE📢✖</button>
+              <div class="right" id="usersDisplay"> users:<span id="usersNumber">0</span></div>
+            </div>
+            <!-- スイッチ類↑↑↑↑↑↑↑↑ -->
+            <div>
+              <video id="local_video" style="width: 0px; height: 0px;"></video>
+              <audio id="local_audio"></audio>
+            </div>
+            <div id="container"></div>
+            <ul id="recieve_menu">
+              <!-- 他グローバルナビメニュー省略 -->
+            </ul>
+            <!-- < class="flexContainer"> -->
+            <form id="phoneCameraSelect">
+              スマホ用（
+              <input type="radio" name="phoneCamera" value= null checked> 未指定
+              <input type="radio" name="phoneCamera" value= 'user' > 前のかめら
+              <input type="radio" name="phoneCamera" value= 'environment' > 後ろのｶﾒﾗ）
+            </form>
+          </div>
+
+          <div id="chatLogFrame">
+            <!-- 何故か知らんがこれがないとchatLogの大きさがちゃんと可変されない切れそう -->
+            <div id="chatLog">
+              <ul id="logs" class="flexContainerColumn">
+              </ul>
+            </div>
+          </div>
+
+        </div><!-- Pmain -->
+
+
+        <div id=footer class="flexContainerColumn">
+          <!-- ｐくｎとリンク -->
+          <div class="flexContainer">
+            <svg width="40" height="40" id="pkun">
+              <rect x="0" y="0" width="40" height="40"></rect>
+              <text x="20" y="35" class="svgText">
+                P
+              </text>
+            </svg>
+            <a id="Q-AURL" class="Q-AColor" href="/Q-A" target="_blank">Q & A</a>
+            <span class="rightSpace">　</span>
+            <a id="linkURL" class="linkColor" href="/link" target="_blank">リンク集☆</a>
+            <span class="rightSpace">　</span>
+
+          </div>
+          <p style="font-size:25px; color:yellow; font-weight: bold;"><a class="nucomoe" style="font-size:17px;"
+              href="https://nuco.moe/" target="_blank">https://nuco.moe/</a><span style="font-size:17px">で入れるようになった</span>
+          </p>
+
+          <br>
+          <!-- <div id="senburahaihu" class="flexContainer"> -->
+          <!-- <p>windows用専ブラPMbrowserVer1.0 提供：</p> -->
+          <!-- <p class="rightSpace" style="color:red; font-weight:bold; font-size:17px;">闇の帝王</p>
+              <a class="rightSpace" href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a> -->
+          <!-- <div class="rightSpace"></div> -->
+          <!-- <div class="rightSpace"></div> -->
+          <!-- <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a> -->
+          <!-- </div> -->
+
+
+          <div class="flexspaceBetween">
+            <a class="nonUnder" style="font-size:16px; color:rgb(233, 141, 43);"
+              href="https://www.amazon.co.jp/hz/wishlist/genericItemsPage/2C9OGTZ02QEXH?viewType=grid&ref_=wl_share"
+              target="_blank">カンパ(足りぬ)</a>
+
+            <div class="flexContainerColumn">
+              <p>
+                SE音量調整：
+                <input type="range" value="0.3" id="effectVolume" min="0" max="1" step="0.1"
+                  onchange="setSEVolume(this.value)">
+              </p>
+              <br>
+              <div class="flexEnd">
+                <div id="selecter" class="flexspaceBetween">
+                  <div id="sizeSelecterFrame" class="selectreFrame">
+                    <span>画面サイズ</span><select name="sizeSelecter" id="sizeSelecter" class="sel">
+                      <option value=""></option>
+                      <option value="0.3">0.3</option>
+                      <option value="0.5">0.5</option>
+                      <option value="0.8">0.8</option>
+                      <option value="0.9">0.9</option>
+                      <option value="1.0">1.0</option>
+                      <option value="1.1">1.1</option>
+                      <option value="1.2">1.2</option>
+                      <option value="1.3">1.3</option>
+                      <option value="1.4">1.4</option>
+                      <option value="1.5">1.5</option>
+                      <option value="1.6">1.6</option>
+                      <option value="1.7">1.7</option>
+                      <option value="1.8">1.8</option>
+                      <option value="1.9">1.9</option>
+                      <option value="2.0">2.0</option>
+                      <option value="2.0">3.0</option>
+                    </select>
+                  </div>
+                  <br>
+                  <div id="fontSizeSelecterFrame" class="selectreFrame">
+                    <span>文字の大きさ</span><select name="fontSizeSelecter" id="fontSizeSelecter" class="sel">
+                      <option value=""></option>
+                      <option value="10">10</option>
+                      <option value="11">11</option>
+                      <option value="12">12</option>
+                      <option value="13">13</option>
+                      <option value="14">14</option>
+                      <option value="15">15</option>
+                      <option value="16">16</option>
+                      <option value="17">17</option>
+                      <option value="18">18</option>
+                      <option value="19">19</option>
+                      <option value="20">20</option>
+                      <option value="21">21</option>
+                      <option value="22">22</option>
+                      <option value="23">23</option>
+                      <option value="24">24</option>
+                      <option value="25">25</option>
+                      <option value="28">28</option>
+                      <option value="30">30</option>
+                      <option value="35">35</option>
+                      <option value="40">40</option>
+                      <option value="45">45</option>
+                      <option value="50">50</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <br>
+              <div class="flexEnd">
+                <p style="color: rgb(212, 4, 4);">デバックモード<input id="debugCheck" type="checkbox" name="debug"
+                    value="true"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--footer-->
+
+
+      </div><!-- Pmachi "flexContainerColumn"↑↑↑↑↑↑↑↑ -->
+    </div>
+    <!--main -->
+  </div>
+  <!--mainFrame -->
+  </div>
+
+
+  <!-- </div> -->
+
+
+
+
+
+
+  <!-- <div id="kousinrireki">
+          <a href="https://twitter.com/Project_MACHI" target="_blank">https://twitter.com/Project_MACHI</a>
+          <p>管理人ツイッター　:ここで起こった全てのクレーム苦情罵倒暴言暴力はこちらへ</p>
+        </div> -->
+  <!-- <div class="flexContainerColumn" id="fontSousenkyo">
+    <p>フォント総選挙</p>
+    <div class="flexContainer">
+      <span class="flexShrink0">自分の名前</span>
+      <span class="selectForm" class="flexShrink0">
+        <select class="JKゴシックM" id="nameTextFont" name="nameTextFont" onchange="fontChange('nameText')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+      <span class="flexShrink0">チャット欄</span>
+      <span class="selectForm" class="flexShrink0">
+        <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChange('chatLog')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+    </div>
+    <div class="flexContainer">
+      <span>たいとる</span>
+      <span class="selectForm">
+        <select class="ピグモ00" id="titleFont" name="titleFont" onchange="fontChange('title')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span> 
+      <span>その他</span>
+      <span class="selectForm">
+        <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChange('sonota')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+    </div>
+  </div> -->
+
+
+  <script type="text/javascript" src="/javascripts/index.js"></script>
+  <noscript>
+    <p>javascriptが無効になってるみたいやから、有効にしてね！！</p>
+    <a href="https://www.enable-javascript.com/ja/">
+      あなたのWebブラウザーでJavaScriptを有効にする方法</a>
+  </noscript>
+</body>
+
+</html>
