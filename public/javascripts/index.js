@@ -1,7 +1,5 @@
 'use strict';
 
-
-
 //大雑把に目次
 //変数宣言等
 //フォント切り替え※後で消すからこの位置
@@ -24,6 +22,8 @@
 //右クリックメニュー
 //配信関係
 
+// localStorage.clear();//削除用
+
 //ソケットIOをonにする
 let port = 3000;
 let socket;
@@ -35,17 +35,14 @@ if (location.hostname == "localhost") {
 
 let setUpFlag = [];
 
-
 //アバターの初期位置
 let AX = 300;
 let AY = 200;
 let DIR = "S";
 
 let userName;
-
 let token;
-
-let avaP = [];
+let avaP = {};
 
 //ここ配列にしたほうが良いかいな
 let avaS = [], avaSW = [], avaW = [], avaNW = [], avaN = [], avaNE = [], avaE = [], avaSE = [];
@@ -76,11 +73,15 @@ let inRoom = 0;
 let room = "login";
 let roomSE;
 let loginBack;
-let entrance, ground, croud, bonfire;
+let entrance, ground, croud, croud2, bonfire, rainbow;
 let daikokubasira;
 
 let utyu;
-
+let mozinoheya;
+let hosi1;
+let hosi2;
+let hosi1Line = [];
+let hosi1LineContainer;
 
 
 let gomaneco = {};
@@ -96,13 +97,31 @@ let rightY, leftY;
 
 let tapFlag = false;
 let setAbon = [];
-let setAbonID = [];
+let setToken;
+
 
 const callbackId = [];
 const sleepFlag = [];
 
 let waffleEventNum = 0;
 
+//お絵描き
+let oekaki = {};
+let isDownCtrl = false;
+let clickedWa_iButtun = false;
+let pointDown = false;
+let lastPosition = { x: null, y: null };
+let oekakityu = false;
+let oekakiColor = 0xffffff;
+let oekakiAlpha = 1;
+let redoStock = {};
+let clearFlag = {};
+let undoFlag = {};
+
+let userOekaki = {};
+let userOekakiData = {};
+let userOekakiFlag = [];
+let myOekaki = {};
 
 let muon = new Audio('sound/etc/muon.mp3');
 muon.autoplay = true;
@@ -152,6 +171,7 @@ msgSE.log[8] = new Audio('sound/log/se_maoudamashii_system48.mp3');
 
 
 
+
 msgSE.other = {};
 msgSE.other.in = [];
 msgSE.other.log = [];
@@ -180,20 +200,6 @@ msgSE.utyu.logout[0] = new Audio('sound/utyuLogout/se_maoudamashii_onepoint31.mp
 msgSE.utyu.logout[1] = new Audio('sound/utyuLogout/se_maoudamashii_system32.mp3');
 
 
-//お絵かき
-let oekaki = [];
-let isDownCtrl = false;
-let clickedWa_iButtun = false;
-let pointDown = false;
-let lastPosition = { x: null, y: null };
-let oekakityu = false;
-let oekakiNum = [];
-let oekakiColor = 0xffffff;
-let oekakiAlpha = 1;
-
-
-
-
 
 //エイリアス
 let html = document.querySelector('html');
@@ -209,26 +215,42 @@ let loginButton = document.getElementById("loginButton");
 let graphic = document.getElementById("graphic");
 // let fontSousenkyo = document.getElementById("fontSousenkyo");
 let chatLog = document.getElementById("chatLog");
+let announce = document.getElementsByClassName("announce");
 let footer = document.getElementById("footer");
+let switchBar = document.getElementById("switchBar");
 let kousinrireki = document.getElementById("kousinrireki");
 let day = document.getElementById('day');
 let form = document.getElementById('form');
 let nameForm = document.getElementById('nameForm');
 let msgForm = document.getElementById('msgForm');
-let usersDisplay = document.getElementById('usersDisplay');
-let usersNumber = document.getElementById('usersNumber');
 let visibleLogButton = document.getElementById('visibleLogButton');
 let logs = document.getElementById('logs');
 let logNoiseButton = document.getElementById('logNoiseButton');
 let pastLog = document.getElementById('pastLog');
 let wa_i = document.getElementById('wa_i');
 let clear = document.getElementById('clear');
+let undo = document.getElementById('undo');
+let redo = document.getElementById('redo');
 let effectVolume = document.getElementById('effectVolume');
+let usersDisplay = document.getElementById('usersDisplay');
+let usersNumber = document.getElementById('usersNumber');
+let train = document.getElementById("train");
 let sizeSelecter = document.getElementById("sizeSelecter");
 let fontSizeSelecter = document.getElementById("fontSizeSelecter");
 let muonAudio = document.getElementById("muonAudio");
-let chatLogUl = document.getElementById("chatLog").querySelector("ul")
-let phoneCameraSelect = document.getElementById("phoneCameraSelect");
+let chatLogUl = document.getElementById("chatLog").querySelector("ul");
+let setting = document.getElementById("setting");
+let selectVideoSize = document.getElementById("selectVideoSize");
+let selectVideoSize2Num = document.getElementById("selectVideoSize2Num");
+let selectVideoSize3Num = document.getElementById("selectVideoSize3Num");
+let selectVideoReverse = document.getElementById("selectVideoReverse");
+let selectVideoInverse = document.getElementById("selectVideoInverse");
+let selectVideoInverseAndReverse = document.getElementById("selectVideoInverseAndReverse");
+let selectVideoReverseOther = document.getElementById("selectVideoReverseOther");
+let selectVideoInverseOther = document.getElementById("selectVideoInverseOther");
+let selectVideoInverseAndReverseOther = document.getElementById("selectVideoInverseAndReverseOther");
+
+let mediaContainer = document.getElementById('mediaContainer');
 
 let PMsize;
 
@@ -241,8 +263,8 @@ let sonotaFont = document.getElementById("sonotaFont");
 
 
 //日付
-let date = new Date().toLocaleString();
-day.innerHTML = date;
+let date = new Date();
+day.innerHTML = date.toLocaleString();
 
 //フォントを切り替える
 let fontName;
@@ -258,7 +280,6 @@ let loginMY;
 
 
 //配信機能
-let localVideo = document.getElementById('local_video');
 let localAudio = document.getElementById('local_audio');
 
 let localStream = null;//自分のとこのメディア情報
@@ -277,16 +298,24 @@ let videoButton = [];
 let audioButton = [];
 let audioVolume = [];
 let videoButtonFlag = [];
-let audioButtonFlag = [];;
+let audioButtonFlag = [];
 let checkAllListen;
 
+let videoArray = {};
+let videoArrayWrapper = {};
+let videoFlag = true;
+let videoMaxFlag = true;
+
 let peerConnections = [];
-//let remoteStreams = [];
-let remoteVideos = [];
 let remoteAudios = [];
 const MAX_CONNECTION_COUNT = 50;//最大接続数？？
 
-let container = document.getElementById('container');
+let stream = [];
+
+// let num = 0;
+// let myScreenW = [];
+// let myVideoW = [];
+
 
 
 
@@ -304,9 +333,6 @@ function audioPlay() {
 
 title.style.fontFamily = titleFontFamily[Math.floor(Math.random() * titleFontFamily.length)];
 // title.style.fontSize = fontSize + 37 + "px";
-
-
-
 
 
 
@@ -412,15 +438,14 @@ let app = new PIXI.Application({
 
 
 
+
+
 let nameTextStyle = new PIXI.TextStyle({//名前のスタイル
   fontFamily: "JKゴシックM",
   fontSize: 18,
   fill: "white",
   trim: true,
 });
-
-
-
 
 // let msgStyle =new PIXI.TextStyle({//メッセージのスタイル
 //   fontFamily: "Arial",
@@ -468,7 +493,7 @@ let gamenLogStyle = {
   fontSize: 18,
   wordWrap: true,
   wordWrapWidth: 500,
-  breakWords: true
+  breakWords: true,
 };
 let gamenLog = new PIXI.Text("", gamenLogStyle);
 
@@ -484,6 +509,7 @@ loginBack.addChild(tyui);
 
 function setUp() {//画像読み込み後の処理はここに書いていく
   // app.renderer.autoResize = true;//なんかこいつが非推奨ってでるから↓のに書き換えたが、そもそもこれ必要なんか？機能してるんか？ようわからｎ
+
   app.renderer.autoDensity = true;
 
   //アバターのベース画像を作る※Rectangleをぴったり同じ大きさの画像に使ったらバグるので注意
@@ -590,7 +616,6 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   avaAbon = new PIXI.Texture(PIXI.BaseTexture.from("all"), new PIXI.Rectangle(1500, 0, 40, 70));
 
 
-
   //login画面をクリックできるようにする
   loginBack.sortableChildren = true;//子要素のzIndexをonにする。
   app.stage.addChild(loginBack);//画像を読みこむ
@@ -671,7 +696,7 @@ function setUp() {//画像読み込み後の処理はここに書いていく
   }, {
     capture: false,
     once: true,
-    passive: true,
+    passive: false,
   });
 
 
@@ -772,6 +797,7 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
 
   //アバターの親コンテナを設定
   avaP[token] = new PIXI.Container();
+  avaP[token].interactive = true;//クリックイベントを有効化  
   avaP[token].sortableChildren = true;//子要素のzIndexをonにする
   avaP[token].position.set(320, 200);
 
@@ -799,7 +825,6 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
       setAvatar(token, gomaneco, 40);
       console.log("ごまねこ裏設定集：高いところが好きな高所恐怖症、飛び降りる時は少しの勇気が必要、目を開けられなくて毎回ちびっちゃう。綿あめを食べ過ぎて腹を壊した、雲を見るとたまに思い出す。");
       break;
-
   }
 
 
@@ -809,7 +834,7 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
     oekakiColor = localStorage.getItem("colorCode");
   } else {
     avaP[token].avatarColor = 0XFFFFFF;//(無色、白)
-    oekakiColor = 0XFFFFFF;
+    oekakiColor = 0Xf8b0fb;
   }
 
   avaP[token].avatarAlpha = 1;
@@ -833,11 +858,56 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
   nameTag[token].endFill();
   nameTag[token].x = -nameText[token].width / 2;
   nameTag[token].y = -avaC[token].height - 10 - nameText[token].height / 2;
-  nameTag[token].alpha = 0.3;
+  let inTime = new Date().getHours();
+  if (0 <= inTime && inTime < 12) {
+    inTime = 24 - inTime;
+  }
+  nameTag[token].alpha = Math.pow(1.06, inTime) * 0.1;
 
   avaP[token].addChild(nameTag[token]);
+
+  // アバターのメッセージを追加する
+  msg[token] = new PIXI.Text("");
+  msg[token].zIndex = 20;
+
+  msg[token].style.fontSize = 16;
+  msg[token].style.fill = "0x1e90ff";
+  msg[token].position.set(0, -avaS[token].height - 5);
+  avaP[token].addChild(msg[token]);
   //ステージに追加
   loginBack.addChild(avaP[token]);
+  userOekaki[token] = {};
+  userOekakiData[token] = {};
+  if (localStorage.getItem("myOekaki")) {
+    userOekaki[token][token] = [];
+    userOekakiData[token][token] = [];
+    let myOekaki = JSON.parse(localStorage.getItem("myOekaki"));
+    Object.keys(myOekaki).forEach(function (key) {
+      for (let n = 0; n < myOekaki[key].length; n++) {
+        userOekaki[token][token][userOekaki[token][token].length] = new PIXI.Graphics();
+        userOekaki[token][token][userOekaki[token][token].length - 1].zIndex = 1000;
+        userOekaki[token][token][userOekaki[token][token].length - 1].lineStyle(2, myOekaki[key][n].dataColor[0], myOekaki[key][n].dataAlpha[0]);//線の性質を入れる
+
+        userOekaki[token][token][userOekaki[token][token].length - 1].moveTo(myOekaki[key][n].X[0], myOekaki[key][n].Y[0]);
+
+        avaP[token].addChild(userOekaki[token][token][userOekaki[token][token].length - 1]);
+        userOekakiData[token][token][userOekakiData[token][token].length] = myOekaki[key][n]
+
+        for (let i = 1; i < myOekaki[key][n].X.length; i++) {
+          userOekaki[token][token][userOekaki[token][token].length - 1].lineTo(myOekaki[key][n].X[i], myOekaki[key][n].Y[i]);
+        }
+      }
+      clearFlag[token] = 1;
+      clear.style.backgroundColor = "skyblue";
+    });
+
+
+
+  }
+
+  avaLoop(token);
+
+
 
 
   gomaneco.Face = new PIXI.Sprite(gomaneco.Face);
@@ -846,7 +916,7 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
   gomaneco.Face.pointerdown = function () {//ごまねこアイコンクリック時にアバター変更
     avaP[token].avatar = "gomaneco";//親コンテナにアバターの種類を設定する
     avaP[token].avatarColor = 0XFFFFFF;//(無色、白)
-    oekakiColor = 0XFFFFFF;
+    oekakiColor = 0Xf8b0fb;
     setAvatar(token, gomaneco, 40);
     nameText[token].position.set(0, -avaS[token].height - 10);
     nameTag[token].y = -avaS[token].height - 10 - nameText[token].height / 2;
@@ -860,7 +930,7 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
   necosuke.Face.pointerdown = function () {//ねこすけアイコンクリック時にアバター変更
     avaP[token].avatar = "necosuke";
     avaP[token].avatarColor = 0XFFFFFF;//(無色、白)
-    oekakiColor = 0XFFFFFF;
+    oekakiColor = 0X7a9ce8;
     setAvatar(token, necosuke, 50);
     nameText[token].position.set(0, -avaS[token].height - 10);
     nameTag[token].y = -avaS[token].height - 10 - nameText[token].height / 2;
@@ -871,7 +941,7 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
 
   let rect = new PIXI.Rectangle(0, 0, 50, 50);
   let greenyellowPalette, royalbluePalette, tealPalette, midnightbluePalette, deepskybluePalette, cyanPalette, firebrickPalette, snowPalette, blackPalette, grayPalette, darkvioletPalette;
-  let usuiPinkPalette, hutuuPinkPalette, yayakoiPinkPalette, koiPinkPalette, nayakonoiroPalette, grayppoiPalette;
+  let usuiPinkPalette, hutuuPinkPalette, yayakoiPinkPalette, koiPinkPalette, nayakonoiroPalette, ryuboPalette, yarukitiPalette, ryusutaPalette;
   setPalette(greenyellowPalette, 0Xadff2f, 0, 300);
   setPalette(firebrickPalette, 0Xb22222, 50, 300);
   setPalette(cyanPalette, 0X00ffff, 100, 300);
@@ -889,11 +959,12 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
   setPalette(yayakoiPinkPalette, 0XE2A4E9, 100, 350);
   setPalette(koiPinkPalette, 0XDB9AE1, 150, 350);
   setPalette(nayakonoiroPalette, 0XFF9696, 200, 350);
-  setPalette(grayppoiPalette, 0X808080, 250, 350);
+  setPalette(ryuboPalette, 0X14b646, 250, 350);
+  setPalette(yarukitiPalette, 0X507879, 300, 350);
+  setPalette(ryusutaPalette, 0X841059, 350, 350);
 
 
   function setPalette(colorPalette, colorCode, x, y, paletteColor) {//指定する色の名前、カラーコード、座標Ｘ、座標Ｙ、パレットそのものの色(未指定でも良い)
-
     colorPalette = new PIXI.Graphics();
     colorPalette.x = x;
     colorPalette.y = y;
@@ -922,6 +993,8 @@ socket.on("myToken", function (data) {//Tokenを受け取ったら
       oekakiColor = colorCode;
     }
   }
+
+
 
 
 
@@ -1064,6 +1137,60 @@ function setColor(thisToken, colorCode) {//色を変える
   avaSleep1[thisToken].tint = colorCode;
   avaSleep2[thisToken].tint = colorCode;
   avaSleep3[thisToken].tint = colorCode;
+
+  avaP[thisToken].touchstart = function () {
+    tapFlag = true;
+    if (!isDownCtrl && !clickedWa_iButtun) {
+      if (avaP[thisToken].avatar == "gomaneco") {
+        oekakiColor = 0Xf8b0fb;
+      } else if (avaP[thisToken].avatar == "necosuke") {
+        oekakiColor = 0X7a9ce8;
+      } else {
+        oekakiColor = avaP[thisToken].avatarColor;
+      }
+      oekakiAlpha = avaP[thisToken].avatarAlpha;
+    }
+
+
+    let contextCount = 0;
+    let countup = function () {
+      contextCount++;
+      let id = setTimeout(countup, 1000);
+      if (contextCount > 1) {
+        setToken = thisToken;/////ここがちょい謎
+        document.getElementById("abon").style.display = "block";
+        document.getElementById("userOekaki").style.display = "block";
+        clearTimeout(id);
+        contextCount = 0;
+      } else {
+        document.getElementById("graphic").addEventListener("touchend", function (e) {//タップを離したとき
+          clearTimeout(id);
+          contextCount = 0;
+        }, {
+          passive: true,
+        });
+      }
+    }
+    countup();
+  }
+
+  avaP[thisToken].click = function () {
+    if (tapFlag) {
+      tapFlag = false;
+    } else {
+      if (!isDownCtrl && !clickedWa_iButtun) {
+        if (avaP[thisToken].avatar == "gomaneco") {
+          oekakiColor = 0Xf8b0fb;
+        } else if (avaP[thisToken].avatar == "necosuke") {
+          oekakiColor = 0X7a9ce8;
+        } else {
+          oekakiColor = avaP[thisToken].avatarColor;
+          oekakiAlpha = avaP[thisToken].avatarAlpha;
+        }
+      }
+    }
+    console.log(oekakiColor);
+  }
 }
 
 function setAlpha(thisToken, alpha) {//透明度を変える
@@ -1102,171 +1229,280 @@ function setAlpha(thisToken, alpha) {//透明度を変える
 
 
 
+
+let gx = [];
+let gsapFlag = [];
 function avaLoop(value) {//アバターの大きさを常に変える
-  if (0 < avaP[value].y && avaP[value].y <= 180 && room == "entrance") {//エントランスにいるとき
-    avaP[value].scale.x = avaP[value].y / 180;
-    avaP[value].scale.y = avaP[value].y / 180;
-  } else if (180 < avaP[value].y && room == "entrance") {
-    avaP[value].scale.x = 1;
-    avaP[value].scale.y = 1;
-  }
-
   avaP[value].zIndex = avaP[value].y;
-
-
-
   requestAnimationFrame(function () { avaLoop(value) });
 }
 
-
-
-function draw(x, y) {
-  if (!pointDown) {//いらんかも
-    return;
+function oekakiSistem(room) {
+  if (room == "うちゅー") {
+    oekakiColor = 0XFFFFFF;
   }
-  oekaki[0].lineStyle(2, oekakiColor, oekakiAlpha);//これこの位置なんかなあ
-  if (lastPosition.x === null || lastPosition.y === null) {
-    // ドラッグ開始時の線の開始位置
-    oekaki[0].moveTo(x, y);
-    oekaki[0].X = [x];
-    oekaki[0].Y = [y];
-    oekaki[0].dataColor = [oekakiColor];
-    oekaki[0].dataAlpha = [oekakiAlpha];
-  } else {
-    // ドラッグ中の線の開始位置
-    oekaki[0].moveTo(lastPosition.x, lastPosition.y);
-    oekaki[0].X.push(x);
-    oekaki[0].Y.push(y);
-    oekaki[0].dataColor.push(oekakiColor);
-    oekaki[0].dataAlpha.push(oekakiAlpha);
+  // マウスか、スマホをおしっぱにしてる間、ctrlを押してるか、wa_iがonになってたら線を出力
+  app.stage.getChildByName(room).pointerdown = function () {
+    pointDown = true;
   }
-  oekaki[0].lineTo(x, y);
-  oekaki[0].zIndex = 1000;
-  app.stage.getChildByName(room).addChild(oekaki[0]);
 
-  lastPosition.x = x;
-  lastPosition.y = y;
+
+
+  app.stage.getChildByName(room).pointermove = function (e) {//カーソルを動かし中
+    if (pointDown && (isDownCtrl || clickedWa_iButtun)) {
+      if (userOekakiFlag[setToken]) {
+        userDraw(e.data.getLocalPosition(avaP[setToken]).x, e.data.getLocalPosition(avaP[setToken]).y);//毎瞬drawする
+      } else {
+        draw(e.data.getLocalPosition(app.stage.getChildByName(room)).x, e.data.getLocalPosition(app.stage.getChildByName(room)).y);//毎瞬drawする
+      }
+      oekakityu = true;
+    }
+  }
+
+  function draw(x, y) {//お絵描き
+    if (!pointDown) {//いらんかも
+      return;
+    }
+    if (lastPosition.x === null || lastPosition.y === null) {//書き始めの時
+      //部屋の名前・自分のtoken・何個目のお絵描きか
+      if (!oekaki[token]) {
+        oekaki[token] = [];
+      }
+      oekaki[token][oekaki[token].length] = new PIXI.Graphics();
+      oekaki[token][oekaki[token].length - 1].lineStyle(2, oekakiColor, oekakiAlpha);
+      oekaki[token][oekaki[token].length - 1].zIndex = 1000;//お絵描きを前の位置に表示
+      oekaki[token][oekaki[token].length - 1].moveTo(x, y);// ドラッグ開始時の線の開始位置
+      oekaki[token][oekaki[token].length - 1].X = [];//x座標用の配列
+      oekaki[token][oekaki[token].length - 1].Y = [];//Y座標用の配列
+      oekaki[token][oekaki[token].length - 1].dataColor = [];//最初の点の色を保存
+      oekaki[token][oekaki[token].length - 1].dataAlpha = [];//最初の点の透明度を保存
+      app.stage.getChildByName(room).addChild(oekaki[token][oekaki[token].length - 1]);
+    } else {// ドラッグ中の時
+      oekaki[token][oekaki[token].length - 1].moveTo(lastPosition.x, lastPosition.y);//前の線の位置の最後の座標
+      oekaki[token][oekaki[token].length - 1].X.push(x);//現在のx座標を保存する
+      oekaki[token][oekaki[token].length - 1].Y.push(y);//現在のy座標を保存する
+      oekaki[token][oekaki[token].length - 1].dataColor.push(oekakiColor);//この線の色を保存
+      oekaki[token][oekaki[token].length - 1].dataAlpha.push(oekakiAlpha);//この線の色を保存
+
+    }
+    oekaki[token][oekaki[token].length - 1].lineTo(x, y);//線を描画
+
+
+    //線の終わりの値を入れなおす
+    lastPosition.x = x;
+    lastPosition.y = y;
+  }
+
+  function userDraw(x, y) {//お絵描き
+    if (!pointDown) {//いらんかも
+      return;
+    }
+    if (lastPosition.x === null || lastPosition.y === null) {//書き始めの時
+      //部屋の名前・自分のtoken・何個目のお絵描きか
+      if (!userOekaki[setToken]) {
+        userOekaki[setToken] = {};
+      }
+      if (!userOekakiData[setToken]) {
+        userOekakiData[setToken] = {};
+      }
+
+      if (!userOekaki[setToken][token]) {
+        userOekaki[setToken][token] = [];
+      }
+      if (!userOekakiData[setToken][token]) {
+        userOekakiData[setToken][token] = [];
+      }
+      userOekaki[setToken][token][userOekaki[setToken][token].length] = new PIXI.Graphics();
+      userOekaki[setToken][token][userOekaki[setToken][token].length - 1].lineStyle(2, oekakiColor, oekakiAlpha);
+      userOekaki[setToken][token][userOekaki[setToken][token].length - 1].zIndex = 1000;//お絵描きを前の位置に表示
+      userOekaki[setToken][token][userOekaki[setToken][token].length - 1].moveTo(x, y);// ドラッグ開始時の線の開始位置
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length] = {};
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].X = [x];//x座標用の配列
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].Y = [y];//Y座標用の配列
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataColor = [];//最初の点の色を保存
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataAlpha = [];//最初の点の透明度を保存
+      avaP[setToken].addChild(userOekaki[setToken][token][userOekaki[setToken][token].length - 1]);
+    } else {// ドラッグ中の時
+      userOekaki[setToken][token][userOekaki[setToken][token].length - 1].moveTo(lastPosition.x, lastPosition.y);//前の線の位置の最後の座標
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].X.push(x);//現在のx座標を保存する
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].Y.push(y);//現在のy座標を保存する
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataColor.push(oekakiColor);//この線の色を保存
+      userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataAlpha.push(oekakiAlpha);//この線の色を保存
+
+    }
+    userOekaki[setToken][token][userOekaki[setToken][token].length - 1].lineTo(x, y);//線を描画
+
+
+    //線の終わりの値を入れなおす
+    lastPosition.x = x;
+    lastPosition.y = y;
+  }
+
+  app.stage.getChildByName(room).pointerup = function () {//カーソルを離したとき
+    if (oekakityu) {//お絵描き中なら
+      if (userOekakiFlag[setToken]) {//ユーザーお絵描きなら
+        socket.json.emit("userOekaki", {//書き終えた線の情報をサーバーに送る
+          token: setToken,
+          oekaki: userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1]
+        });
+        if (!undoFlag[setToken]) {
+          undoFlag[setToken] = 0;
+        }
+        undoFlag[setToken] += 1;
+        if (!clearFlag[setToken]) {
+          clearFlag[setToken] = 0;
+        }
+        clearFlag[setToken] += 1;
+        if (setToken === token) {
+          localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+        }
+      } else {//部屋へのお絵描きなら
+        socket.json.emit("oekaki", {//書き終えた線の情報をサーバーに送る
+          oekakiX: oekaki[token][oekaki[token].length - 1].X,//x座標を送る
+          oekakiY: oekaki[token][oekaki[token].length - 1].Y,//y座標を送る
+          oekakiColor: oekaki[token][oekaki[token].length - 1].dataColor,//色のデータを送る
+          oekakiAlpha: oekaki[token][oekaki[token].length - 1].dataAlpha,//透明度のデータを送る
+        });
+
+        console.log("new oekaki!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        for (let i = 0; i < oekaki[token][oekaki[token].length - 1].X.length; i++) {
+          if (Math.round(oekaki[token][oekaki[token].length - 1].X[i + 1])) {
+            if (Math.round(oekaki[token][oekaki[token].length - 1].X[i]) !== Math.round(oekaki[token][oekaki[token].length - 1].X[i + 1]) && Math.round(oekaki[token][oekaki[token].length - 1].Y[i]) !== Math.round(oekaki[token][oekaki[token].length - 1].Y[i + 1])) {
+              console.log(Math.round(oekaki[token][oekaki[token].length - 1].X[i]) + "," + Math.round(oekaki[token][oekaki[token].length - 1].Y[i]) + ",");
+            }
+          }
+        }
+
+        if (!undoFlag[room]) {
+          undoFlag[room] = 0;
+        }
+        undoFlag[room] += 1;
+        if (!clearFlag[room]) {
+          clearFlag[room] = 0;
+        }
+        clearFlag[room] += 1;
+      }
+      //書き終わりの点の情報を消しとく
+      lastPosition.x = null;
+      lastPosition.y = null;
+      oekakityu = false;
+
+      //undoをtrueにする
+      undo.style.backgroundColor = 'skyblue';
+      //clearをtrueにする
+      clear.style.backgroundColor = 'skyblue';
+    }
+    pointDown = false;
+  }
+  app.stage.getChildByName(room).mouseup = function () {//マウスを離した時
+    pointDown = false;
+  }
+
 }
 
 socket.on("oekaki", function (data) {
   if (setAbon[data.token] == false) {//アボンされてない場合
-    oekaki[room][oekakiNum[room]] = new PIXI.Graphics();
-    oekaki[room][oekakiNum[room]].zIndex = 1000;
-    oekaki[room][oekakiNum[room]].lineStyle(2, data.oekakiColor[0], data.oekakiAlpha[0]);
-    oekaki[room][oekakiNum[room]].moveTo(data.oekakiX[0], data.oekakiY[0])
-    for (let i = 1; i < data.oekakiX.length; i++) {
-      // oekaki[room][oekakiNum[room]].lineStyle(2, data.oekakiColor[i],data.oekakiAlpha[i]);
-      oekaki[room][oekakiNum[room]].lineTo(data.oekakiX[i], data.oekakiY[i]);
+    if (!oekaki[data.token]) {
+      oekaki[data.token] = [];
     }
-    app.stage.getChildByName(room).addChild(oekaki[room][oekakiNum[room]]);
-    oekakiNum[room]++;
+    oekaki[data.token][oekaki[data.token].length] = new PIXI.Graphics();
+    oekaki[data.token][oekaki[data.token].length - 1].lineStyle(2, data.oekakiColor[0], data.oekakiAlpha[0]);
+    oekaki[data.token][oekaki[data.token].length - 1].zIndex = 1000;
+
+    oekaki[data.token][oekaki[data.token].length - 1].moveTo(data.oekakiX[0], data.oekakiY[0]);//線の開始位置
+    for (let i = 1; i < data.oekakiX.length; i++) {
+      oekaki[data.token][oekaki[data.token].length - 1].lineTo(data.oekakiX[i], data.oekakiY[i]);
+    }
+
+
+
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[room] = 1;
+    app.stage.getChildByName(room).addChild(oekaki[data.token][oekaki[data.token].length - 1]);
   }
-});
+});//oekaki
+
+
+
+socket.on("userOekaki", function (data) {
+  if (setAbon[data.token] == false) {//アボンされてない場合
+    if (!userOekaki[data.setToken]) {
+      userOekaki[data.setToken] = {};
+    }
+    if (!userOekaki[data.setToken][data.token]) {
+      userOekaki[data.setToken][data.token] = [];
+    }
+
+    userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length] = new PIXI.Graphics();
+    userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1].lineStyle(2, data.oekaki.dataColor[0], data.oekaki.dataAlpha[0]);
+    userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1].zIndex = 1000;
+
+    userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1].moveTo(data.oekaki.X[0], data.oekaki.Y[0]);//線の開始位置
+    for (let i = 1; i < data.oekaki.X.length; i++) {
+      userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1].lineTo(data.oekaki.X[i], data.oekaki.Y[i]);
+    }
+
+
+    // console.log("new oekaki!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    // for (let i = 0; i < data.oekakiX.length; i++) {
+    //   console.log("X:" + data.oekakiX[i] + ",Y:" + data.oekakiY[i]);
+    // }
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[data.setToken] = 1;
+    avaP[data.setToken].addChild(userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1]);
+
+    if (data.setToken === token) {
+      if (!userOekakiData[token][data.token]) {
+        userOekakiData[token][data.token] = [];
+      }
+      userOekakiData[token][data.token][userOekakiData[token][data.token].length] = data.oekaki;
+      localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+    }
+  }
+});//oekaki
 
 socket.on("clearCanvas", function (data) {
   if (setAbon[data.token] == false) {//アボンされてない場合
-    for (let i = 0; i < oekaki[room].length; i++) {
-      app.stage.getChildByName(room).removeChild(oekaki[room][i]);
+    Object.keys(oekaki).forEach(function (key) {
+      for (let i = 0; i < oekaki[key].length; i++) {
+        oekaki[key][i].destroy();
+        app.stage.getChildByName(room).removeChild(oekaki[i]);
+      }
+      delete oekaki[key];
+    });
+    //undoをfalseにする
+    undoFlag[room] = 0;
+    undo.style.backgroundColor = "#979797";
+    //clearをfalseにする
+    clearFlag[room] = 0;
+    clear.style.backgroundColor = "#979797";
+  }
+});
+
+socket.on("userClearCanvas", function (data) {
+  if (setAbon[data.token] == false) {//アボンされてない場合
+    Object.keys(userOekaki[data.token]).forEach(function (key) {
+      for (let i = 0; i < userOekaki[data.token][key].length; i++) {
+        userOekaki[data.token][key][i].destroy();
+        avaP[data.token].removeChild(userOekaki[data.token][key][i]);
+      }
+    });
+    delete userOekaki[data.token];
+    //undoをfalseにする
+    undoFlag[data.token] = 0;
+    undo.style.backgroundColor = "#979797";
+    //clearをfalseにする
+    clearFlag[data.token] = 0;
+    clear.style.backgroundColor = "#979797";
+
+    if (data.token === token) {
+      localStorage.removeItem("myOekaki");
     }
   }
 });
 
-
-//エントランスでタップ可能なブロックを配置
-// croudBlock1配置
-let croudBlock1 = new PIXI.Graphics();
-croudBlock1.beginFill(0xf0f8ff);
-croudBlock1.alpha = 0;//透明にする
-croudBlock1.drawPolygon([
-  111, 123,
-  123, 113,
-  133, 109,
-  133, 105,
-  142, 97,
-  151, 97,
-  151, 92,
-  160, 92,
-  173, 99,
-  173, 113,
-  185, 113,
-  196, 120,
-  198, 130,
-  194, 130,
-  194, 137,
-  184, 137,
-  184, 140,
-  176, 140,
-  176, 140,
-  176, 147,
-  173, 147,
-  173, 147,
-  171, 151,
-  159, 151,
-  159, 148,
-  151, 148,
-  145, 154,
-  122, 154,
-  111, 144,
-]);
-
-//croudBlock2配置
-let croudBlock2 = new PIXI.Graphics();
-croudBlock2.beginFill(0xf0f8ff);
-croudBlock2.alpha = 0;//透明にする
-croudBlock2.drawPolygon([
-  421, 73,
-  443, 59,
-  443, 55,
-  452, 47,
-  461, 47,
-  461, 42,
-  470, 42,
-  483, 49,
-  483, 63,
-  495, 63,
-  506, 70,
-  508, 80,
-  504, 80,
-  504, 87,
-  494, 87,
-  494, 90,
-  486, 90,
-  486, 97,
-  483, 97,
-  483, 97,
-  481, 101,
-  469, 101,
-  469, 98,
-  461, 98,
-  455, 104,
-  432, 104,
-  421, 94,
-]);
-
-
-
-
-
-
-
-//groundBlock配置
-let groundBlock = new PIXI.Graphics();//ブロックを置く宣言
-groundBlock.beginFill(0xf0f8ff);
-groundBlock.drawPolygon([
-  0, 285,
-  3, 285,
-  23, 285,
-  69, 274,
-  197, 274,
-  280, 268,
-  302, 268,
-  358, 268,
-  462, 275,
-  556, 275,
-  660, 285,
-  660, 480,
-  0, 480,
-]);
 //大黒柱の頂点を配置
 let daikokubasiraBlock = new PIXI.Graphics();//ブロックを置く宣言
 daikokubasiraBlock.beginFill(0xf0f8ff);
@@ -1344,6 +1580,7 @@ function checkColPoint(BX, BY) { //(collisionPointの略)
 
 
 function tapRange(value) {
+
   value.interactive = true;//クリックイベントを有効化
   value.touchstart = function (event) {
     tapFlag = true;
@@ -1366,24 +1603,44 @@ function tapRange(value) {
     if (AX != MX || AY != MY) {//同一点なら移動しない//パターン１
       let sin = (MY - AY) / Math.sqrt(Math.pow(MX - AX, 2) + Math.pow(MY - AY, 2));
       if (inRoom == 0) {//ログイン画面に居るとき
-        if (sin <= -0.9239) {
-          anime(avaN, avaN1, avaN2, token);
-        } else if (0.9239 <= sin) {
-          anime(avaS, avaS1, avaS2, token);
-        } else if (0.3827 <= sin && AX < MX) {
-          anime(avaSE, avaSE1, avaSE2, token);
-        } else if (0.3827 <= sin && MX < AX) {
-          anime(avaSW, avaSW1, avaSW2, token);
+        if (DIR === sit) {//座ってる時※※※ログイン画面で右クリックメニュー使えないので現状使ってない
+          if (sin <= -0.9239) {
+            anime(avaSit, avaN1, avaN2, token);
+          } else if (0.9239 <= sin) {
+            anime(avaSit, avaS1, avaS2, token);
+          } else if (0.3827 <= sin && AX < MX) {
+            anime(avaSit, avaSE1, avaSE2, token);
+          } else if (0.3827 <= sin && MX < AX) {
+            anime(avaSit, avaSW1, avaSW2, token);
 
-        } else if (sin <= -0.3827 && AX < MX) {
-          anime(avaNE, avaNE1, avaNE2, token);
-        } else if (sin <= -0.3827 && MX < AX) {
-          anime(avaNW, avaNW1, avaNW2, token);
+          } else if (sin <= -0.3827 && AX < MX) {
+            anime(avaSit, avaNE1, avaNE2, token);
+          } else if (sin <= -0.3827 && MX < AX) {
+            anime(avaSit, avaNW1, avaNW2, token);
+          } else if (AX < MX) {
+            anime(avaSit, avaE1, avaE2, token);
+          } else if (MX < AX) {
+            anime(avaSit, avaW1, avaW2, token);
+          }
+        } else {
+          if (sin <= -0.9239) {
+            anime(avaN, avaN1, avaN2, token);
+          } else if (0.9239 <= sin) {
+            anime(avaS, avaS1, avaS2, token);
+          } else if (0.3827 <= sin && AX < MX) {
+            anime(avaSE, avaSE1, avaSE2, token);
+          } else if (0.3827 <= sin && MX < AX) {
+            anime(avaSW, avaSW1, avaSW2, token);
 
-        } else if (AX < MX) {
-          anime(avaE, avaE1, avaE2, token);
-        } else if (MX < AX) {
-          anime(avaW, avaW1, avaW2, token);
+          } else if (sin <= -0.3827 && AX < MX) {
+            anime(avaNE, avaNE1, avaNE2, token);
+          } else if (sin <= -0.3827 && MX < AX) {
+            anime(avaNW, avaNW1, avaNW2, token);
+          } else if (AX < MX) {
+            anime(avaE, avaE1, avaE2, token);
+          } else if (MX < AX) {
+            anime(avaW, avaW1, avaW2, token);
+          }
         }
 
         gsap.to(avaP[token], {
@@ -1397,30 +1654,55 @@ function tapRange(value) {
 
       } else {//ログイン画面以外に居るとき
         // 方向に合わせて画像を変えて表示
+        let moveDIR;
         if (sin <= -0.9239) {
-          DIR = "N";
+          moveDIR = "N";
+          if (DIR !== "sit") {
+            DIR = "N";
+          }
         } else if (0.9239 <= sin) {
-          DIR = "S";
+          moveDIR = "S";
+          if (DIR !== "sit") {
+            DIR = "S";
+          }
         } else if (0.3827 <= sin && AX < MX) {
-          DIR = "SE";
+          moveDIR = "SE";
+          if (DIR !== "sit") {
+            DIR = "SE";
+          }
         } else if (0.3827 <= sin && MX < AX) {
-          DIR = "SW";
+          moveDIR = "SW";
+          if (DIR !== "sit") {
+            DIR = "SW";
+          }
         } else if (sin <= -0.3827 && AX < MX) {
-          DIR = "NE";
+          moveDIR = "NE";
+          if (DIR !== "sit") {
+            DIR = "NE";
+          }
         } else if (sin <= -0.3827 && MX < AX) {
-          DIR = "NW";
+          moveDIR = "NW";
+          if (DIR !== "sit") {
+            DIR = "NW";
+          }
         } else if (AX < MX) {
-          DIR = "E";
+          moveDIR = "E";
+          if (DIR !== "sit") {
+            DIR = "E";
+          }
         } else if (MX < AX) {
-          DIR = "W";
+          moveDIR = "W";
+          if (DIR !== "sit") {
+            DIR = "W";
+          }
         }
-        if (room == "entrance") {
+        if (room == "エントランス") {
           entranceBlock();
         }//別の部屋の場合でつき足す!!!!!!!!!!!!
         if (colPointAll[0] == undefined) {//どこにもぶつからなかった場合//パターン２
           AX = MX;
           AY = MY;
-          tappedMove(token, AX, AY, DIR);
+          tappedMove(token, AX, AY, moveDIR, DIR === "sit");
           socket.json.emit("tapMap", {
             DIR: DIR,
             AX: AX,
@@ -1516,89 +1798,129 @@ function colMove(CPA, stopX, stopY) {//ブロックと衝突時の動きの式,C
 //移動時のソケット受け取り//自分以外の時にだけ使ってる
 socket.on("tapMap", function (data) {
   if (setAbon[data.token] == false) {//アボンされてない場合
-    tappedMove(data.token, data.AX, data.AY, data.DIR);
+    tappedMove(data.token, data.AX, data.AY, data.DIR, data.DIR === "sit");
   }
 });
 
 //数値を取得後のアバターの動き
-function tappedMove(thisToken, thisAX, thisAY, thisDIR) {
-  switch (thisDIR) {//子要素の画像を入れる
-    case "NE":
-      anime(avaNE, avaNE1, avaNE2, thisToken);
-      break;
-    case "SE":
-      anime(avaSE, avaSE1, avaSE2, thisToken);
-      break;
-    case "SW":
-      anime(avaSW, avaSW1, avaSW2, thisToken);
-      break;
-    case "NW":
-      anime(avaNW, avaNW1, avaNW2, thisToken);
-      break;
-    case "N":
-      anime(avaN, avaN1, avaN2, thisToken);
-      break;
-    case "E":
-      anime(avaE, avaE1, avaE2, thisToken);
-      break;
-    case "S":
-      anime(avaS, avaS1, avaS2, thisToken);
-      break;
-    case "sit":
-      anime(avaSit, avaSit, avaSit, thisToken);
-      break;
-    default:
-      anime(avaW, avaW1, avaW2, thisToken);
-      break;
+function tappedMove(thisToken, thisAX, thisAY, thisDIR, sit) {
+  if (sit) {//座ってる時
+    switch (thisDIR) {//子要素の画像を入れる
+      case "NE":
+        anime(avaSit, avaNE1, avaNE2, thisToken);
+        break;
+      case "SE":
+        anime(avaSit, avaSE1, avaSE2, thisToken);
+        break;
+      case "SW":
+        anime(avaSit, avaSW1, avaSW2, thisToken);
+        break;
+      case "NW":
+        anime(avaSit, avaNW1, avaNW2, thisToken);
+        break;
+      case "N":
+        anime(avaSit, avaN1, avaN2, thisToken);
+        break;
+      case "E":
+        anime(avaSit, avaE1, avaE2, thisToken);
+        break;
+      case "S":
+        anime(avaSit, avaS1, avaS2, thisToken);
+        break;
+      default:
+        anime(avaSit, avaW1, avaW2, thisToken);
+        break;
+    }
+  } else {//立ってる時
+    switch (thisDIR) {//子要素の画像を入れる
+      case "NE":
+        anime(avaNE, avaNE1, avaNE2, thisToken);
+        break;
+      case "SE":
+        anime(avaSE, avaSE1, avaSE2, thisToken);
+        break;
+      case "SW":
+        anime(avaSW, avaSW1, avaSW2, thisToken);
+        break;
+      case "NW":
+        anime(avaNW, avaNW1, avaNW2, thisToken);
+        break;
+      case "N":
+        anime(avaN, avaN1, avaN2, thisToken);
+        break;
+      case "E":
+        anime(avaE, avaE1, avaE2, thisToken);
+        break;
+      case "S":
+        anime(avaS, avaS1, avaS2, thisToken);
+        break;
+      default:
+        anime(avaW, avaW1, avaW2, thisToken);
+        break;
+    }
   }
   gsap.to(avaP[thisToken], {
     duration: 0.4, x: thisAX, y: thisAY, onComplete: function () {
       if (thisToken == token) {//自分自身の移動の場合
         //オブジェクトの数が増えた時はここを書き換える
-        if (room == "entrance" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {
-          changeSelfRoom("entrance", entrance, "utyu", utyu, 200, 300, "S", "utyu", "white");
-        } else if (room == "utyu" && 136 <= AX && AX <= 151 && 68 <= AY && AY <= 86) {
-          changeSelfRoom("utyu", utyu, "entrance", entrance, 150, 130, "S", "other", "black");
+        if (room == "エントランス" && 125 <= AX && AX <= 175 && 200 <= AY && AY <= 300) {
+          changeSelfRoom("うちゅー", utyu, 200, 300, "S", "utyu", "white");
+        } else if (room == "うちゅー") {
+          if (136 <= AX && AX <= 151 && 68 <= AY && AY <= 86) {
+            changeSelfRoom("エントランス", entrance, 150, 130, "S", "other", "black");
+          }
+          if (580 <= AX && AX <= 595 && 180 <= AY && AY <= 200) {
+            changeSelfRoom("星1", hosi1, 334, 450, "N", "utyu", "white");
+          }
+        } else if (room === "星1") {
+          if (311 <= AX && AX <= 348 && 220 <= AY && AY <= 250) {
+            changeSelfRoom("うちゅー", utyu, 200, 300, "S", "utyu", "white");
+          }
         }
       } else {//自分以外の移動の場合
         if (avaP[thisToken].roomIn > 1) {//バックグラウンド復帰時
-          switch (thisDIR) {
-            case "NE":
-              avaC[thisToken] = avaNE[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "SE":
-              avaC[thisToken] = avaSE[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "SW":
-              avaC[thisToken] = avaSW[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "NW":
-              avaC[thisToken] = avaNW[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "N":
-              avaC[thisToken] = avaN[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "E":
-              avaC[thisToken] = avaE[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "S":
-              avaC[thisToken] = avaS[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            case "sit":
-              avaC[thisToken] = avaSit[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
-            default:
-              avaC[thisToken] = avaW[thisToken];
-              avaP[thisToken].addChild(avaC[thisToken]);
-              break;
+          if (sit) {
+            avaC[thisToken] = avaSit[thisToken];
+            avaP[thisToken].addChild(avaC[thisToken]);
+          } else {
+            switch (thisDIR) {
+              case "NE":
+                avaC[thisToken] = avaNE[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "SE":
+                avaC[thisToken] = avaSE[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "SW":
+                avaC[thisToken] = avaSW[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "NW":
+                avaC[thisToken] = avaNW[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "N":
+                avaC[thisToken] = avaN[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "E":
+                avaC[thisToken] = avaE[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "S":
+                avaC[thisToken] = avaS[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              case "sit":
+                avaC[thisToken] = avaSit[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+              default:
+                avaC[thisToken] = avaW[thisToken];
+                avaP[thisToken].addChild(avaC[thisToken]);
+                break;
+            }
           }
           avaP[thisToken].position.set(thisAX, thisAY);
         }
@@ -1607,7 +1929,10 @@ function tappedMove(thisToken, thisAX, thisAY, thisDIR) {
   });
 }
 
-function changeSelfRoom(beforeRoomString, beforeRoom, afterRoomString, afterRoom, thisAX, thisAY, thisDIR, thisSE, logCollor) {//自分自身の部屋が変わった時
+//自分の部屋移動
+function changeSelfRoom(afterRoomString, afterRoom, thisAX, thisAY, thisDIR, thisSE, logCollor, train) {//自分自身の部屋が変わった時
+  let beforeRoom = room;
+  app.stage.getChildByName(room).off("touchstart");
   stopAllConnection();
   if (videoStatus) {
     stopVideo();
@@ -1615,42 +1940,143 @@ function changeSelfRoom(beforeRoomString, beforeRoom, afterRoomString, afterRoom
   if (audioStatus) {
     stopAudio();
   }
-  if (oekaki[room]) {
-    for (let i = 0; i < oekaki[room].length; i++) {
-      app.stage.getChildByName(room).removeChild(oekaki[room][i]);
-    }
+  if (oekaki) {
+    Object.keys(oekaki).forEach(function (key) {
+      for (let i = 0; i < oekaki[key].length; i++) {
+        oekaki[key][i].destroy();
+      }
+      delete oekaki[key];
+    });
   }
   const keys = Object.keys(avaP);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {//移動前の部屋のアバターを消す
     app.stage.getChildByName(room).removeChild(avaP[value]);
   });
-  app.stage.removeChild(beforeRoom);//移動前の部屋を消す
+  app.stage.removeChild(app.stage.getChildByName(room));//移動前の部屋を消す
 
   room = afterRoomString;//移動先の部屋を設定
   roomSE = thisSE;
   app.stage.addChild(afterRoom);//画像を読みこむ
+
+
+  oekakiSistem(afterRoomString);
+
   avaP[token].removeChild(avaC[token]);
   AX = thisAX;
   AY = thisAY;
-  DIR = thisDIR;
-  socket.json.emit("roomIn", {
-    userName: userName,
-    beforeRoom: beforeRoomString,
+  if (DIR !== "sit") {
+    DIR = thisDIR;
+  }
+
+  socket.json.emit("roomInSelf", {
+    beforeRoom: beforeRoom,
     afterRoom: afterRoomString,
     AX: AX,
     AY: AY,
     DIR: DIR,
+    train: train,
   });
   gamenLog.style.fill = logCollor;
+
 }
 
-
-
-
-
-
-
 socket.on("roomInNonSelf", function (data) {//自分以外が部屋にログインor入室してきた時
+  if (!avaP[data.token]) {//アバターをまだ作ってなければ
+    switch (data.user.avatar) {
+      case "necosukeMono":
+        setAvatar(data.token, necosukeMono, 50);
+        break;
+      case "necosuke":
+        setAvatar(data.token, necosuke, 50);
+        break;
+      case "gomanecoMono":
+        setAvatar(data.token, gomanecoMono, 40);
+        break;
+      default:
+        setAvatar(data.token, gomaneco, 40);
+        break;
+    }
+    avaAbon[data.token] = new PIXI.Sprite(avaAbon);
+    avaAbon[data.token].anchor.set(0.5, 1);
+
+    // アバターの親コンテナを作成
+    avaP[data.token] = new PIXI.Container();//ここで自身のアバターの関係性もリセットされてる
+    avaP[data.token].interactive = true;//クリックイベントを有効化  
+    avaP[data.token].avatar = data.user.avatar;
+    avaP[data.token].sortableChildren = true;//子要素のzIndexをonにする
+
+    avaP[data.token].room = data.user.room;
+    setColor(data.token, data.user.avatarColor);
+
+
+    //名前を追加
+    nameText[data.token] = new PIXI.Text(data.user.userName, nameTextStyle);
+    nameText[data.token].zIndex = 10;
+    nameText[data.token].anchor.set(0.5);
+    avaP[data.token].userName = data.user.userName;
+    avaP[data.token].addChild(nameText[data.token]);
+
+    nameTag[data.token] = new PIXI.Graphics();
+    nameTag[data.token].lineStyle(1, 0x000000, 0.5);
+    nameTag[data.token].beginFill(0x000000);
+    nameTag[data.token].drawRect(0, 0, nameText[data.token].width, nameText[data.token].height);
+    nameTag[data.token].endFill();
+    nameTag[data.token].x = -nameText[data.token].width / 2;
+
+    let inTime = data.user.timeShade;
+    if (0 <= inTime && inTime < 12) {
+      inTime = 24 - inTime;
+    }
+    nameTag[data.token].alpha = Math.pow(1.06, inTime) * 0.1;
+
+    avaP[data.token].addChild(nameTag[data.token]);
+
+
+    // アバターのメッセージを追加する
+    msg[data.token] = new PIXI.Text(data.user.msg);
+    msg[data.token].zIndex = 20;
+
+    msg[data.token].style.fontSize = 16;
+    msg[data.token].style.fill = "0x1e90ff";
+    avaP[data.token].addChild(msg[data.token]);
+
+
+    //アバタークリックでアボン
+    setAbon[data.token] = false;
+    avaP[data.token].rightclick = function (e) {
+      pointDown = false;
+      e.stopPropagation();//親をクリックしたときは動作しなくする。
+      if (setToken !== data.token) {
+        userOekakiFlag[setToken] = false;
+      }
+      setToken = data.token;
+      if (userOekakiFlag[setToken]) {
+        document.getElementById('userOekaki').textContent = "ラクガキをやめる";
+      } else {
+        document.getElementById('userOekaki').textContent = "ラクガキする";
+      }
+      document.getElementById("graphic").oncontextmenu = function (event) {
+        event.preventDefault();
+        contextMenuSet(e);
+      }
+      document.getElementById("userOekaki").style.display = "block";
+      document.getElementById("abon").style.display = "block";
+      document.getElementById("contextmenu").style.display = "block";
+    }
+
+    if (data.token !== token) {
+      sleepFlag[data.token] = false;//ログインした時自分以外のスリープフラグは一旦オフにする
+    }
+    avaLoop(data.token);
+
+    if (!redoStock[data.token]) {
+      redoStock[data.token] = [];
+    }
+  }
+
+
+
+
   if (setAbon[data.token] == false) {//アボンされてない場合
     app.stage.getChildByName(data.room).addChild(avaP[data.token]);//部屋にアバターを入れる
     avaP[data.token].room = data.room;
@@ -1691,12 +2117,13 @@ socket.on("roomInNonSelf", function (data) {//自分以外が部屋にログイ�
         avaP[data.token].addChild(avaC[data.token]);
         break;
     }
+    setAlpha(data.token, data.user.avatarAlpha);
 
     nameText[data.token].position.set(0, -avaC[data.token].height - 10);
     nameTag[data.token].y = -avaC[data.token].height - 10 - nameText[data.token].height / 2;
     msg[data.token].position.set(0, -avaC[data.token].height - 5);
 
-    outputMsg(data.msg);
+    outputMsg(data.msg, 0, 0, 1);
     usersNumber.textContent = data.users;//部屋人数の表記を変える
     if (useLogChime) {//部屋入室の音を鳴らす
       let regexp = /＠ＪＭＭ連合/i;//＠ＪＭＭ連合って文字が入ってたら爆発する
@@ -1715,13 +2142,75 @@ socket.on("roomInNonSelf", function (data) {//自分以外が部屋にログイ�
     } else {
       sleepFlag[data.token] = false;
     }
+    // gx[data.token] = 1;//いらんかな、たぶｎ、後で消す
+    if (room === "エントランス") {
+      entranceLoop(data.token);
+    }
+    //アバター作成後
+    if (room === "星1") {
+      avaP[data.token].scale.x = 0.5;
+      avaP[data.token].scale.y = 0.5;
+    } else {
+      avaP[data.token].scale.x = 1;
+      avaP[data.token].scale.y = 1;
+    }
 
     //こっからは入室時のみあればいい
-    msg[data.token].text = "";
     if (avaP[data.token].roomIn > 1) {//バックグラウンド復帰時に指示を出す
+      console.log("バックグラウンド復帰");
       tappedMove(data.token, data.AX, data.AY, data.DIR);
     }
   }
+
+  userOekakiFlag[data.token] = false;
+  if (userOekaki) {
+    if (userOekaki[data.token]) {
+      Object.keys(userOekaki[data.token]).forEach(function (key) {
+        for (let i = 0; i < userOekaki[data.token][key].length; i++) {
+          userOekaki[data.token][key][i].destroy();
+          avaP[data.token].removeChild(userOekaki[data.token][key][i]);
+        }
+        delete userOekaki[data.token];
+      });
+    }
+  }
+  if (data.userOekaki[data.token]) {
+    if (!userOekaki[data.token]) {
+      userOekaki[data.token] = {};
+      userOekakiData[data.token] = {};
+    }
+    Object.keys(data.userOekaki[data.token]).forEach(function (key) {
+      if (!userOekaki[data.token][key]) {
+        userOekaki[data.token][key] = [];
+      }
+      for (let n = 0; n < data.userOekaki[data.token][key].length; n++) {
+        userOekaki[data.token][key][n] = new PIXI.Graphics();
+        if (key === token) {//自分の配列情報だけは入れなおす
+          if (!userOekakiData[data.token][key]) {
+            userOekakiData[data.token][key] = [];
+          }
+          userOekakiData[data.token][key][n] = {};
+          userOekakiData[data.token][key][n].X = data.userOekaki[data.token][key][n].X;
+          userOekakiData[data.token][key][n].Y = data.userOekaki[data.token][key][n].Y;
+          userOekakiData[data.token][key][n].dataColor = data.userOekaki[data.token][key][n].dataColor;
+          userOekakiData[data.token][key][n].dataAlpha = data.userOekaki[data.token][key][n].dataAlpha;
+          //undoをtrueにする
+          undoFlag[data.token] = data.userOekaki[data.token][key].length;
+        }
+        userOekaki[data.token][key][n].zIndex = 1000;
+        userOekaki[data.token][key][n].lineStyle(2, data.userOekaki[data.token][key][n].dataColor[0], data.userOekaki[data.token][key][n].dataAlpha[0]);
+        userOekaki[data.token][key][n].moveTo(data.userOekaki[data.token][key][n].X[0], data.userOekaki[data.token][key][n].Y[0]);
+        avaP[data.token].addChild(userOekaki[data.token][key][n]);
+        for (let i = 1; i < data.userOekaki[data.token][key][n].X.length; i++) {
+          userOekaki[data.token][key][n].lineTo(data.userOekaki[data.token][key][n].X[i], data.userOekaki[data.token][key][n].Y[i]);
+        }
+
+      }
+      clearFlag[data.token] = 1;
+    });
+  }
+
+
 });
 
 
@@ -1731,17 +2220,127 @@ socket.on("roomOutNonSelf", function (data) {//自分以外が部屋から退室
       msgSE[roomSE].out[data.random].play();
     }
   }
+  if (avaP[data.token].room === "星1") {
+    let hosi1Blur = 0;
+    let hosi1BlurFlag = true;
+    hosi1Loop();
 
-  if (avaP[data.token].roomIn == 1) {
-    app.stage.getChildByName(avaP[data.token].room).removeChild(avaP[data.token]);
-    avaP[data.token].room = data.room;
+    function hosi1Loop() {
+      let filter = new PIXI.filters.BlurFilter();
+      if (hosi1BlurFlag) {
+        if (hosi1Blur >= 0) {
+          hosi1Blur += 10;
+        }
+        if (hosi1Blur >= 100) {
+          hosi1BlurFlag = false;
+        }
+        requestAnimationFrame(function () { hosi1Loop() });
+      } else {
+        if (hosi1Blur >= 0) {
+          hosi1Blur -= 1;
+          requestAnimationFrame(function () { hosi1Loop() });
+        } else {
+          hosi1BlurFlag = true;
+          hosi1Blur = 0;
+        }
+      }
+      filter.blur = hosi1Blur;
+      hosi1LineContainer.filters = [filter];
+    }
+
+
   }
+
+  // if (avaP[data.token].roomIn == 1) {//?消す？？？
+  app.stage.getChildByName(avaP[data.token].room).removeChild(avaP[data.token]);
+  avaP[data.token].room = data.room;
+  // }
+
+
+
   avaP[data.token].roomIn--;
   usersNumber.textContent--;
-  outputMsg(nameText[data.token].text + "が" + data.room + "に移動しました。");
+  outputMsg(data.msg, 0, 0, 1);
 
   stopConnection(data.token);
+  userOekakiFlag[data.token] = false;
+  if (setToken === data.token) {
+    if (clearFlag[room]) {
+      clear.style.backgroundColor = "skyblue"
+    } else {
+      clear.style.backgroundColor = "#979797";
+    }
+
+    if (undoFlag[room]) {
+      undo.style.backgroundColor = "skyblue";
+    } else {
+      undo.style.backgroundColor = "#979797";
+    }
+    if (redoStock[room].length) {
+      redo.style.backgroundColor = "skyblue";
+    } else {
+      redo.style.backgroundColor = "#979797";
+    }
+  }
 });
+
+function entranceLoop(value) {
+  if (room === "エントランス") {
+    if (0 < avaP[value].y && avaP[value].y <= 300) {
+      const hitObj = app.renderer.plugins.interaction.hitTest(avaP[value]);
+      if (hitObj !== ground && hitObj !== croud && hitObj !== croud2 && !(hitObj == rainbow && avaP[value].avatarAlpha !== 1)) {//ヒットオブジェのどれとも重なってない時
+        if (Object.values(avaP).includes(hitObj) && hitObj !== avaP[value]) {//他のアバターと重なってる時
+          if (gsapFlag[value]) {
+            if (value === token) {
+              socket.json.emit("avaPData", {
+                DIR: DIR,
+                AX: avaP[value].x,
+                AY: avaP[value].y,
+              });
+            }
+            gsapFlag[value] = false;
+          }
+          gx[value] = 1;
+        } else {//他のアバターと重なってない時
+          gsapFlag[value] = true;
+        }
+        if (gsapFlag[value]) {//他のアバターと重なってないことが確認できたら
+          if (gx[value] <= 200) {
+            gx[value] = gx[value] * 1.08;
+          }
+
+          gsap.to(avaP[value], {
+            duration: 0, y: avaP[value].y + gx[value],
+          })
+        }
+      } else {//ヒットオブジェと重なってる時
+        if (gsapFlag[value] && value === token) {
+          socket.json.emit("avaPData", {
+            DIR: DIR,
+            AX: avaP[value].x,
+            AY: avaP[value].y,
+          });
+          gsapFlag[value] = false;
+          if (125 <= avaP[value].x && avaP[value].x <= 175 && 200 <= avaP[value].y && avaP[value].y <= 300) {
+            changeSelfRoom("うちゅー", utyu, 200, 300, "S", "utyu", "white");
+          }
+        }
+        gx[value] = 1;
+
+
+      }
+    }
+
+    if (0 < avaP[value].y && avaP[value].y <= 180) {
+      avaP[value].scale.x = avaP[value].y / 180;
+      avaP[value].scale.y = avaP[value].y / 180;
+    } else if (180 < avaP[value].y) {
+      avaP[value].scale.x = 1;
+      avaP[value].scale.y = 1;
+    }
+    requestAnimationFrame(function () { entranceLoop(value) });
+  }
+}
 
 
 
@@ -1754,6 +2353,8 @@ msgForm.addEventListener("keydown", function (e) {
 msgForm.addEventListener("keyup", function (e) {
   isDownedShift = e.shiftKey;
 });
+
+
 
 //メッセージ入力
 msgForm.addEventListener("submit", function (e) {
@@ -1789,7 +2390,9 @@ nanasiName[0] = [
   "陽気な",
   "虹の",
   "名高い",
-  "純前たる",
+  "無名な",
+  "名無しな",
+  "純然たる",
   "噛みつき",
   "かわいい",
   "とある",
@@ -1802,9 +2405,9 @@ nanasiName[0] = [
   "ふんわり",
   "とろとろ",
   "やわらか",
-  "モイモイ!",
+  // "モイモイ!",
   "lightning",
-  "マグマな",
+  // "マグマな",
   "トロピカル",
   "おもちゃの国の",
   "宇宙な",
@@ -1825,6 +2428,37 @@ nanasiName[0] = [
   "ちょいいいこちゃん系",
   "バナ",
   "海から",
+  "永遠の",
+  "人参",
+  "生姜焼き",
+  "月昇る夜に",
+  "ヒップdeホップな",
+  "よくある",
+  // "とある厨二の",
+  "真・",
+  "眠れない夜に",
+  "皿まで喰らえば",
+  "まっするもっする",
+  "豪傑",
+  "るーぷりーぷ",
+  "枉駕来臨",
+  // "子墨客卿",
+  "アニマな",
+  "金魚な",
+  // "黒鉄の",
+  "メラメラ",
+  "ちくわ",
+  "神々の",
+  "♰",
+  "モルデラ",
+  "すーぱー",
+  "うるとら",
+  "はいぱー",
+  "光と闇の",
+  "万物創世の",
+  "らりあっと！",
+  "あたりめ",
+  // "",
   //ここ見て入力してるやつおるだろおい！！！！
 ];
 nanasiName[1] = [
@@ -1838,39 +2472,70 @@ nanasiName[1] = [
   ["770", 2],
   ["noname", 2],
 ];
-nanasiName[3] = [];
+nanasiName[2] = [];
 for (let i = 0; i < nanasiName[1].length; i++) {
   for (let j = 0; j < nanasiName[1][i][1]; j++) {
-    nanasiName[3].push(nanasiName[1][i][0]);
+    nanasiName[2].push(nanasiName[1][i][0]);
   }
 }
 
-nanasiName[2] = [
-  ["さん", 80],
-  ["ちゃん", 30],
-  ["氏", 10],
-  ["君", 10],
-  ["卿", 5],
-  ["兄さん", 5],
-  ["姉さん", 5],
-  ["ボーイ", 3],
-  ["がーる", 3],
-  ["先輩", 4],
-  ["親分", 3],
-  ["たん", 2],
-  ["きゅん", 2],
-  ["殿", 2],
-  ["姫", 2],
-  ["猊下", 1],
-  ["閣下", 1],
+nanasiName[3] = [
+  ["さん", 160],
+  ["ちゃん", 60],
+  ["氏", 20],
+  ["君", 20],
+  ["卿", 10],
+  ["侍", 10],
+  ["にき", 10],
+  ["ねき", 10],
+  ["兄さん", 10],
+  ["姉さん", 10],
+  ["娘", 8],
+  ["ボーイ", 6],
+  ["がーる", 6],
+  ["先輩", 8],
+  ["親分", 6],
+  ["たん", 6],
+  ["きゅん", 6],
+  ["＠メイドさん", 5],
+  ["師", 5],
+  ["ﾏｿ", 4],
+  ["殿", 4],
+  ["姫", 4],
+  ["猊下", 2],
+  ["閣下", 2],
   ["犬", 1],
+  ["神", 1],
 ];
 nanasiName[4] = [];
-for (let i = 0; i < nanasiName[2].length; i++) {
-  for (let j = 0; j < nanasiName[2][i][1]; j++) {
-    nanasiName[4].push(nanasiName[2][i][0]);
+for (let i = 0; i < nanasiName[3].length; i++) {
+  for (let j = 0; j < nanasiName[3][i][1]; j++) {
+    nanasiName[4].push(nanasiName[3][i][0]);
   }
 }
+
+nanasiName[5] = [
+  ["ななお", 15],
+  ["ナナオ", 5],
+  ["ナナヲ", 2],
+  ["770", 2],
+];
+nanasiName[6] = [];
+for (let i = 0; i < nanasiName[5].length; i++) {
+  for (let j = 0; j < nanasiName[5][i][1]; j++) {
+    nanasiName[6].push(nanasiName[5][i][0]);
+  }
+}
+
+//✟
+//★
+//2.0
+//～
+//(進化後)
+//(象さｎ)
+//(山)
+
+
 //ログイン時の処理
 function login() {
   //もしカメラやマイクをonにしてたら切る
@@ -1883,40 +2548,152 @@ function login() {
 
   if (setUpFlag[0] && setUpFlag[1]) {
     userName = nameForm.userName.value;
+    // if(userName==="黒吉"){
+    //   userName="ちｎちｎ";
+    // }
+    if (userName === "フサ吉") {
+      userName = "man吉"
+    }
     if (!userName) {
-      userName = nanasiName[0][Math.floor(Math.random() * nanasiName[0].length)]
-        + nanasiName[3][Math.floor(Math.random() * nanasiName[3].length)]
-        + nanasiName[4][Math.floor(Math.random() * nanasiName[4].length)];
+      nanasiName[0] = nanasiName[0][Math.floor(Math.random() * nanasiName[0].length)];
+      nanasiName[2] = nanasiName[2][Math.floor(Math.random() * nanasiName[2].length)];
+      nanasiName[4] = nanasiName[4][Math.floor(Math.random() * nanasiName[4].length)];
+      if (nanasiName[0] === "七百七十零式") {
+        nanasiName[2] = nanasiName[6][Math.floor(Math.random() * nanasiName[6].length)];
+      }
+      userName = nanasiName[0] + nanasiName[2] + nanasiName[4]
+      if (nanasiName[0] === "♰") { userName += "♰" }
     }
     localStorage.setItem("avatar", avaP[token].avatar);//ローカルストレージにアバター書き込み
     localStorage.setItem("userName", userName);//ローカルストレージに名前書き込み
     localStorage.setItem("colorCode", avaP[token].avatarColor);
 
-    entrance = new PIXI.Sprite(entrance);
-    entrance.name = "entrance";//名前を割り振る※これをやらないとgetChildByNameメソッドが使えない
-    //userNameにフォームの内容を入れる
-    room = "entrance";//マップを切り替える
-    roomSE = "other";
-    oekaki["entrance"] = [];
-    oekakiNum["entrance"] = 0;
-
     //ログイン画面の画像を消す
     app.stage.removeChild(loginBack);
 
-    entrance.addChild(croudBlock1);
-    tapRange(croudBlock1);
-    entrance.addChild(croudBlock2);
-    tapRange(croudBlock2);
-
-    entrance.addChild(groundBlock);
-    tapRange(groundBlock);
-
-    entrance.addChild(daikokubasiraBlock);
-    tapRange(daikokubasiraBlock);
+    entrance = new PIXI.Sprite(entrance);
+    entrance.name = "エントランス";//名前を割り振る※これをやらないとgetChildByNameメソッドが使えない
+    tapRange(entrance);
+    //userNameにフォームの内容を入れる
+    room = "エントランス";//マップを切り替える
+    roomSE = "other";
 
     croud = new PIXI.Sprite(croud);
+    croud.interactive = true;
+    croud.hitArea = new PIXI.Polygon(
+      [
+        111, 123,
+        123, 113,
+        133, 109,
+        133, 105,
+        142, 97,
+        151, 97,
+        151, 92,
+        160, 92,
+        173, 99,
+        173, 113,
+        185, 113,
+        196, 120,
+        198, 130,
+        194, 130,
+        194, 137,
+        184, 137,
+        184, 140,
+        176, 140,
+        176, 140,
+        176, 147,
+        173, 147,
+        173, 147,
+        171, 151,
+        159, 151,
+        159, 148,
+        151, 148,
+        145, 154,
+        122, 154,
+        111, 144,
+      ]);
     entrance.addChild(croud);
+    croud2 = new PIXI.Graphics();//ブロックを置く宣言
+    croud2.interactive = true;
+    // croud2.beginFill(0xf0000);
+    // croud2.drawPolygon([
+    //   421, 73,
+    //   443, 59,
+    //   443, 55,
+    //   452, 47,
+    //   461, 47,
+    //   461, 42,
+    //   470, 42,
+    //   483, 49,
+    //   483, 63,
+    //   495, 63,
+    //   506, 70,
+    //   508, 80,
+    //   504, 80,
+    //   504, 87,
+    //   494, 87,
+    //   494, 90,
+    //   486, 90,
+    //   486, 97,
+    //   483, 97,
+    //   483, 97,
+    //   481, 101,
+    //   469, 101,
+    //   469, 98,
+    //   461, 98,
+    //   455, 104,
+    //   432, 104,
+    //   421, 94,
+    // ]);
+    croud2.hitArea = new PIXI.Polygon(
+      [
+        421, 73,
+        443, 59,
+        443, 55,
+        452, 47,
+        461, 47,
+        461, 42,
+        470, 42,
+        483, 49,
+        483, 63,
+        495, 63,
+        506, 70,
+        508, 80,
+        504, 80,
+        504, 87,
+        494, 87,
+        494, 90,
+        486, 90,
+        486, 97,
+        483, 97,
+        483, 97,
+        481, 101,
+        469, 101,
+        469, 98,
+        461, 98,
+        455, 104,
+        432, 104,
+        421, 94,
+      ]);
+
+    entrance.addChild(croud2);
     ground = new PIXI.Sprite(ground);
+    ground.interactive = true;
+    ground.hitArea = new PIXI.Polygon([
+      0, 285,
+      3, 285,
+      23, 285,
+      69, 274,
+      197, 274,
+      280, 268,
+      302, 268,
+      358, 268,
+      462, 275,
+      556, 275,
+      660, 285,
+      660, 480,
+      0, 480,
+    ]);
     entrance.addChild(ground);
     bonfire = new PIXI.Sprite(bonfire);
     bonfire.position.set(0, 200);
@@ -1929,26 +2706,171 @@ function login() {
     daikokubasira.zIndex = 300;
     entrance.addChild(daikokubasira);
 
+    rainbow = new PIXI.Graphics();//ブロックを置く宣言
+    rainbow.interactive = true;
+    rainbow.hitArea = new PIXI.Polygon([
+      396, 270,
+      403, 251,
+      406, 246,
+      409, 241,
+      413, 235,
+      414, 234,
+      424, 221,
+      425, 220,
+      427, 218,
+      428, 217,
+      446, 204,
+      449, 202,
+      454, 199,
+      455, 198,
+      460, 195,
+      462, 193,
+      473, 184,
+      482, 178,
+      534, 156,
+      547, 154,
+      553, 153,
+      558, 152,
+      578, 150,
+      618, 146,
+      660, 145,
+      660, 217,
+      584, 214,
+      566, 216,
+      563, 217,
+      558, 218,
+      549, 220,
+      545, 221,
+      539, 224,
+      524, 230,
+      521, 231,
+      519, 232,
+      510, 236,
+      504, 239,
+      500, 242,
+      497, 244,
+      491, 249,
+      482, 258,
+      472, 275,
+    ]);
+    entrance.addChild(rainbow);
+
+
+
+
+
     entrance.sortableChildren = true;//子要素のzIndexをonにする。
     app.stage.addChild(entrance);//画像を読みこむ
 
     //マップをここで作っておく
     utyu = new PIXI.Sprite(utyu);
-    utyu.name = "utyu";//名前を割り振る
+    utyu.name = "うちゅー";//名前を割り振る
     utyu.sortableChildren = true;//子要素のzIndexをonにする。
     tapRange(utyu);
+
+    hosi1 = new PIXI.Graphics();
+    hosi1.name = "星1";
+    hosi1.sortableChildren = true;
+    hosi1.beginFill(0x000000);
+    // hosi1.beginFill(0xffffff);
+    hosi1.drawRect(0, 0, 660, 480);
+    hosi1.endFill();
+
+
+
+    let f = 200;
+    let treeScale = 1;//枝の短くなる比率
+    // let len = 200;//最初の枝の長さ
+    hosi1LineContainer = new PIXI.Container();
+    drawTree(430, 450, 200, 0, 90, 10);
+    hosi1.addChild(hosi1LineContainer);
+
+    function drawTree(x1, y1, len, stand, angle, n) {//初期x座標、初期y座標、初期の枝長さ,枝の傾き,枝の広がり
+      // console.log(f);
+      let x2 = x1 + len * Math.sin(radians(stand));
+      let y2 = y1 - len * Math.cos(radians(stand));
+      hosi1Line[hosi1Line.length] = new PIXI.Graphics();
+      hosi1Line[hosi1Line.length - 1].lineStyle(1, random_color_hex());
+      hosi1Line[hosi1Line.length - 1].moveTo(x1, y1);
+      hosi1Line[hosi1Line.length - 1].lineTo(x2, y2);
+      hosi1LineContainer.addChild(hosi1Line[hosi1Line.length - 1]);
+      if (f >= 1) {
+        f -= 1;
+        // console.log("n" + f);
+        drawTree(x2, y2, len * treeScale, stand - angle, f);
+        drawTree(x2, y2, len * treeScale, stand + angle, f);
+      }
+    }
+
+    function radians(degree) {
+      return degree * (Math.PI / 180);
+    }
+
+    function random_color_hex() {
+      let color = Math.ceil(16777215 * Math.random()).toString(16);
+      let length = color.length;
+      while (length < 6) {
+        color = '0' + color;
+        length++;
+      }
+      return '0X' + color;
+    }
+
+
+    // let f = 200;
+    // let treeScale = 1;//枝の短くなる比率
+    // // let len = 200;//最初の枝の長さ
+    // drawTree(430, 450, 200, 0, 90, 10);
+    // // drawTree(330 + 200 * Math.cos(radians(0)), 250- 200 * Math.sin(radians(0)), 200*0.5, 0, 90, 10);
+
+
+    // function drawTree(x1, y1, len, stand, angle, n) {//初期x座標、初期y座標、初期の枝長さ,枝の傾き,枝の広がり
+    //   console.log(f);
+    //   let x2 = x1 + len * Math.sin(radians(stand));
+    //   let y2 = y1 - len * Math.cos(radians(stand));
+    //   hosi1Line[hosi1Line.length] = new PIXI.Graphics();
+    //   hosi1Line[hosi1Line.length - 1].lineStyle(1, random_color_hex());
+    //   hosi1Line[hosi1Line.length - 1].moveTo(x1, y1);
+    //   hosi1Line[hosi1Line.length - 1].lineTo(x2, y2);
+    //   hosi1.addChild(hosi1Line[hosi1Line.length - 1]);
+    //   if (f >= 1) {
+    //     f -= 1;
+    //     console.log("n" + f);
+    //     drawTree(x2, y2, len * treeScale, stand - angle, f);
+    //     drawTree(x2, y2, len * treeScale, stand + angle, f);
+    //   }
+    // }
+
+    // function radians(degree) {
+    //   return degree * (Math.PI / 180);
+    // }
+
+    // function random_color_hex() {
+    //   let color = Math.ceil(16777215 * Math.random()).toString(16);
+    //   let length = color.length;
+    //   while (length < 6) {
+    //     color = '0' + color;
+    //     length++;
+    //   }
+    //   return '0X' + color;
+    // }
+
+
+    tapRange(hosi1);
+
+
 
     AX = 457;//座標を切り替える
     AY = 80;
 
-
-
-    socket.json.emit("login_room", {//エントランスに入る
-      room: "entrance",
+    socket.json.emit("roomInSelf", {//エントランスに入る
+      beforeRoom: "loginBack",
+      afterRoom: "エントランス",
       userName: userName,//ユーザーネーム
       avatar: avaP[token].avatar,
       avatarColor: avaP[token].avatarColor,
       avatarAlpha: avaP[token].avatarAlpha,
+      userOekakiData: userOekakiData[token],
     });
 
 
@@ -1992,44 +2914,11 @@ function login() {
 
 
 
-    app.stage.getChildByName("entrance").interactive = true;
-    // マウスか、スマホをおしっぱにしてる間、ctrlを押してるか、wa_iがonになってたら線を出力
-    app.stage.getChildByName("entrance").pointerdown = function () {
-      pointDown = true;
-    }
-
-    app.stage.getChildByName("entrance").pointermove = function (e) {//カーソルを動かし中
-      if (pointDown && (isDownCtrl || clickedWa_iButtun)) {
-        draw(e.data.getLocalPosition(app.stage.getChildByName("entrance")).x, e.data.getLocalPosition(app.stage.getChildByName("entrance")).y);
-        oekakityu = true;
-      }
-    }
-    app.stage.getChildByName("entrance").pointerup = function () {//カーソルを離したとき
-      if (oekakityu) {//お絵かき中なら
-        app.stage.getChildByName(room).removeChild(oekaki[0]);
-        socket.json.emit("oekaki", {
-          oekakiX: oekaki[0].X,
-          oekakiY: oekaki[0].Y,
-          oekakiColor: oekaki[0].dataColor,
-          oekakiAlpha: oekaki[0].dataAlpha,
-        });
-        app.stage.getChildByName(room).removeChild(oekaki[0]);
-        lastPosition.x = null;
-        lastPosition.y = null;
-        oekaki[0] = new PIXI.Graphics();
-        oekaki[0].lineStyle(2, oekakiColor, oekakiAlpha);
-        oekakityu = false;
-      }
-      pointDown = false;
-    }
-    app.stage.getChildByName("entrance").mouseup = function () {
-      pointDown = false;
-    }
 
 
-    oekaki[0] = new PIXI.Graphics();
-    oekaki[0].lineStyle(2, oekakiColor, oekakiAlpha);
-    app.stage.getChildByName(room).addChild(oekaki[0]);
+    oekakiSistem(room);
+
+
 
     //点と色情報をサーバーにアップロード
 
@@ -2059,16 +2948,58 @@ function login() {
   }
 }
 
-function outputMsg(outputMsg, color) {//移動時のメッセージ出力
-  console.log("outputMsgLENGth:" + outputMsg.length);
+
+function outputMsg(outputMessage, color, thisToken, announce) {//移動時のメッセージ出力
   const li = document.createElement("li");
   li.classList.add("flexContainer");
   if (color) {
     li.style.color = color;
   }
+  if (announce) {
+    li.style.fontSize = localStorage.getItem("fontSize") - 4 + "px";
+    li.style.color = "rgb(208,110,197)";
+    fontSizeSelecter.onchange = function () {
+      localStorage.setItem("fontSize", this.value);//なんか気持ち悪い実装方法したけどまあこれでよし
+      chatLog.style.fontSize = this.value + "px";
+      li.style.fontSize = localStorage.getItem("fontSize") - 4 + "px";
+    }
+  }
+
+
+  // 発言したテキストをクリックした時アボンする
+  if (thisToken !== undefined) {
+    li.className = thisToken;//アボンクラスを付与
+    li.addEventListener("click", function (e) {
+      if (e.ctrlKey) {
+        if (token != thisToken) {//自テキストは省く
+          if (setAbon[thisToken]) {
+            setAbon[thisToken] = false;
+          } else {
+            setAbon[thisToken] = true;
+          }
+          socket.json.emit("abonSetting", {
+            setAbon: setAbon[thisToken],
+            token: thisToken,
+          });
+        }
+      }
+    });
+  }
+
+  if (thisToken) {
+    let img = document.createElement("img");
+    if (avaP[thisToken].avatar === "gomaneco" || avaP[thisToken].avatar === "gomanecoMono") {
+      img.classList.add("gomanecoHead");
+    } else if (avaP[thisToken].avatar === "necosuke" || avaP[thisToken].avatar === "necosukeMono") {
+      img.classList.add("necosukeHead");
+    }
+    li.appendChild(img);
+  }
+
+  //urlで分割
   //u3000は全角空白だからu3001からにした
-  let split = outputMsg.split(/https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%#\u3001-\u30FE\u4E00-\u9FA0\uFF01-\uFFE3]+/g);
-  let match = outputMsg.match(/https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%#\u3001-\u30FE\u4E00-\u9FA0\uFF01-\uFFE3]+/g);
+  let split = (String(outputMessage)).split(/https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%#\u3001-\u30FE\u4E00-\u9FA0\uFF01-\uFFE3]+/g);
+  let match = outputMessage.match(/https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%#\u3001-\u30FE\u4E00-\u9FA0\uFF01-\uFFE3]+/g);
 
   if (!match) {
     match = [];
@@ -2082,8 +3013,7 @@ function outputMsg(outputMsg, color) {//移動時のメッセージ出力
 
 
   for (let i = 0; i < split.length; i++) {
-    pre[i] = document.createElement("pre");
-
+    pre[i] = document.createElement("a");//すごいてきとーな直し方してるよなあ、これ
     if (allLength + split[i].length > maxLength) {
       pre[i].textContent = split[i].substr(0, maxLength - allLength) + "...(省略されました。全てを読むにはわっふるわっふると書き込んでください。)";
       li.appendChild(pre[i]);
@@ -2116,7 +3046,6 @@ function outputMsg(outputMsg, color) {//移動時のメッセージ出力
   }
 
 
-
   function waffle(e) {
     if (msgForm.msg.value === "わっふるわっふる" || msgForm.msg.value === "waffle waffle") {
       let liAll = document.createElement("li");
@@ -2142,11 +3071,10 @@ function outputMsg(outputMsg, color) {//移動時のメッセージ出力
       }
 
       //メッセージを出力
-      if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+      if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowWidthが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
         chatLogUl.replaceChild(liAll, li); //すげ替え。
         chatLog.scrollTop = chatLog.scrollHeight;
       }
-
 
       msgForm.removeEventListener("submit", waffle);
       waffleEventNum--;
@@ -2156,10 +3084,10 @@ function outputMsg(outputMsg, color) {//移動時のメッセージ出力
       }
     }
     e.preventDefault();
-  }
+  }//waffle
 
   //メッセージを出力
-  if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowsizeが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+  if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowWidthが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
     chatLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
     chatLog.scrollTop = chatLog.scrollHeight;
   } else {
@@ -2167,12 +3095,11 @@ function outputMsg(outputMsg, color) {//移動時のメッセージ出力
   }
 
 
-  if (outputMsg.length > 200) {
-    outputMsg = outputMsg.substr(0, 200) + "...";
+  if (outputMessage.length > 200) {
+    outputMessage = outputMessage.substr(0, 200) + "...";
   }
-  gamenLog.text = outputMsg + "\n" + gamenLog.text;
+  gamenLog.text = outputMessage + "\n" + gamenLog.text;
   app.stage.addChild(gamenLog);
-
 }
 
 //過去ログ表示
@@ -2205,9 +3132,10 @@ function visibleLogButtonClicked() {
     visibleLog = true;
   }
 }
+
+
 visibleLogButton.addEventListener('click', visibleLogButtonClicked);
 visibleLogButton.addEventListener('mousedown', function (e) { e.preventDefault(); });
-
 
 
 wa_i.style.backgroundColor = "red";
@@ -2223,22 +3151,355 @@ function wa_iButtonClicked() {
 wa_i.addEventListener('click', wa_iButtonClicked);
 wa_i.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
-clear.style.backgroundColor = 'skyblue';
+clear.style.backgroundColor = "#979797";
 function clearButtonClicked() {
-  socket.emit("clearCanvas", {});
-  clear.style.backgroundColor = '#BCE1DF';
+  if (clearFlag[room]) {
+    clear.style.backgroundColor = "red";
+  }
 }
 
 clear.addEventListener('mousedown', clearButtonClicked);
 
 function clearButtonUp() {
-  clear.style.backgroundColor = 'skyblue';
+  if (room === "login" && clearFlag[token]) {
+    for (let i = 0; i < userOekaki[token][token].length; i++) {
+      userOekaki[token][token][i].destroy();
+      delete userOekakiData[token];
+      avaP[token].removeChild(userOekaki[token][token][i]);
+    }
+    clearFlag[token] = 0;
+    clear.style.backgroundColor = "#979797";
+    delete userOekaki[token];
+    localStorage.removeItem("myOekaki");
+  } else if (clearFlag[setToken] && userOekakiFlag[setToken]) {
+    Object.keys(userOekaki[setToken]).forEach(function (key) {
+      for (let i = 0; i < userOekaki[setToken][key].length; i++) {
+        userOekaki[setToken][key][i].destroy();
+        avaP[setToken].removeChild(userOekaki[setToken][key][i]);
+      }
+    });
+    delete userOekaki[setToken];
+
+    //undoをtrueにする
+    undoFlag[setToken] = 1;
+    undo.style.backgroundColor = 'skyblue';
+    //clearをfalseにする
+    clearFlag[setToken] = 0;
+    clear.style.backgroundColor = "#979797";
+    socket.emit("userClearCanvas", {
+      token: setToken,
+    });
+
+    if (setToken === token) {
+      localStorage.removeItem("myOekaki");
+    }
+  } else if (clearFlag[room]) {//部屋のらくがき
+    Object.keys(oekaki).forEach(function (key) {
+      for (let i = 0; i < oekaki[key].length; i++) {
+        oekaki[key][i].destroy();
+        app.stage.getChildByName(room).removeChild(oekaki[i]);
+      }
+      delete oekaki[key];
+    });
+
+    //undoをtrueにする
+    undoFlag[room] = 1;
+    undo.style.backgroundColor = 'skyblue';
+    //clearをfalseにする
+    clearFlag[room] = 0;
+    clear.style.backgroundColor = "#979797";
+    socket.emit("clearCanvas", {});
+  }
 }
 clear.addEventListener('mouseup', clearButtonUp);
 
 
 
+//アンドゥー//
+undo.style.backgroundColor = "#979797";
+function undoButtonClicked() {
+  if (undoFlag[room]) {
+    undo.style.backgroundColor = "red";
+  }
+}
+undo.addEventListener('mousedown', undoButtonClicked);
+
+function undoButtonUp() {
+  if (userOekakiFlag[setToken] && undoFlag[setToken]) {
+    undoFlag[setToken] -= 1;
+    if (undoFlag[setToken]) {
+      undo.style.backgroundColor = 'skyblue';
+    } else {
+      undo.style.backgroundColor = "#979797";
+    }
+
+    if (userOekaki[setToken]) {
+      if (userOekaki[setToken][token]) {//自分の落書きがあれば
+        userOekaki[setToken][token][userOekaki[setToken][token].length - 1].destroy();
+        userOekaki[setToken][token].pop();
+        redoStock[setToken][redoStock[setToken].length] = userOekakiData[setToken][token].pop();
+        redo.style.backgroundColor = 'skyblue';
+        if (!userOekaki[setToken][token].length) {//自分の落書きがなくなったら
+          delete userOekaki[setToken][token];
+          delete userOekakiData[setToken][token];
+
+          if (!Object.keys(userOekaki[setToken]).length) {//落書きが無ければクリアを無効にする
+            clearFlag[setToken] = 0;
+            clear.style.backgroundColor = "#979797";
+          }
+        }
+      }
+    }
+    socket.emit("userUndo", {
+      token: setToken,
+    });
+    if (setToken === token) {
+      localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+    }
+  } else if (undoFlag[room]) {
+    undoFlag[room] -= 1;
+    if (undoFlag[room]) {
+      undo.style.backgroundColor = 'skyblue';
+    } else {
+      undo.style.backgroundColor = "#979797";
+    }
+    if (oekaki[token]) {//自分の落書きがあれば
+      oekaki[token][oekaki[token].length - 1].destroy();
+      redoStock[room][redoStock[room].length] = oekaki[token].pop();
+      redo.style.backgroundColor = 'skyblue';
+      if (!oekaki[token].length) {//自分の落書きがなくなったら
+        delete oekaki[token];
+
+
+        if (!Object.keys(oekaki).length) {//落書きが無ければクリアを無効にする
+          clearFlag[room] = 0;
+          clear.style.backgroundColor = "#979797";
+        }
+      }
+    }
+    socket.emit("undo", {});
+  }
+}
+undo.addEventListener('mouseup', undoButtonUp);
+
+socket.on("undo", function (data) {
+  if (oekaki[data.token]) {
+    if (oekaki[data.token].length) {
+      oekaki[data.token][oekaki[data.token].length - 1].destroy();
+      oekaki[data.token].pop();
+      if (!oekaki[data.token].length) {
+        delete oekaki[data.token];
+      }
+      if (!Object.keys(oekaki).length) {
+        clearFlag[room] = 0;
+        clear.style.backgroundColor = "#979797";
+      }
+    }
+  }
+});
+
+socket.on("userUndo", function (data) {
+  if (userOekaki[data.setToken]) {
+    if (Object.keys(userOekaki[data.setToken]).length) {
+      if (userOekaki[data.setToken][data.token].length) {
+        userOekaki[data.setToken][data.token][userOekaki[data.setToken][data.token].length - 1].destroy();//最後のお絵描きを設定を破壊
+        userOekaki[data.setToken][data.token].pop();//最後のお絵描き情報を削除
+        if (!userOekaki[data.setToken][data.token].length) {
+          delete userOekaki[data.setToken][data.token];
+        }
+        if (!Object.keys(userOekaki[data.setToken]).length) {//自分のお絵描き情報が残っていなければ
+          clearFlag[data.setToken] = 0;
+          clear.style.backgroundColor = "#979797";
+        }
+
+        if (data.setToken === token) {
+          userOekakiData[token][data.token].pop();
+          localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+        }
+      }
+    }
+  }
+});
+
+
+socket.on("undoClear", function (data) {
+  if (data.oekaki) {
+    const keys = Object.keys(data.oekaki);
+    keys.forEach(function (key) {
+      for (let n = 0; n < data.oekaki[key].length; n++) {
+        if (data.oekaki[key][n]) {
+          if (!oekaki[key]) {
+            oekaki[key] = [];
+          }
+          oekaki[key][oekaki[key].length] = new PIXI.Graphics();
+          if (key === token) {//自分の配列情報だけは入れなおす
+            oekaki[key][oekaki[key].length - 1].X = data.oekaki[key][n].X;
+            oekaki[key][oekaki[key].length - 1].Y = data.oekaki[key][n].Y;
+            oekaki[key][oekaki[key].length - 1].dataColor = data.oekaki[key][n].dataColor;
+            oekaki[key][oekaki[key].length - 1].dataAlpha = data.oekaki[key][n].dataAlpha;
+            //undoをtrueにする
+            undoFlag[room] = oekaki[key].length;
+            undo.style.backgroundColor = 'skyblue';
+          }
+          oekaki[key][oekaki[key].length - 1].zIndex = 1000;
+          oekaki[key][oekaki[key].length - 1].lineStyle(2, data.oekaki[key][n].dataColor[0], data.oekaki[key][n].dataAlpha[0]);
+          oekaki[key][oekaki[key].length - 1].moveTo(data.oekaki[key][n].X[0], data.oekaki[key][n].Y[0]);
+
+          for (let i = 1; i < data.oekaki[key][n].X.length; i++) {
+            oekaki[key][oekaki[key].length - 1].lineTo(data.oekaki[key][n].X[i], data.oekaki[key][n].Y[i]);
+          }
+          app.stage.getChildByName(room).addChild(oekaki[key][oekaki[key].length - 1]);
+        }
+      }
+    });
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[room] = 1;
+  }
+});
+
+socket.on("userUndoClear", function (data) {
+  if (data.oekaki) {
+    if (!userOekaki[data.token]) {//user絵描きオブジェクトが無ければ作る
+      userOekaki[data.token] = {};
+    }
+    const keys = Object.keys(data.oekaki);
+    keys.forEach(function (key) {
+      for (let n = 0; n < data.oekaki[key].length; n++) {//それぞれの落書きごとに戻す
+        if (data.oekaki[key][n]) {
+          if (!userOekaki[data.token][key]) {
+            userOekaki[data.token][key] = [];
+          }
+          userOekaki[data.token][key][userOekaki[data.token][key].length] = new PIXI.Graphics();
+          if (key === token) {//自分の配列情報だけは入れなおす
+            userOekakiData[data.token][key][userOekakiData[data.token][key].length - 1].X = data.oekaki[key][n].X;
+            userOekakiData[data.token][key][userOekakiData[data.token][key].length - 1].Y = data.oekaki[key][n].Y;
+            userOekakiData[data.token][key][userOekakiData[data.token][key].length - 1].dataColor = data.oekaki[key][n].dataColor;
+            userOekakiData[data.token][key][userOekakiData[data.token][key].length - 1].dataAlpha = data.oekaki[key][n].dataAlpha;
+            //undoをtrueにする
+            undoFlag[setToken] = userOekaki[data.token][key].length;
+            undo.style.backgroundColor = 'skyblue';
+          }
+          userOekaki[data.token][key][userOekaki[data.token][key].length - 1].zIndex = 1000;
+          userOekaki[data.token][key][userOekaki[data.token][key].length - 1].lineStyle(2, data.oekaki[key][n].dataColor[0], data.oekaki[key][n].dataAlpha[0]);
+          userOekaki[data.token][key][userOekaki[data.token][key].length - 1].moveTo(data.oekaki[key][n].X[0], data.oekaki[key][n].Y[0]);
+
+          for (let i = 1; i < data.oekaki[key][n].X.length; i++) {
+            userOekaki[data.token][key][userOekaki[data.token][key].length - 1].lineTo(data.oekaki[key][n].X[i], data.oekaki[key][n].Y[i]);
+          }
+          avaP[data.token].addChild(userOekaki[data.token][key][userOekaki[data.token][key].length - 1]);
+        }
+      }
+    });
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[data.token] = 1;
+
+    if (data.token === token) {
+      localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+    }
+  }
+});
+
+
+//リドゥー
+redo.style.backgroundColor = "#979797";
+function redoButtonClicked() {
+  if (redoStock[room].length) {
+    redo.style.backgroundColor = '#BCE1DF';
+  }
+}
+
+redo.addEventListener('mousedown', redoButtonClicked);
+    
+function redoButtonUp() {
+  if (userOekakiFlag[setToken] && redoStock[setToken].length) {
+    if (!userOekaki[setToken]) {
+      userOekaki[setToken] = {};
+      userOekakiData[setToken] = {};
+    }
+    if (!userOekaki[setToken][token]) {
+      userOekaki[setToken][token] = [];
+      userOekakiData[setToken][token] = [];
+    }
+
+    userOekaki[setToken][token][userOekaki[setToken][token].length] = new PIXI.Graphics();
+    userOekaki[setToken][token][userOekaki[setToken][token].length - 1].lineStyle(2, redoStock[setToken][redoStock[setToken].length - 1].dataColor[0], redoStock[setToken][redoStock[setToken].length - 1].dataAlpha[0]);
+    userOekaki[setToken][token][userOekaki[setToken][token].length - 1].moveTo(redoStock[setToken][redoStock[setToken].length - 1].X[0], redoStock[setToken][redoStock[setToken].length - 1].Y[0]);// ドラッグ開始時の線の開始位置
+
+
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length] = {};
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].X = redoStock[setToken][redoStock[setToken].length - 1].X;//x座標用の配列
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].Y = redoStock[setToken][redoStock[setToken].length - 1].Y;//Y座標用の配列
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataColor = redoStock[setToken][redoStock[setToken].length - 1].dataColor;//最初の点の色を保存
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].dataAlpha = redoStock[setToken][redoStock[setToken].length - 1].dataAlpha;//最初の点の透明度を保存
+    userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].zIndex = redoStock[setToken][redoStock[setToken].length - 1].zIndex;//最初の点の透明度を保存
+
+    for (let i = 1; i < userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].X.length; i++) {
+      userOekaki[setToken][token][userOekaki[setToken][token].length - 1].lineTo(userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].X[i], userOekakiData[setToken][token][userOekakiData[setToken][token].length - 1].Y[i]);
+    }
+    avaP[setToken].addChild(userOekaki[setToken][token][userOekaki[setToken][token].length - 1]);
+    redoStock[setToken].pop();
+    socket.emit("userRedo", {
+      token: setToken,
+    });
+    if (redoStock[setToken].length) {
+      redo.style.backgroundColor = 'skyblue';
+    } else {
+      redo.style.backgroundColor = "#979797";
+    }
+    //undoをtrueにする
+    if (!undoFlag[setToken]) {
+      undoFlag[setToken] = 0;
+    }
+    undoFlag[setToken] += 1;
+    undo.style.backgroundColor = 'skyblue';
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[setToken] = 1;
+
+    if (setToken === token) {
+      localStorage.setItem("myOekaki", JSON.stringify(userOekakiData[token]));
+    }
+  } else if (redoStock[room].length) {//部屋への落書きの場合
+    if (!oekaki[token]) {
+      oekaki[token] = [];
+    }
+    oekaki[token][oekaki[token].length] = new PIXI.Graphics();
+    oekaki[token][oekaki[token].length - 1].lineStyle(2, redoStock[room][redoStock[room].length - 1].dataColor[0], redoStock[room][redoStock[room].length - 1].dataAlpha[0]);
+    oekaki[token][oekaki[token].length - 1].moveTo(redoStock[room][redoStock[room].length - 1].X[0], redoStock[room][redoStock[room].length - 1].Y[0]);// ドラッグ開始時の線の開始位置
+    oekaki[token][oekaki[token].length - 1].X = redoStock[room][redoStock[room].length - 1].X;//x座標用の配列
+    oekaki[token][oekaki[token].length - 1].Y = redoStock[room][redoStock[room].length - 1].Y;//Y座標用の配列
+    oekaki[token][oekaki[token].length - 1].dataColor = redoStock[room][redoStock[room].length - 1].dataColor;//最初の点の色を保存
+    oekaki[token][oekaki[token].length - 1].dataAlpha = redoStock[room][redoStock[room].length - 1].dataAlpha;//最初の点の透明度を保存
+    oekaki[token][oekaki[token].length - 1].zIndex = redoStock[room][redoStock[room].length - 1].zIndex;//最初の点の透明度を保存
+
+    for (let i = 1; i < oekaki[token][oekaki[token].length - 1].X.length; i++) {
+      oekaki[token][oekaki[token].length - 1].lineTo(oekaki[token][oekaki[token].length - 1].X[i], oekaki[token][oekaki[token].length - 1].Y[i]);
+    }
+    app.stage.getChildByName(room).addChild(oekaki[token][oekaki[token].length - 1]);
+    redoStock[room].pop();
+    socket.emit("redo", {});
+    if (redoStock[room].length) {
+      redo.style.backgroundColor = 'skyblue';
+    } else {
+      redo.style.backgroundColor = "#979797";
+    }
+    //undoをtrueにする
+    undoFlag[room] += 1;
+    undo.style.backgroundColor = 'skyblue';
+    //clearをtrueにする
+    clear.style.backgroundColor = 'skyblue';
+    clearFlag[room] = 1;
+  }
+}
+
+
+redo.addEventListener('mouseup', redoButtonUp);
+
+
 if (localStorage.getItem("volume")) {
+  effectVolume.value = localStorage.getItem("volume");
   setMsgSE(localStorage.getItem("volume"));
 }
 
@@ -2263,12 +3524,12 @@ function setMsgSE(value) {
 
 
 let useLogChime;
-if (localStorage.getItem("useLogChime")) {
+if (localStorage.getItem("useLogChime") === "1") {
   useLogChime = true;
 } else {
   useLogChime = false;
 }
-useLogChime = Boolean(parseInt(localStorage.getItem("useLogChime"), 10));//
+
 if (useLogChime) {//ログチャイムを使う時
   logNoiseButton.style.backgroundColor = 'skyblue';
   logNoiseButton.textContent = "SE🔊))"
@@ -2281,13 +3542,13 @@ if (useLogChime) {//ログチャイムを使う時
 function logChimeButtonClicked() {
   if (useLogChime) {//ログチャイムを使わない時
     logNoiseButton.style.backgroundColor = "red";
-    logNoiseButton.textContent = "📢✖"
-    localStorage.setItem("useLogChime", false);
+    logNoiseButton.textContent = "SE📢✖"
+    localStorage.setItem("useLogChime", 0);
     useLogChime = false;
   } else {//ログチャイムを使う時
     logNoiseButton.style.backgroundColor = 'skyblue';
-    logNoiseButton.textContent = "🔊))"
-    localStorage.setItem("useLogChime", true);
+    logNoiseButton.textContent = "SE🔊))"
+    localStorage.setItem("useLogChime", 1);
     useLogChime = true;
   }
 }
@@ -2296,65 +3557,157 @@ logNoiseButton.addEventListener('mousedown', function (e) { e.preventDefault(); 
 
 
 
+
 function setSEVolume(value) {//SE音量調整
   localStorage.setItem("volume", value);
   setMsgSE(value);
 }
 
+socket.on("get", function (data) {
+  console.log(data.msg);
+});
 
 //メッセージを受け取って表示
 socket.on("emit_msg", function (data) {
-  if (setAbon[data.token] == false) {//アボンされてない場合
-    outputMsg("（　´∀｀)" + data.userName + ":" + data.msg,);
+  if (data.token) {
+    if (setAbon[data.token] == false) {//アボンされてない場合
+      if (data.avaMsg !== "") {　//未入力メッセージじゃなければ
+        if (avaP[data.token].avatar === "gomaneco") {
+        } else {
+        }
+        outputMsg(data.userName + ":" + data.msg, "black", data.token);
+        if (data.avaMsg.length > 40) {//長すぎる場合は短くする
+          data.avaMsg = data.avaMsg.substr(0, 40) + "...";
+        }
+        if (data.kanban) {//看板なら
+          msg[data.token].style.fill = "0x1e90ff";
+          msg[data.token].interactive = false;//これ逆じゃね？？？　って思うんだが、まあそういう仕様なんかな
+        } else {
+          msg[data.token].style.fill = "white";
+          msg[data.token].interactive = true;
+        }
 
-    if (data.avaMsg.length > 40) {//長すぎる場合は短くする
-      data.avaMsg = data.avaMsg.substr(0, 40) + "...";
-    }
 
-    if (data.avaMsg == "") {//未入力メッセージなら吹き出しを消す
+
+        if (useLogChime) {//ログの音を鳴らす
+          msgSE.log[data.soundNum].play();
+        }
+      }
+
       msg[data.token].text = data.avaMsg;
-    } else {
-      if (data.kanban) {//看板機能
-        msg[data.token].text = data.avaMsg;
-        msg[data.token].style.fill = "0x1e90ff";
-      } else {
-        msg[data.token].text = data.avaMsg;
-        msg[data.token].style.fill = "white";
-      }
-
-
-      // // 発言したテキストをクリックした時アボンする
-      // li.className = data.token;//アボンクラスを付与
-      // const abonClass = document.getElementsByClassName(data.token);
-      // abonClass[abonClass.length - 1].addEventListener("click", function () {
-      //   if (data.token != token) {//自テキストは省く
-      //     if (setAbon[data.token]) {
-      //       setAbon[data.token] = false;
-      //     } else {
-      //       setAbon[data.token] = true;
-      //       avaP[data.token].removeChild(avaC[data.token]);//画像をアボンにする
-      //       avaC[data.token] = avaAbon[data.token];
-      //       avaP[data.token].addChild(avaC[data.token]);
-      //     }
-      //     socket.json.emit("abonSetting", {
-      //       setAbon: setAbon[data.token],
-      //       token: data.token,
-      //     });
-      //   }
-      // });
-      if (useLogChime) {//ログの音を鳴らす
-        msgSE.log[data.soundNum].play();
-      }
     }
+  } else {
+    outputMsg(data.msg);
   }
-});
+});//socket.on("emit_msg");
+
+train.style.backgroundColor = "rgb(255,165,0)";
+function trainClick() {
+  if (room !== "login") {
+    socket.json.emit("emit_msg", {
+      msg: "#train",
+    });
+  }
+}
+
+socket.on("train", function (data) {
+  const li = document.createElement("li");
+  li.classList.add("flexContainer");
+  let button = [];
+  for (let i = 0; i < data.trainList.length; i++) {
+    console.log(data.trainList[i]);
+    button[i] = document.createElement("button");
+    button[i].textContent = data.trainList[i];
+    button[i].style.backgroundColor = "rgb(255,165,0)";
+    button[i].addEventListener("click", function (e) {
+      switch (data.roomString[i]) {
+        case "エントランス":
+          changeSelfRoom("エントランス", entrance, 457, 80, "S", "other", "black", "train");
+          break;
+        case "うちゅー":
+          changeSelfRoom("うちゅー", utyu, 200, 300, "S", "utyu", "white", "train");
+          break;
+        case "星1":
+          changeSelfRoom("星1", hosi1, 334, 450, "N", "utyu", "white", "train");
+          break;
+      }
+    });
+    li.appendChild(button[i]);
+  }
+
+  //メッセージを出力
+  if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowWidthが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    chatLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    chatLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
+  }
+});//socket.on("train");
+
+//リスト
+socket.on("list", function (data) {
+  const li = document.createElement("li");
+  li.classList.add("flexContainer");
+  let button = [];
+
+  for (let i = 0; i < data.listName.length; i++) {
+    button[i] = document.createElement("button");
+    button[i].textContent = data.listName[i];
+    if (setAbon[data.listToken[i]]) {
+      button[i].style.backgroundColor = "red";
+    } else {
+      button[i].style.backgroundColor = "skyblue";
+    }
+    button[i].className = data.listToken[i];
+    button[i].addEventListener("click", function (e) {
+      if (token != data.listToken[i]) {//自テキストは省く
+        if (setAbon[data.listToken[i]]) {
+          setAbon[data.listToken[i]] = false;
+          button[i].style.backgroundColor = "skyblue";
+        } else {
+          setAbon[data.listToken[i]] = true;
+          button[i].style.backgroundColor = "red";
+        }
+        socket.json.emit("abonSetting", {
+          setAbon: setAbon[data.listToken[i]],
+          token: data.listToken[i],
+        });
+      }
+    });
+    li.appendChild(button[i]);
+  }
+
+  //メッセージを出力
+  if (window.innerWidth > 660 && chatLog.scrollHeight <= chatLog.clientHeight + chatLog.scrollTop + 1) {//windowWidthが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
+    chatLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } else {
+    chatLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
+  }
+});//socket.on("list");
+
+usersDisplay.style.backgroundColor = "rgb(200,240,240)";
+function usresDisplayClick() {
+  if (room !== "login") {
+    socket.json.emit("emit_msg", {
+      msg: "#list",
+    });
+  }
+};
 
 //アボンの時の処理
 socket.on("abonSetting", function (data) {
-  if (setAbon[data.token] == true || data.msg == "その住民は退出済みです") {//アボンするときかアボン対象の住人が居ない時
+  if (data.msg == "その住民は退出済みです") {//アボンするときかアボン対象の住人が居ない時
+    outputMsg(data.msg, "red");
+    // msg[data.token].style.fill = "red";
+    // msg[data.token].text = data.avaMsg;
+  } else if (setAbon[data.token]) {
     outputMsg(data.msg, "red");
     msg[data.token].style.fill = "red";
     msg[data.token].text = data.avaMsg;
+    avaP[data.token].removeChild(avaC[data.token]);//画像をアボンにする
+    avaC[data.token] = avaAbon[data.token];
+    avaP[data.token].addChild(avaC[data.token]);
   } else {//アボンを解除する時
     outputMsg(data.msg, "blue");
     if (data.room == room) {//アバターが部屋にいるときの解除
@@ -2404,52 +3757,74 @@ socket.on("abonSetting", function (data) {
 
 
 
-
-
-
-
-
-//ログインか入室時に自分と他人のアバターを生成する
+//自分が入室時に部屋の人のアバターを生成する
 socket.on("roomInSelf", function (data) {
-  socket.emit("message", { type: "callMediaStatus" });
+  socket.emit("message", {
+    type: "callMediaStatus",
+  });
 
-  if (data.beforeRoom == "login") {//ログイン時
+  if (data.beforeRoom == "loginBack") {//ログイン時
     localStorage.setItem("avatarUserName", data.user[token].userName);
+    avaP[token].userName = data.user[token].userName;
+    //名前タグを生成
+    nameText[token].destroy();
+    nameText[token] = new PIXI.Text(data.user[token].userName, nameTextStyle);
+    nameText[token].zIndex = 10;
+    nameText[token].anchor.set(0.5);
+    nameText[token].position.set(0, -avaC[token].height - 10);
+    avaP[token].addChild(nameText[token]);
+
+    nameTag[token].destroy();
+    nameTag[token] = new PIXI.Graphics();
+    nameText[token].text = data.user[token].userName;
+    nameTag[token].lineStyle(1, 0x000000, 0.5);
+    nameTag[token].beginFill(0x000000);
+    nameTag[token].drawRect(0, 0, nameText[token].width, nameText[token].height);
+    nameTag[token].endFill();
+    nameTag[token].x = -nameText[token].width / 2;
+    nameTag[token].y = -avaC[token].height - 10 - nameText[token].height / 2;
+    let inTime = data.user[token].timeShade;
+    if (0 <= inTime && inTime < 12) {
+      inTime = 24 - inTime;
+    }
+    nameTag[token].alpha = Math.pow(1.06, inTime) * 0.1;
+    avaP[token].addChild(nameTag[token]);
+
+    msg[token].position.set(0, -avaS[token].height - 5);
   }
-  outputMsg(data.msg);//移動時のメッセージ出力
+  outputMsg(data.msg, 0, 0, 1);//移動時のメッセージ出力
   //部屋人数の表記を変える
   usersNumber.textContent = data.users;
+
+
   const keys = Object.keys(data.user);//入室時の全員のソケットＩＤを取得
   keys.forEach(function (value) {//引数valueにtokenを入れて順番に実行
-    if (data.beforeRoom == "login") {//ログインする時
-
+    if (!avaP[value] && data.user[value].room !== "loginBack") {//アバターが存在していなくて、かつそのアバターのログイン時
       switch (data.user[value].avatar) {
         case "necosukeMono":
           setAvatar(value, necosukeMono, 50);
           break;
-
         case "necosuke":
-          setAvatar(value, necosuke, 50)
+          setAvatar(value, necosuke, 50);
           break;
         case "gomanecoMono":
           setAvatar(value, gomanecoMono, 40);
           break;
-
         default:
-          setAvatar(value, gomaneco, 40)
+          setAvatar(value, gomaneco, 40);
           break;
       }
       avaAbon[value] = new PIXI.Sprite(avaAbon);
       avaAbon[value].anchor.set(0.5, 1);
 
       // アバターの親コンテナを作成
-      avaP[value] = new PIXI.Container();//ここで自身のアバターの関係性もリセットされてる
+      avaP[value] = new PIXI.Container();
+      avaP[value].interactive = true;//クリックイベントを有効化  
       avaP[value].avatar = data.user[value].avatar;
       avaP[value].sortableChildren = true;//子要素のzIndexをonにする
 
       avaP[value].room = data.user[value].room;
       setColor(value, data.user[value].avatarColor);
-      setAlpha(value, data.user[value].avatarAlpha);
 
       //名前を追加
       nameText[value] = new PIXI.Text(data.user[value].userName, nameTextStyle);
@@ -2464,68 +3839,32 @@ socket.on("roomInSelf", function (data) {
       nameTag[value].drawRect(0, 0, nameText[value].width, nameText[value].height);
       nameTag[value].endFill();
       nameTag[value].x = -nameText[value].width / 2;
-
-      nameTag[value].alpha = 0.3;
-
+      let inTime = data.user[value].timeShade;
+      if (0 <= inTime && inTime < 12) {
+        inTime = 24 - inTime;
+      }
+      nameTag[value].alpha = Math.pow(1.06, inTime) * 0.1;
       avaP[value].addChild(nameTag[value]);
 
 
       // アバターのメッセージを追加する
-      msg[value] = new PIXI.Text(data.user[value].msg);
+      msg[value] = new PIXI.Text();
       msg[value].zIndex = 20;
 
       msg[value].style.fontSize = 16;
       msg[value].style.fill = "0x1e90ff";
       avaP[value].addChild(msg[value]);
 
+      nameText[value].position.set(0, -avaS[value].height - 10);
+      nameTag[value].y = -avaS[value].height - 10 - nameText[value].height / 2;
+      msg[value].position.set(0, -avaS[value].height - 5);
+
       //アバタークリックでアボン
-      avaP[value].interactive = true;//クリックイベントを有効化
       setAbon[value] = false;
-      if (value !== token) {
-        avaP[value].rightclick = function () {
-          setAbonID = value;
-          document.getElementById("abon").style.display = "block";
-        };
-      }
-      avaP[value].touchstart = function () {
-        tapFlag = true;
-        if (!isDownCtrl && !clickedWa_iButtun) {
-          oekakiColor = avaP[value].avatarColor;
-          oekakiAlpha = avaP[value].avatarAlpha;
-        }
 
 
-        let contextCount = 0;
-        let countup = function () {
-          contextCount++;
-          let id = setTimeout(countup, 1000);
-          if (contextCount > 1) {
-            setAbonID = value;
-            document.getElementById("abon").style.display = "block";
-            clearTimeout(id);
-            contextCount = 0;
-          } else {
-            document.getElementById("graphic").addEventListener("touchend", function (e) {//タップを離したとき
-              clearTimeout(id);
-              contextCount = 0;
-            }, {
-              passive: true,
-            });
-          }
-        }
-        countup();
-      }
 
-      avaP[value].click = function () {
-        if (tapFlag) {
-          tapFlag = false;
-        } else {
-          if (!isDownCtrl && !clickedWa_iButtun) {
-            oekakiColor = avaP[value].avatarColor;
-            oekakiAlpha = avaP[value].avatarAlpha;
-          }
-        }
-      }
+
 
 
 
@@ -2535,18 +3874,18 @@ socket.on("roomInSelf", function (data) {
 
 
       avaLoop(value);
-    } else {
-      msg[token].text = "";
+
+
     }
 
     if (setAbon[value] == false) {//アボンしてない場合だけ
       avaP[value].position.set(data.user[value].AX, data.user[value].AY);
-
       if (data.user[value].room == data.room) {//部屋に存在してるユーザーのアバを作る
+        msg[value].text = data.user[value].msg;//テキスト変更
         avaP[value].roomIn = 1;//入室回数をリセット
-        app.stage.getChildByName(data.room).addChild(avaP[value]);
         avaP[value].removeChild(avaC[value]);
-        // 画像とメッセージと名前を追加してステージに上げる
+
+        // 画像とメッセージと名前を追加してavaPにつける
         switch (data.user[value].DIR) {
           case "NE":
             avaC[value] = avaNE[value];
@@ -2585,16 +3924,28 @@ socket.on("roomInSelf", function (data) {
             avaP[value].addChild(avaC[value]);
             break;
         }
-        //この位置だと、部屋に存在してないアバを作れない
-        nameText[value].position.set(0, -avaC[value].height - 10);
-        nameTag[value].y = -avaC[value].height - 10 - nameText[value].height / 2;
-        msg[value].position.set(0, -avaC[value].height - 5);
+        gx[value] = 1;
+        if (room === "エントランス") {
+          entranceLoop(value);
+        }
+
+        if (room === "星1") {
+          avaP[value].scale.x = 0.5;
+          avaP[value].scale.y = 0.5;
+        } else {
+          avaP[value].scale.x = 1;
+          avaP[value].scale.y = 1;
+        }
+        app.stage.getChildByName(data.room).addChild(avaP[value]);
+
+        setAlpha(value, data.user[value].avatarAlpha);
+
 
 
 
         if (data.user[value].msg != "") {
           const liKanban = document.createElement("li");//likanbanを作る
-          liKanban.textContent = "[（　´∀｀）" + data.user[value].userName + "]:" + data.user[value].msg;//likanbanのテキストを設定
+          liKanban.textContent = "（　´∀｀）" + data.user[value].userName + ":" + data.user[value].msg;//likanbanのテキストを設定
           logs.appendChild(liKanban);//logsの末尾に入れる
         }
       } else {
@@ -2608,14 +3959,96 @@ socket.on("roomInSelf", function (data) {
       } else {
         sleepFlag[value] = false;
       }
+
+
+
+      avaP[value].rightclick = function (e) {
+        Object.keys(avaP).forEach(function (key) {
+          console.log(avaP[key].userName + ":" + avaP[key].y);
+        });
+        pointDown = false;
+        e.stopPropagation();//親をクリックしたときは動作しなくする。
+        if (setToken !== value) {
+          userOekakiFlag[setToken] = false;
+        }
+        setToken = value;
+        if (userOekakiFlag[setToken]) {
+          document.getElementById('userOekaki').textContent = "ラクガキをやめる";
+        } else {
+          document.getElementById('userOekaki').textContent = "ラクガキする";
+        }
+        document.getElementById("graphic").oncontextmenu = function (event) {
+          event.preventDefault();
+          contextMenuSet(e);
+        }
+        document.getElementById("userOekaki").style.display = "block";
+        document.getElementById("contextmenu").style.display = "block";
+        if (value !== token) {
+          document.getElementById("abon").style.display = "block";
+        }
+      }
     }
-  });
+
+    userOekakiFlag[value] = false;
+    if (!redoStock[value]) {
+      redoStock[value] = [];
+    }
+
+    //前あったuserお絵描き情報を一旦リセット
+    if (userOekaki) {
+      if (userOekaki[value]) {
+        Object.keys(userOekaki[value]).forEach(function (key) {
+          if (userOekaki[value]) {
+            for (let i = 0; i < userOekaki[value][key].length; i++) {
+              userOekaki[value][key][i].destroy();
+              avaP[value].removeChild(userOekaki[value][key][i]);
+            }
+            delete userOekaki[value];
+          }
+        });
+      }
+    }
+
+
+    if (data.userOekaki[value]) {//落書きがあれば
+      if (!userOekaki[value]) {
+        userOekaki[value] = {};
+      }
+      Object.keys(data.userOekaki[value]).forEach(function (key) {
+        if (!userOekaki[value][key]) {
+          userOekaki[value][key] = [];
+        }
+        for (let n = 0; n < data.userOekaki[value][key].length; n++) {
+          userOekaki[value][key][n] = new PIXI.Graphics();
+          if (key === token) {//自分の配列情報だけは入れなおす
+            userOekakiData[value][key][n].X = data.userOekaki[value][key][n].X;
+            userOekakiData[value][key][n].Y = data.userOekaki[value][key][n].Y;
+            userOekakiData[value][key][n].dataColor = data.userOekaki[value][key][n].dataColor;
+            userOekakiData[value][key][n].dataAlpha = data.userOekaki[value][key][n].dataAlpha;
+            //undoをtrueにする
+            undoFlag[value] = data.userOekaki[value][key].length;
+          }
+          userOekaki[value][key][n].zIndex = 1000;
+          userOekaki[value][key][n].lineStyle(2, data.userOekaki[value][key][n].dataColor[0], data.userOekaki[value][key][n].dataAlpha[0]);
+          userOekaki[value][key][n].moveTo(data.userOekaki[value][key][n].X[0], data.userOekaki[value][key][n].Y[0]);
+          avaP[value].addChild(userOekaki[value][key][n]);
+          for (let i = 1; i < data.userOekaki[value][key][n].X.length; i++) {
+            userOekaki[value][key][n].lineTo(data.userOekaki[value][key][n].X[i], data.userOekaki[value][key][n].Y[i]);
+          }
+
+        }
+        clearFlag[value] = 1;
+      });
+    }
+  });///keys.forEach(function (value) 
+
+
+
   if (useLogChime) {//部屋入室の音を鳴らす
     if (data.roomSE == "login") {
       let regexp = /ＪＭＭ連合/i;//ＪＭＭ連合って文字が入ってたら爆発する
       if (regexp.test(data.userName)) {
         msgSE.JMMLogin.play();
-
       } else {
         msgSE.login.in[data.random].play();
       }
@@ -2624,138 +4057,125 @@ socket.on("roomInSelf", function (data) {
     }
   }
 
-  //お絵かきブロック生成
-  for (let n = 0; n < data.oekakiX.length; n++) {
-    oekaki[room][n] = new PIXI.Graphics();
-    oekaki[room][n].zIndex = 1000;
-    oekaki[room][n].lineStyle(2, data.oekakiColor[n][0], data.oekakiAlpha[n][0]);
-    oekaki[room][n].moveTo(data.oekakiX[n][0], data.oekakiY[n][0]);
-    for (let i = 1; i < data.oekakiX[n].length; i++) {
-      oekaki[room][n].lineStyle(2, data.oekakiColor[n][i], data.oekakiAlpha[n][i]);
-      oekaki[room][n].lineTo(data.oekakiX[n][i], data.oekakiY[n][i]);
+
+  //右クリックメニュー
+  app.stage.getChildByName(room).interactive = true;
+  app.stage.getChildByName(room).rightclick = function (e) {
+
+    document.getElementById("graphic").oncontextmenu = function (event) {
+      event.preventDefault();
+      contextMenuSet(e);
     }
-    app.stage.getChildByName(room).addChild(oekaki[room][n]);
-    oekakiNum[room]++;
+    //メニューをblockで表示させる
+    document.getElementById("abon").style.display = "none";
+    document.getElementById("userOekaki").style.display = "none";
+    document.getElementById('contextmenu').style.display = "block";
   }
 
-});
 
-
-socket.on("loadAvatar", function (data) {//新規入場者の読み込み
-  // アバターの親コンテナを作成
-  avaP[data.token] = new PIXI.Container();
-  avaP[data.token].sortableChildren = true;//子要素のzIndexをonにする
-  avaP[data.token].roomIn = 0;
-
-  //ここらへんは、後で画像纏めた時に関数化したいな
-  avaAbon[data.token] = new PIXI.Sprite(avaAbon);
-  avaAbon[data.token].anchor.set(0.5, 1);
-
-  switch (data.avatar) {
-    case "necosukeMono":
-      avaP[data.token].avatar = "necosukeMono";
-      setAvatar(data.token, necosukeMono, 50);
-      break;
-    case "necosuke":
-      avaP[data.token].avatar = "necosuke";
-      setAvatar(data.token, necosuke, 50);
-      break;
-    case "gomanecoMono":
-      avaP[data.token].avatar = "gomanecoMono";
-      setAvatar(data.token, gomanecoMono, 40);
-      break;
-    default:
-      avaP[data.token].avatar = "gomaneco";
-      setAvatar(data.token, gomaneco, 40);
-      break;
-  }
-  setColor(data.token, data.avatarColor);
-  setAlpha(data.token, data.avatarAlpha);
-
-  //画像をあげる
-  avaC[data.token] = avaS[data.token];
-  avaP[data.token].addChild(avaC[data.token]);
-
-  //名前を追加
-  nameText[data.token] = new PIXI.Text(data.userName, nameTextStyle);
-  nameText[data.token].zIndex = 10;
-  nameText[data.token].anchor.set(0.5);
-  nameText[data.token].position.set(0, -avaC[data.token].height - 10);
-  avaP[data.token].userName = data.userName;
-  avaP[data.token].addChild(nameText[data.token]);
-
-  nameTag[data.token] = new PIXI.Graphics();
-  nameTag[data.token].lineStyle(1, 0x000000, 0.5);
-  nameTag[data.token].beginFill(0x000000);
-  nameTag[data.token].drawRect(0, 0, nameText[data.token].width, nameText[data.token].height);
-  nameTag[data.token].endFill();
-  nameTag[data.token].x = -nameText[data.token].width / 2;
-  nameTag[data.token].y = -avaC[data.token].height - 10 - nameText[data.token].height / 2;
-  nameTag[data.token].alpha = 0.3;
-  avaP[data.token].addChild(nameTag[data.token]);
-
-  // アバターのメッセージを追加する
-  msg[data.token] = new PIXI.Text("");
-  msg[data.token].zIndex = 20;
-  msg[data.token].position.set(0, -avaC[data.token].height - 5);
-  msg[data.token].style.fill = "white";
-  msg[data.token].style.fontSize = 16;
-  avaP[data.token].addChild(msg[data.token]);
-
-  //sleepFlagをfalseに
-  sleepFlag[data.token] = false;
-  // アバタークリックでアボン
-  avaP[data.token].interactive = true;//クリックイベントを有効化
-  setAbon[data.token] = false;
-  avaP[data.token].rightclick = function () {
-    setAbonID = data.token;
-    document.getElementById("abon").style.display = "block";
-  };
-  avaP[data.token].touchstart = function () {
-    tapFlag = true;
-    if (!isDownCtrl && !clickedWa_iButtun) {
-      oekakiColor = avaP[data.token].avatarColor;
-      oekakiAlpha = avaP[data.token].avatarAlpha;
-    }
-
+  app.stage.getChildByName(room).on("touchstart", function (e) {//タップの場合
+    document.getElementById('contextmenu').style.display = "none";
     let contextCount = 0;
     let countup = function () {
       contextCount++;
       let id = setTimeout(countup, 1000);
       if (contextCount > 1) {
-        setAbonID = data.token;
-        document.getElementById("abon").style.display = "block";
+        if (e.data.getLocalPosition(app.stage.getChildByName(room)).x < 120) {
+          document.getElementById('contextmenu').style.left = e.data.getLocalPosition(app.stage.getChildByName(room)).x + "px";
+        } else {
+          document.getElementById('contextmenu').style.left = e.data.getLocalPosition(app.stage.getChildByName(room)).x - 100 + "px";
+        }
+
+        if (window.innerWidth < 870 && e.data.getLocalPosition(app.stage.getChildByName(room)).y < 30) {
+          document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(form).getPropertyValue('height')) + "px";
+        } else if (window.innerWidth < 870) {
+          document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(form).getPropertyValue('height')) + -28 + "px";
+        } else {
+          document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(titleBar).getPropertyValue('height')) + -28 + "px";
+        }
+
+
+        //メニューをblockで表示させる
+        document.getElementById('contextmenu').style.display = "block";
         clearTimeout(id);
         contextCount = 0;
       } else {
-        document.getElementById("graphic").addEventListener("touchend", function (e) {//タップを離したとき
+        app.stage.getChildByName(room).touchend = function (e) {//タップを離したとき
           clearTimeout(id);
           contextCount = 0;
-        }, {
-          passive: true,
-        });
+        }
       }
     }
     countup();
+  });
+
+
+
+  //お絵描きブロック生成
+
+  if (!undoFlag[room]) {
+    undoFlag[room] = 0;
+  }
+  if (clearFlag[room]) {
+    clear.style.backgroundColor = "skyblue"
+  } else {
+    clear.style.backgroundColor = "#979797";
   }
 
-  avaP[data.token].click = function () {
-    if (tapFlag) {
-      tapFlag = false;
-    } else {
-      if (!isDownCtrl && !clickedWa_iButtun) {
-        oekakiColor = avaP[data.token].avatarColor;
-        oekakiAlpha = avaP[data.token].avatarAlpha;
-      }
-    }
+  if (undoFlag[room]) {
+    undo.style.backgroundColor = "skyblue";
+  } else {
+    undo.style.backgroundColor = "#979797";
   }
-  avaLoop(data.token);
+
+  if (!redoStock[room]) {
+    redoStock[room] = [];
+  }
+
+  if (redoStock[room].length) {
+    redo.style.backgroundColor = "skyblue";
+  } else {
+    redo.style.backgroundColor = "#979797";
+  }
+  if (data.oekaki) {
+    const keys2 = Object.keys(data.oekaki);
+    keys2.forEach(function (key) {//key=token
+      oekaki[key] = [];
+      for (let n = 0; n < data.oekaki[key].length; n++) {
+        oekaki[key][n] = new PIXI.Graphics();
+        if (key === token) {//自分の配列情報だけは入れなおす
+          oekaki[key][n].X = data.oekaki[key][n].X;
+          oekaki[key][n].Y = data.oekaki[key][n].Y;
+          oekaki[key][n].dataColor = data.oekaki[key][n].dataColor;
+          oekaki[key][n].dataAlpha = data.oekaki[key][n].dataAlpha;
+          //undoをtrueにする
+          undoFlag[room] = data.oekaki[key].length;
+          undo.style.backgroundColor = 'skyblue';
+        }
+        oekaki[key][n].zIndex = 1000;
+        oekaki[key][n].lineStyle(2, data.oekaki[key][n].dataColor[0], data.oekaki[key][n].dataAlpha[0]);
+        oekaki[key][n].moveTo(data.oekaki[key][n].X[0], data.oekaki[key][n].Y[0]);
+
+        for (let i = 1; i < data.oekaki[key][n].X.length; i++) {
+          oekaki[key][n].lineTo(data.oekaki[key][n].X[i], data.oekaki[key][n].Y[i]);
+        }
+
+        //clearをtrueにする
+        clear.style.backgroundColor = 'skyblue';
+        clearFlag[room] = 1;
+        app.stage.getChildByName(room).addChild(oekaki[key][n]);
+      }
+    });
+  }
+
 });
+
+
 
 
 //ログアウトした時の処理
 socket.on("logout", function (data) {
-  outputMsg(data.msg);//移動時のメッセージ出力
+  outputMsg(data.msg, 0, 0, 1);//移動時のメッセージ出力
   //部屋人数の表記を変える
   usersNumber.textContent = data.users;
   app.stage.getChildByName(data.room).removeChild(avaP[data.token]);
@@ -2768,10 +4188,10 @@ socket.on("logout", function (data) {
 });
 
 
-function gameLoop() {
-  //アバター位置とマウス位置の表示
+function gameLoop() {//アバター位置とマウス位置の表示
   loginMX = app.renderer.plugins.interaction.mouse.global.x;
   loginMY = app.renderer.plugins.interaction.mouse.global.y;
+
   AtextX.text = "avaX" + AX;
   AtextY.text = "avaY" + AY;
   if (0 <= loginMX && app.renderer.plugins.interaction.mouse.global.x <= 660 && 0 <= loginMY && loginMY <= 460) {
@@ -2826,6 +4246,210 @@ document.querySelector('svg').addEventListener("click", function () {
   passive: true,
 });
 
+//ビデオサイズ
+if (localStorage.getItem("videoSize")) {
+  selectVideoSize.videoSize.value = localStorage.getItem("videoSize");
+  if (selectVideoSize.videoSize.value === "setWidth") {//横幅でセットする場合
+    selectVideoSize3Num.value = "";
+    if (localStorage.getItem("videoWidth")) {
+      selectVideoSize2Num.value = Number(localStorage.getItem("videoWidth"));
+    } else {
+      selectVideoSize2Num.value = 330;
+    }
+    if (localStorage.getItem("videoHeight")) {
+      selectVideoSize3Num.placeholder = Number(localStorage.getItem("videoHeight"));
+    } else {
+      selectVideoSize3Num.placeholder = 180;
+    }
+  } else if (selectVideoSize.videoSize.value === "setHeight") {//立幅でセットする場合
+    selectVideoSize2Num.value = "";
+    if (localStorage.getItem("videoWidth")) {
+      selectVideoSize2Num.placeholder = Number(localStorage.getItem("videoWidth"));
+    } else {
+      selectVideoSize2Num.placeholder = 330;
+    }
+    if (localStorage.getItem("videoHeight")) {
+      selectVideoSize3Num.value = Number(localStorage.getItem("videoHeight"));
+    } else {
+      selectVideoSize3Num.value = 180;
+    }
+  } else {
+    selectVideoSize2Num.value = "";
+    selectVideoSize3Num.value = "";
+    if (localStorage.getItem("videoWidth")) {
+      selectVideoSize2Num.placeholder = Number(localStorage.getItem("videoWidth"));
+    } else {
+      selectVideoSize2Num.placeholder = 330;
+    }
+
+    if (localStorage.getItem("videoHeight")) {
+      selectVideoSize3Num.placeholder = Number(localStorage.getItem("videoHeight"));
+    } else {
+      selectVideoSize3Num.placeholder = 180;
+    }
+  }
+}
+
+
+//左右反転
+function changeVideoReverse() {
+  if (selectVideoReverse.checked) {
+    localStorage.setItem("videoReverse", 1);
+    if (videoArray[token]) {
+      attachVideo(token + "Re", localStream);
+    }
+  } else {
+    localStorage.setItem("videoReverse", 0);
+    if (videoArray[token + "Re"]) {
+      detachVideo(token + "Re");
+    }
+  }
+}
+if (localStorage.getItem("videoReverse") === "1") {
+  selectVideoReverse.checked = true;
+} else {
+  selectVideoReverse.checked = false;
+}
+
+//上下反転
+function changeVideoInverse() {
+  if (selectVideoInverse.checked) {
+    localStorage.setItem("videoInverse", 1);
+    if (videoArray[token]) {
+      attachVideo(token + "Inv", localStream);
+    }
+  } else {
+    localStorage.setItem("videoInverse", 0);
+    if (videoArray[token + "Inv"]) {
+      detachVideo(token + "Inv");
+    }
+  }
+}
+if (localStorage.getItem("videoInverse") === "1") {
+  selectVideoInverse.checked = true;
+} else {
+  selectVideoInverse.checked = false;
+}
+//上下左右反転
+function changeVideoInverseAndReverse() {
+  if (selectVideoInverseAndReverse.checked) {
+    localStorage.setItem("videoInverseAndReverse", 1);
+    if (videoArray[token]) {
+      attachVideo(token + "IR", localStream);
+    }
+  } else {
+    localStorage.setItem("videoInverseAndReverse", 0);
+    if (videoArray[token + "IR"]) {
+      detachVideo(token + "IR");
+    }
+  }
+}
+if (localStorage.getItem("videoInverseAndReverse") === "1") {
+  selectVideoInverseAndReverse.checked = true;
+} else {
+  selectVideoInverseAndReverse.checked = false;
+}
+
+
+//受信した動画の左右反転
+function changeVideoReverseOther() {
+  if (selectVideoReverseOther.checked) {
+    localStorage.setItem("videoReverseOther", 1);
+
+    let flag = [];
+    //やりたいことは、全てのkeyを見て、ReがないKeyがあれば、tokenかどうか判断して、
+    //それでも残れば、ビデオを作る
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/Re/)) {
+        flag[key - "Re"] = true;
+      }
+    });
+    Object.keys(videoArray).forEach(function (key) {
+      if (!flag[key] && key !== token) {
+        attachVideo(key + "Re", stream[key]);
+      }
+    });
+
+  } else {
+    localStorage.setItem("videoReverseOther", 0);
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/Re/) && key !== token + "Re") {
+        detachVideo(key);
+      }
+    });
+  }
+}
+if (localStorage.getItem("videoReverseOther") === "1") {
+  selectVideoReverseOther.checked = true;
+} else {
+  selectVideoReverseOther.checked = false;
+}
+
+//上下反転
+function changeVideoInverseOther() {
+  if (selectVideoInverseOther.checked) {
+    localStorage.setItem("videoInverseOther", 1);
+
+
+    let flag = [];
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/Inv/)) {
+        flag[key - "Inv"] = true;
+      }
+    });
+    Object.keys(videoArray).forEach(function (key) {
+      if (!flag[key] && key !== token) {
+        attachVideo(key + "Inv", stream[key]);
+      }
+    });
+  } else {
+    localStorage.setItem("videoInverseOther", 0);
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/Inv/) && key !== token + "Inv") {
+        detachVideo(key);
+      }
+    });
+  }
+}
+if (localStorage.getItem("videoInverseOther") === "1") {
+  selectVideoInverseOther.checked = true;
+} else {
+  selectVideoInverseOther.checked = false;
+}
+
+//上下左右反転
+function changeVideoInverseAndReverseOther() {
+  if (selectVideoInverseAndReverseOther.checked) {
+    localStorage.setItem("videoInverseAndReverseOther", 1);
+
+    let flag = [];
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/IR/)) {
+        flag[key - "IR"] = true;
+      }
+    });
+    Object.keys(videoArray).forEach(function (key) {
+      if (!flag[key] && key !== token) {
+        attachVideo(key + "IR", stream[key]);
+      }
+    });
+  } else {
+    localStorage.setItem("videoInverseAndReverseOther", 0);
+    Object.keys(videoArray).forEach(function (key) {
+      if (key.match(/IR/) && key !== token) {
+        detachVideo(key);
+      }
+    });
+  }
+}
+
+if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
+  selectVideoInverseAndReverseOther.checked = true;
+} else {
+  selectVideoInverseAndReverseOther.checked = false;
+}
+
+
 
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
@@ -2833,6 +4457,8 @@ if (localStorage.getItem("fontSize")) {
 } else {
   chatLog.style.fontSize = "17px";
 }
+
+
 fontSizeSelecter.onchange = function () {
   localStorage.setItem("fontSize", this.value);
   chatLog.style.fontSize = this.value + "px";
@@ -2848,8 +4474,8 @@ if (window.innerWidth > 870 && localStorage.getItem("PMsize")) {
 }
 
 //ウィンドウサイズ変更時の処理
-let windowSize = window.innerWidth;
-loginButton.style.position = windowSize / 2 - 10 + "px"
+let windowWidth = window.innerWidth;
+loginButton.style.position = windowWidth / 2 - 10 + "px"
 
 
 windowResize();
@@ -2864,8 +4490,8 @@ chatLog.onscroll = function () {
   chatLogClientHeight = chatLog.clientHeight;
 }
 
-function over870andBottomBar() {
-  windowSize = window.innerWidth;
+function over870andBottomBar() {//
+  windowWidth = window.innerWidth;
   windowResize();
   if (window.innerWidth > 870) {//window.innerWidthが870以上の場所に移動した場合
     chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
@@ -2876,7 +4502,7 @@ function over870andBottomBar() {
 }
 
 function under870andTopBar() {
-  windowSize = window.innerWidth;
+  windowWidth = window.innerWidth;
   windowResize();
   if (window.innerWidth > 870) {//windowサイズが870以上になったら
     chatLog.scrollTop = chatLog.scrollHeight;//スクロールを一番下にする
@@ -2885,7 +4511,7 @@ function under870andTopBar() {
 }
 
 function elseBar() {
-  windowSize = window.innerWidth;
+  windowWidth = window.innerWidth;
   chatLogScrollTop = chatLog.scrollTop;
   windowResize();
   chatLog.scrollTop = chatLogScrollTop;
@@ -2896,9 +4522,9 @@ function elseBar() {
 
 //画面サイズが変わった時にチャットのスクロールバーを動かす
 window.addEventListener("resize", function () {
-  if (windowSize > 870 && chatLogScrollHeight - chatLogScrollTop <= chatLogClientHeight + 1) {//windowサイズが870以上の時かつ、スクロールバーが一番下にある時
+  if (windowWidth > 870 && chatLogScrollHeight - chatLogScrollTop <= chatLogClientHeight + 1) {//windowサイズが870以上の時かつ、スクロールバーが一番下にある時
     over870andBottomBar();
-  } else if (windowSize <= 870 && chatLog.scrollTop == 0) {//windowサイズが870以下の時、かつスクロールバーが一番上にある時
+  } else if (windowWidth <= 870 && chatLog.scrollTop == 0) {//windowサイズが870以下の時、かつスクロールバーが一番上にある時
     under870andTopBar();
   } else {
     elseBar();
@@ -2910,8 +4536,8 @@ window.addEventListener("resize", function () {
 
 
 function windowResize() {
-  if (windowSize <= 870) {
-    let PMscale = windowSize / 660;
+  if (windowWidth <= 870) {
+    let PMscale = windowWidth / 660;
     let scale = "scale(" + PMscale + ")";
     StyleDeclarationSetTransform(main.style, scale);
     let position = "0px 0px";
@@ -2931,10 +4557,12 @@ function windowResize() {
     chatLog.style.width = 660 + "px";
 
 
-    // //過去ログ
-    pastLog.style.backgroundColor = "red";
-    chatLog.style.height = 0 + "px";
-    usePastLog = false;
+    //過去ログ
+    if (!usePastLog) {
+      pastLog.style.backgroundColor = "red";
+      chatLog.style.height = 0 + "px";
+    }
+    document.getElementById("Pmain").appendChild(chatLog);
 
     //画面log
     visibleLogButton.style.backgroundColor = "skyblue";
@@ -2944,14 +4572,12 @@ function windowResize() {
 
     // // chatLog.style.fontSize = "13px";
     // //IE11対策
-    // footer.style.width = windowSize + "px";
+    // footer.style.width = windowWidth + "px";
     // footer.style.width = kousinrireki.clientWidth + "px";
     mainFrame.style.width = window.innerWidth + "px";
     mainFrame.style.height = window.innerHeight + "px";
 
-  }
-
-  else {//870以上の時
+  } else {//870以上の時
     let scale = "scale(" + PMsize + ")";
     StyleDeclarationSetTransform(main.style, scale);
 
@@ -2973,13 +4599,359 @@ function windowResize() {
 
     //過去ログ
     pastLog.style.backgroundColor = 'skyblue';
-    chatLog.style.height = 530 + "px";
-    usePastLog = true;
+    chatLog.style.height = 539 + "px";
+    document.getElementById("PmainTop").appendChild(chatLog);
 
     //画面ログ
     gamenLog.visible = false;
     mainFrame.style.width = window.innerWidth + "px";
     mainFrame.style.height = window.innerHeight + "px";
+
+    videoResize();
+  }
+}
+
+
+
+
+
+
+function fucusVidoeSize(value) {//カーソル選択時
+  if (value) {
+    selectVideoSize.videoSize.value = value;
+    setVideoValue();
+  }
+}
+
+
+
+function changeVideoValue() {
+  Object.keys(videoArray).forEach(function (key) {//人のビデオサイズ
+    videoArray[key].fixFlag = false;
+  });
+  setVideoValue();
+}
+
+selectVideoSize2Num.onkeypress = function (e) {
+  Object.keys(videoArray).forEach(function (key) {//人のビデオサイズ
+    videoArray[key].fixFlag = false;
+  });
+  setVideoValue();
+}
+
+selectVideoSize3Num.onkeypress = function (e) {
+  Object.keys(videoArray).forEach(function (key) {//人のビデオサイズ
+    videoArray[key].fixFlag = false;
+  });
+  setVideoValue();
+}
+
+
+//最初期の入力は
+//localstrageから表示形式ををとってきて、表示形式別に値を入れてく
+//あとで入力する場合は表示形式を取得、入ってる値を入力,localStragenに値を入力
+
+
+function setVideoValue() {//値の表記を変更
+  localStorage.setItem("videoSize", selectVideoSize.videoSize.value);
+  if (selectVideoSize.videoSize.value === "setWidth") {//横幅でセットする場合
+    if (!selectVideoSize2Num.value) {//値が入ってなければ
+      selectVideoSize2Num.value = selectVideoSize2Num.placeholder;
+    }
+    localStorage.setItem("videoWidth", selectVideoSize2Num.value);
+    if (selectVideoSize3Num.value) {//値があれば
+      selectVideoSize3Num.placeholder = selectVideoSize3Num.value;
+      selectVideoSize3Num.value = "";
+    }
+  } else if (selectVideoSize.videoSize.value === "setHeight") {//立幅でセットする場合
+    console.log(selectVideoSize2Num.value);
+    if (!selectVideoSize3Num.value) {//値が入ってなければ
+      selectVideoSize3Num.value = selectVideoSize3Num.placeholder;
+    }
+    localStorage.setItem("videoHeight", selectVideoSize3Num.value);
+    if (selectVideoSize2Num.value) {//値があれば
+      selectVideoSize2Num.placeholder = selectVideoSize2Num.value;
+      selectVideoSize2Num.value = "";
+    }
+  } else {//setMaxの時
+    if (selectVideoSize2Num.value) {
+      selectVideoSize2Num.placeholder = selectVideoSize2Num.value;
+      selectVideoSize2Num.value = "";
+    }
+    if (selectVideoSize3Num.value) {
+      selectVideoSize3Num.placeholder = selectVideoSize3Num.value;
+      selectVideoSize3Num.value = "";
+    }
+  }
+  videoResize();
+}
+
+
+
+function videoResize() {
+  if (Object.keys(videoArray).length) {
+    let left = 0;
+    let allWidth = 0;
+    let containerH = window.innerHeight - chatLog.clientHeight - titleBar.clientHeight;
+    let orgR = [];
+    let maxHeight = 0;
+
+    Object.keys(videoArray).forEach(function (key) {
+      let orgW = videoArray[key].videoWidth;//動画のオリジナル横サイズ
+      let orgH = videoArray[key].videoHeight;//動画のオリジナル縦サイズ
+      orgR[key] = orgH / orgW;//動画のオリジナル比率
+    });
+
+
+    if (selectVideoSize.videoSize.value === "setMax") {//最大値にするとき
+      let used = 0;
+      let remain = 0;
+      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (!videoArray[key].fixFlag) {
+          allWidth += containerH / orgR[key];
+          remain += containerH / orgR[key];
+        } else {
+          allWidth += videoArray[key].clientWidth;
+          used += videoArray[key].clientWidth;
+        }
+      });
+
+      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (!videoArray[key].fixFlag) {//要素が固定されてない時
+          videoArray[key].style.width = containerH / orgR[key] / allWidth * 100 + "%";
+          videoArray[key].style.height = 100 + "%";
+
+          if (window.innerWidth > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
+            videoArray[key].style.left = left + "px";//横の位置を指定
+            left += (allWidth - used) / remain * containerH / orgR[key];//横の隙間を入れなおして、ビデオの幅を追加
+            videoArray[key].style.width = (allWidth - used) / remain * containerH / orgR[key] + "px";//横の位置を指定
+            videoArray[key].style.height = (allWidth - used) / remain * containerH + "px";//横の位置を指定
+
+          } else {//縦を調整しないと行けない時
+            //残ってる割合を分け合って、比率の分だけわけた割合
+            videoArray[key].style.width = (window.innerWidth - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
+            videoArray[key].style.left = left + "px";//横の位置を指定
+            left += (window.innerWidth - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
+            videoArray[key].style.height = (window.innerWidth - used) / remain * containerH + "px";//高さを指定
+          }
+        } else {
+          videoArray[key].style.left = left + "px";
+          left += videoArray[key].clientWidth;
+        }
+
+
+        let leftTmp = left;
+        let ewFlag = false;
+        videoArray[key].onmousemove = function (event) {//画像の端で動いてる時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp + 5) {
+            console.log(key);
+            body.style.cursor = "ew-resize";
+          } else if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmouseout = function (event) {
+          if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmousedown = function (event) {//画像の端をクリックした時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp) {
+            console.log(key);
+            console.log(videoArray[key].clientWidth);
+            ewFlag = true;
+            videoArray[key].fixFlag = true;
+            window.onmousemove = function (event) {//カーソルに画像の大きさを追従させる
+              left = 0;
+              maxHeight = 0;
+              Object.keys(videoArray).forEach(function (keyTmp) {//人の要素の高さを変更
+                videoArray[keyTmp].style.left = left + "px";
+                if (key === keyTmp) {
+                  videoArray[key].style.width = event.clientX - left + "px";//時のになる
+                  videoArray[key].style.height = (event.clientX - left) * orgR[key] + "px";
+                  if ((event.clientX - left) * orgR[key] > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = (event.clientX - left) * orgR[key];
+                  }
+                  left = event.clientX;
+                } else {
+                  if (videoArray[keyTmp].clientHeight > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = videoArray[keyTmp].clientHeight;
+                  }
+                  left += videoArray[keyTmp].clientWidth;
+                }
+              });
+              mediaContainer.style.height = maxHeight + "px";
+            }
+            window.onmouseup = function () {
+              window.onmousemove = null;
+              window.onmouseup = null;
+              body.style.cursor = "auto";
+              ewFlag = false;
+              videoResize();
+            }
+          }
+        };
+
+        if (!videoArray[key].fixFlag) {
+          if (window.innerWidth > allWidth) {
+            if (containerH > maxHeight) {
+              maxHeight = containerH;
+            }
+          } else {
+            if (window.innerWidth * containerH / allWidth > maxHeight) {
+              maxHeight = (window.innerWidth - used) / remain * containerH;
+            }
+          }
+        } else {
+          if (videoArray[key].clientHeight > maxHeight) {
+            maxHeight = videoArray[key].clientHeight;
+          }
+        }
+      });
+    } else if (selectVideoSize.videoSize.value === "setWidth") {//横の大きさで揃える
+      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (!videoArray[key].fixFlag) {
+          videoArray[key].style.width = selectVideoSize2Num.value + "px";
+          videoArray[key].style.height = selectVideoSize2Num.value * orgR[key] + "px";
+          videoArray[key].style.left = left + "px";
+          left += Number(selectVideoSize2Num.value);
+        } else {
+          videoArray[key].style.left = left + "px";
+          left += videoArray[key].clientWidth;
+        }
+        let leftTmp = left;
+        let ewFlag = false;
+        videoArray[key].onmousemove = function (event) {//画像の端で動いてる時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp + 5) {
+            body.style.cursor = "ew-resize";
+          } else if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmouseout = function (event) {
+          if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmousedown = function (event) {//画像の端をクリックした時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp) {
+            ewFlag = true;
+            videoArray[key].fixFlag = true;
+            window.onmousemove = function (event) {//カーソルに画像の大きさを追従させる
+              left = 0;
+              maxHeight = 0;
+              Object.keys(videoArray).forEach(function (keyTmp) {//人の要素の高さを変更
+                videoArray[keyTmp].style.left = left + "px";
+                if (key === keyTmp) {
+                  videoArray[key].style.width = event.clientX - left + "px";//時のになる
+                  videoArray[key].style.height = (event.clientX - left) * orgR[key] + "px";
+                  if ((event.clientX - left) * orgR[key] > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = (event.clientX - left) * orgR[key];
+                  }
+                  left = event.clientX;
+                } else {
+                  if (videoArray[keyTmp].clientHeight > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = videoArray[keyTmp].clientHeight;
+                  }
+                  left += videoArray[keyTmp].clientWidth;
+                }
+              });
+              mediaContainer.style.height = maxHeight + "px";
+            }
+            window.onmouseup = function () {
+              window.onmousemove = null;
+              window.onmouseup = null;
+              body.style.cursor = "auto";
+              ewFlag = false;
+              videoResize();
+            }
+          }
+        };
+        if (!videoArray[key].fixFlag) {
+          if (selectVideoSize2Num.value * orgR[key] > maxHeight) {
+            maxHeight = selectVideoSize2Num.value * orgR[key];
+          }
+        } else {
+          if (videoArray[key].clientHeight > maxHeight) {
+            maxHeight = videoArray[key].clientHeight;
+          }
+        }
+      });
+
+    } else if (selectVideoSize.videoSize.value === "setHeight") {//縦の大きさで揃える
+      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (!videoArray[key].fixFlag) {
+          videoArray[key].style.height = selectVideoSize3Num.value + "px";
+          videoArray[key].style.width = selectVideoSize3Num.value / orgR[key] + "px";
+          videoArray[key].style.left = left + "px";
+          left += selectVideoSize3Num.value / orgR[key];
+        } else {
+          videoArray[key].style.left = left + "px";
+          left += videoArray[key].clientWidth;
+        }
+
+        let leftTmp = left;
+        let ewFlag = false;
+        videoArray[key].onmousemove = function (event) {//画像の端で動いてる時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp + 5) {
+            body.style.cursor = "ew-resize";
+          } else if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmouseout = function (event) {
+          if (ewFlag === false) {
+            body.style.cursor = "auto";
+          }
+        }
+        videoArray[key].onmousedown = function (event) {//画像の端をクリックした時
+          if (leftTmp - 10 < event.clientX && event.clientX <= leftTmp) {
+            ewFlag = true;
+            videoArray[key].fixFlag = true;
+            window.onmousemove = function (event) {//カーソルに画像の大きさを追従させる
+              left = 0;
+              maxHeight = 0;
+              Object.keys(videoArray).forEach(function (keyTmp) {//人の要素の高さを変更
+                videoArray[keyTmp].style.left = left + "px";
+                if (key === keyTmp) {
+                  videoArray[key].style.width = event.clientX - left + "px";//時のになる
+                  videoArray[key].style.height = (event.clientX - left) * orgR[key] + "px";
+                  if ((event.clientX - left) * orgR[key] > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = (event.clientX - left) * orgR[key];
+                  }
+                  left = event.clientX;
+                } else {
+                  if (videoArray[keyTmp].clientHeight > maxHeight) {//他の高さ全てより大きい場合は
+                    maxHeight = videoArray[keyTmp].clientHeight;
+                  }
+                  left += videoArray[keyTmp].clientWidth;
+                }
+              });
+              mediaContainer.style.height = maxHeight + "px";
+            }
+            window.onmouseup = function () {
+              window.onmousemove = null;
+              window.onmouseup = null;
+              body.style.cursor = "auto";
+              ewFlag = false;
+              videoResize();
+            }
+          }
+        };
+        if (!videoArray[key].fixFlag) {
+          if (selectVideoSize3Num.value > maxHeight) {
+            maxHeight = selectVideoSize3Num.value;
+          }
+        } else {
+          if (videoArray[key].clientHeight > maxHeight) {
+            maxHeight = videoArray[key].clientHeight;
+          }
+        }
+      });
+    }
+    mediaContainer.style.height = maxHeight + "px";
+  } else {
+    mediaContainer.style.height = 0 + "px";
   }
 }
 
@@ -2990,16 +4962,13 @@ sizeSelecter.onchange = function () {
   StyleDeclarationSetOrigin(main.style, "0px 0px");
   PMsize = this.value;
 
-  if (windowSize > 870) {
+  if (windowWidth > 870) {
     localStorage.setItem("PMsize", this.value);
     titleBar.style.width = 1 / Number(PMsize) * 100 + "%";
 
     chatLog.style.width = (window.innerWidth - (660 * Number(PMsize))) / Number(PMsize) + "px";
   }
 }
-
-
-
 
 
 function StyleDeclarationSetTransform(style, value) {//設定したい要素,設定内容//大きさを変える
@@ -3048,85 +5017,57 @@ function debugMode(message) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
 //右クリックメニュー
-window.onload = function () {
-  document.getElementById("graphic").addEventListener('contextmenu', function (e) {
-    //マウスの位置をstyleへ設定（左上の開始位置を指定）
-    document.getElementById('contextmenu').style.left = e.pageX - 80 + "px";
-    document.getElementById('contextmenu').style.top = e.pageY + "px";
-    //メニューをblockで表示させる
-    document.getElementById('contextmenu').style.display = "block";
-  });
-  document.getElementById("graphic").addEventListener('click', function (e) {
-    //メニューをnoneで非表示にさせる
-    document.getElementById('contextmenu').style.display = "none";
-    document.getElementById("abon").style.display = "none";
-  });
+window.addEventListener('click', function (e) {
+  //メニューをnoneで非表示にさせる
+  document.getElementById('contextmenu').style.display = "none";
+  document.getElementById("abon").style.display = "none";
+  document.getElementById("userOekaki").style.display = "none";
+});
+window.addEventListener('touchstart', function (e) {
+  //メニューをnoneで非表示にさせる
+  document.getElementById('contextmenu').style.display = "none";
+  document.getElementById("abon").style.display = "none";
+  document.getElementById("userOekaki").style.display = "none";
+});
 
-
-  let contextCount = 0;
-  let countup = function () {
-    console.log(contextCount++);
-    let id = setTimeout(countup, 1000);
-    if (contextCount > 2) {
-      clearTimeout(id);
-    }
+function contextMenuSet(e) {
+  if (window.innerWidth < 870 && e.data.getLocalPosition(app.stage.getChildByName(room)).x > 540) {
+    document.getElementById('contextmenu').style.left = e.data.getLocalPosition(app.stage.getChildByName(room)).x - 100 + "px";
+    document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(form).getPropertyValue('height')) + "px";
+  } else if (window.innerWidth > 870) {
+    document.getElementById('contextmenu').style.left = e.data.getLocalPosition(app.stage.getChildByName(room)).x + "px";
+    document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(titleBar).getPropertyValue('height')) + "px";
+  } else {
+    document.getElementById('contextmenu').style.left = e.data.getLocalPosition(app.stage.getChildByName(room)).x + "px";
+    document.getElementById('contextmenu').style.top = e.data.getLocalPosition(app.stage.getChildByName(room)).y + parseInt(window.getComputedStyle(form).getPropertyValue('height')) + "px";
   }
-
-  document.getElementById("graphic").addEventListener("touchstart", function (e) {//タップの場合
-    document.getElementById('contextmenu').style.display = "none";
-    let contextCount = 0;
-    let countup = function () {
-      contextCount++;
-      let id = setTimeout(countup, 1000);
-      if (contextCount > 1) {
-        document.getElementById('contextmenu').style.left = e.pageX - 80 + "px";
-        document.getElementById('contextmenu').style.top = e.pageY + "px";
-        //メニューをblockで表示させる
-        document.getElementById('contextmenu').style.display = "block";
-        clearTimeout(id);
-        contextCount = 0;
-      } else {
-        document.getElementById("graphic").addEventListener("touchend", function (e) {//タップを離したとき
-          clearTimeout(id);
-          contextCount = 0;
-        });
-      }
-    }
-    countup();
-  });
 }
 
 
-
 function menu1() {//座らせる
-  if (document.getElementById('sleep').textContent == "起きる") {
+  if (document.getElementById('sleep').textContent === "起きる") {
     document.getElementById('sleep').textContent = "寝る";
     sleepFlag[token] = false;
     socket.json.emit("sleep", {});
   }
-  DIR = "sit";
-  avaP[token].removeChild(avaC[token]);
-  avaC[token] = avaSit[token];
-  avaP[token].addChild(avaC[token]);
+  if (document.getElementById('sit').textContent === "座る") {
+    document.getElementById('sit').textContent = "立つ";
+    DIR = "sit";
+    avaP[token].removeChild(avaC[token]);
+    avaC[token] = avaSit[token];
+    avaP[token].addChild(avaC[token]);
+  } else {
+    document.getElementById('sit').textContent = "座る";
+    DIR = "S";
+    tappedMove(token, AX, AY, "S");
+  }
   socket.json.emit("tapMap", {
     DIR: DIR,
     AX: AX,
     AY: AY,
   });
   document.getElementById('contextmenu').style.display = "none";
-  document.getElementById("abon").style.display = "none";
 }
 
 (function () {
@@ -3157,12 +5098,10 @@ function menu2() {//眠らせる
       sleepFlag[token] = false;
       socket.json.emit("sleep", {});
     }
-    document.getElementById('contextmenu').style.display = "none"
   }
-  document.getElementById("abon").style.display = "none";
 }
 socket.on("sleep", function (data) {
-  if (avaP[data.token].avatar == "gomaneco" || avaP[token].avatar == "gomanecoMono") {
+  if (avaP[data.token].avatar == "gomaneco" || avaP[data.token].avatar == "gomanecoMono") {
     if (data.sleep) {//寝る時
       if (data.token == token) {//自分が時間で眠った時右クリックメニューを起きるにする
         document.getElementById('sleep').textContent = "起きる";
@@ -3236,27 +5175,77 @@ function animeSleep(thisToken) {
 }
 
 
-function menu3(value) {//アボン
-  if (value != token) {//自アバターは省く 
-    if (setAbon[value]) {
-      setAbon[value] = false;
+function menu3() {//アボン
+  if (setToken != token) {//自アバターは省く 
+    if (setAbon[setToken]) {
+      setAbon[setToken] = false;
       document.getElementById('abon').textContent = "アボン";
     } else {
-      setAbon[value] = true;
-      avaP[value].removeChild(avaC[value]);//画像をアボンにする
-      avaC[value] = avaAbon[value];
-      avaP[value].addChild(avaC[value]);
+      setAbon[setToken] = true;
+      avaP[setToken].removeChild(avaC[setToken]);//画像をアボンにする
+      avaC[setToken] = avaAbon[setToken];
+      avaP[setToken].addChild(avaC[setToken]);
       document.getElementById('abon').textContent = "アボン解除";
     }
     socket.json.emit("abonSetting", {
-      setAbon: setAbon[value],
-      token: value,
+      setAbon: setAbon[setToken],
+      token: setToken,
     });
   }
-  document.getElementById("abon").style.display = "none";
-  document.getElementById('contextmenu').style.display = "none";
+  // document.getElementById("abon").style.display = "none";
+  // document.getElementById('contextmenu').style.display = "none";
 }
 
+
+function menu4() {
+  if (userOekakiFlag[setToken]) {//やめる時
+    userOekakiFlag[setToken] = false;
+    if (clearFlag[room]) {
+      clear.style.backgroundColor = "skyblue"
+    } else {
+      clear.style.backgroundColor = "#979797";
+    }
+
+    if (undoFlag[room]) {
+      undo.style.backgroundColor = "skyblue";
+    } else {
+      undo.style.backgroundColor = "#979797";
+    }
+    if (redoStock[room].length) {
+      redo.style.backgroundColor = "skyblue";
+    } else {
+      redo.style.backgroundColor = "#979797";
+    }
+  } else {//するとき
+    userOekakiFlag[setToken] = true;
+    pointDown = false;
+    if (clearFlag[setToken]) {
+      clear.style.backgroundColor = "skyblue"
+    } else {
+      clear.style.backgroundColor = "#979797";
+    }
+
+    if (undoFlag[setToken]) {
+      undo.style.backgroundColor = "skyblue";
+    } else {
+      undo.style.backgroundColor = "#979797";
+    }
+    if (redoStock[setToken].length) {
+      redo.style.backgroundColor = "skyblue";
+    } else {
+      redo.style.backgroundColor = "#979797";
+    }
+  }
+}
+
+//設定
+function settingClick() {
+  if (setting.style.display === "block") {
+    document.getElementById("setting").style.display = "none";
+  } else {
+    document.getElementById("setting").style.display = "block";
+  }
+}
 
 
 
@@ -3285,8 +5274,7 @@ function menu3(value) {//アボン
 //video/audioButtonFlagはボタンを押してる状態かどうか
 //remote/Videos/Audiosはパネルが出てるかどうか
 
-_assert('container', container);
-
+// _assert('mediaContainer', mediaContainer);//ナニコレ？？？？？　とりま消してみる
 // --- prefix -----
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia ||
   navigator.mozGetUserMedia || navigator.msGetUserMedia;
@@ -3313,7 +5301,9 @@ RTCSessionDescription = window.RTCSessionDescription || window.webkitRTCSessionD
 //   return '_testroom';
 // }
 
-
+socket.on("stream", function (data) {
+  outputMsg(data.msg, "green", data.token, 1);
+});
 
 
 socket.on('message', function (message) {
@@ -3322,31 +5312,28 @@ socket.on('message', function (message) {
   let fromId = message.from;
   if (message.type === 'callMediaStatus') {
     if (videoStatus) {
-      socket.emit('message', { type: 'createVideoButton' });
+      socket.emit('message', { type: 'createVideoButton', });
     }
     if (audioStatus) {
-      socket.emit('message', { type: 'createAudioButton' });
+      socket.emit('message', { type: 'createAudioButton', });
     }
   }
   else if (message.type === 'createVideoButton') {
-    if (!videoButton[fromId]) {
+    if (!videoButton[fromId] || videoButton[fromId].style.visibility === "hidden") {
       createVideoButton(fromId);
     }
   } else if (message.type === 'createAudioButton') {
-    if (!audioButton[fromId]) {
+    if (!audioButton[fromId] || audioButton[fromId].style.visibility === "hidden") {
       createAudioButton(fromId);
     }
   } else if (message.type === "remove video button") {
-
-    mediaElement[fromId].removeChild(videoButton[fromId]);
-    videoButton[fromId] = null;
-    if (!audioButton[fromId]) {
+    videoButton[fromId].style.visibility = "hidden"
+    if (!audioButton[fromId] || audioButton[fromId].style.visibility === "hidden") {
       removeMediaElementButton(fromId);
     }
   } else if (message.type === "remove audio button") {
-    mediaElement[fromId].removeChild(audioButton[fromId]);
-    audioButton[fromId] = null;
-    if (!videoButton[fromId]) {
+    audioButton[fromId].style.visibility = "hidden";
+    if (!videoButton[fromId] || videoButton[fromId].style.visibility === "hidden") {
       removeMediaElementButton(fromId);
     }
   }
@@ -3450,11 +5437,11 @@ function canConnectMore() {//コネクションの限界値を超えないよう
 
 function removeMediaElementButton(id) {
   if (mediaElement[id]) {
-    // if (document.getElementById("recieve_menu").mediaElement[id]) {//問題起こりそうだけど一旦消しとく
-    document.getElementById("recieve_menu").removeChild(mediaElement[id]);
+    // if (document.getElementById("mediaMenu").mediaElement[id]) {//問題起こりそうだけど一旦消しとく
+    document.getElementById("mediaMenu").removeChild(mediaElement[id]);
     delete mediaElement[id];
     // }
-    if (remoteVideos[id]) {
+    if (videoArray[id]) {
       detachVideo(id);
     }
     if (remoteAudios[id]) {
@@ -3464,13 +5451,12 @@ function removeMediaElementButton(id) {
 }
 
 function stopConnection(id) {
-  console.log("stopTest");
   if (mediaElement[id]) {
     if (videoButton[id]) {
-      delete videoButton[id];
+      videoButton[id].style.visibility = "hidden";
     }
     if (audioButton[id]) {
-      delete audioButton[id];
+      audioButton[id].style.visibility = "hidden";
     }
     if (videoButtonFlag[id]) {
       delete videoButtonFlag[id];
@@ -3480,7 +5466,6 @@ function stopConnection(id) {
     }
     removeMediaElementButton(id)
   }
-
   if (peerConnections[id]) {
     let peer = peerConnections[id];
     peer.close();
@@ -3497,10 +5482,10 @@ function stopAllConnection() {
   keys.forEach(function (id) {
     removeMediaElementButton(id);
     if (videoButton[id]) {
-      delete videoButton[id];
+      videoButton[id].style.visibility = "hidden";
     }
     if (audioButton[id]) {
-      delete audioButton[id];
+      audioButton[id].style.visibility = "hidden";
     }
     if (videoButtonFlag[id]) {
       delete videoButtonFlag[id];
@@ -3514,54 +5499,49 @@ function stopAllConnection() {
   });
 }
 
-function attachMyVideo(stream) {
-  let video = document.createElement('video');
-  video.muted = true;
-  video.autoplay = true;
-  video.setAttribute('playsinline', '');
-  video.width = '320';//受信側の要素の大きさを指定？
-  // video.height = '180';
-  video.style.border = 'solid black 1px';
-  video.style.margin = '2px';
-  container.prepend(video);
-  localVideo = video;
-  playMedia(video, stream);
 
-  let p = document.createElement("p");
-  p.textContent = "なんか再生できてないmyVideo";
-  video.appendChild(p);
-}
 
 // --- video elements ---
-function attachVideo(id, stream) {//remoteVideoの追加
-  let video = document.createElement('video');
-  video.muted = true;
-  video.autoplay = true;
-  video.setAttribute('playsinline', '');
-  video.width = '320';//受信側の要素の大きさを指定？
-  // video.height = '180';
-  video.style.border = 'solid black 1px';
-  video.style.margin = '2px';
-  container.appendChild(video);
-  video.id = 'remote_video_' + id;
+function attachVideo(id, stream) {
+  console.log(id);
+  videoArray[id] = document.createElement('video');
+  videoArray[id].classList.add("video");
+  videoArray[id].muted = true;
+  videoArray[id].autoplay = true;
+  videoArray[id].setAttribute('playsinline', '');
+  videoArray[id].style.position = "absolute";
+  videoArray[id].style.top = 0 + "px";
+  videoArray[id].style.zIndex = 0;
+  if (id.match(/Re/)) {
+    videoArray[id].style.transform = "scaleX(-1)";
+  }
+  if (id.match(/Inv/)) {
+    videoArray[id].style.transform = "scaleY(-1)";
+  }
+  if (id.match(/IR/)) {
+    videoArray[id].style.transform = "scale(-1,-1)";
+  }
 
-  remoteVideos[id] = video;
-  playMedia(video, stream);
+  mediaContainer.appendChild(videoArray[id]);
 
+  playMedia(videoArray[id], stream);
   let p = document.createElement("p");
   p.textContent = "なんか再生できてないvideo";
-  video.appendChild(p);
+  videoArray[id].appendChild(p);
+  videoArray[id].addEventListener('loadedmetadata', function (event) {
+    videoResize();
+  });
 }
 
 
 function attachAudio(id, stream) {//remoteAudioの追加
   let audio = document.createElement('audio');
   audio.autoplay = true;
-  audio.id = 'remote_audio_' + id;
-  container.appendChild(audio);
-  remoteAudios[id] = audio;
+  // audio.id = 'remote_audio_' + id;//↓↓のやつとともにしばらく消してみて様子見
+  mediaContainer.appendChild(audio);
+  remoteAudios[id] = audio;//たぶんこれもaudio消してremoteAudiosで統一していい
   playMedia(audio, stream);
-  audio.volume = 1;
+  audio.volume = audioVolume[id].value;
 
   document.addEventListener('touchstart', attachAudioPlay, {
     passive: true,
@@ -3575,30 +5555,17 @@ function attachAudio(id, stream) {//remoteAudioの追加
   let p = document.createElement("p");
   p.textContent = "なんか再生できてないaudio";
   audio.appendChild(p);
-
 }
 
 
-
-
-function detachMyVideo() {
-  pauseMedia(localVideo);
-  localVideo.width = '';//受信側の要素の大きさを指定？
-  localVideo.height = '';
-  localVideo.style.border = '';
-  localVideo.style.margin = '';
-  // container.removeChild(document.getElementById("localVideo"));
-}
-
-function detachVideo(id) {//remoteVideoの削除
-  let video = remoteVideos[id];
-  pauseMedia(video);
-  container.removeChild(document.getElementById('remote_video_' + id));
-  delete remoteVideos[id];
+function detachVideo(id) {//videoの削除
+  pauseMedia(videoArray[id]);
+  delete videoArray[id];
+  videoResize();
 }
 
 function detachAudio(id) {//remoteAudioの削除
-  container.removeChild(document.getElementById('remote_audio_' + id));
+  // mediaContainer.removeChild(document.getElementById('remote_audio_' + id));//しばらく消してみて様子見、
   delete remoteAudios[id];
 }
 
@@ -3623,14 +5590,13 @@ function startVideo() {
       break;
   }
 
-  videoStatus =
-  {
-    width: { max: 320 },
+  videoStatus = {
+    // width: { max: 320 },
     facingMode: camera,
     // height: { max: 180 }
   };
   getDeviceStream({
-    video: videoStatus
+    video: videoStatus,
   }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
     .then(function (stream) { // success
       document.getElementById('startVideo').style.backgroundColor = "skyblue";
@@ -3649,11 +5615,22 @@ function startVideo() {
         }
       });
 
-      attachMyVideo(stream);
-      socket.emit('message', { type: 'createVideoButton' });
+      attachVideo(token, stream);
+      if (selectVideoReverse.checked) {//自分の左右反転にチェックが入ってたら
+        attachVideo(token + "Re", stream);
+      }
+      if (selectVideoInverse.checked) {//自分の上下反転にチェックが入ってたら
+        attachVideo(token + "Inv", stream);
+      }
+      if (selectVideoInverseAndReverse.checked) {//自分の上下左右反転にチェックが入ってたら
+        attachVideo(token + "IR", stream);
+      }
+      socket.emit('message', { type: 'createVideoButton', });
+      socket.json.emit("stream", { format: "videoStart", });
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
       }
+
     }).catch(function (error) { // error
       videoStatus = false;
       document.getElementById('startVideo').style.backgroundColor = "red";
@@ -3691,8 +5668,8 @@ function startAudio() {
       }
     });
 
-    socket.emit('message', { type: 'createAudioButton' });
-
+    socket.emit('message', { type: 'createAudioButton', });
+    socket.json.emit("stream", { format: "audioStart", });
     document.getElementById('startAudio').onclick = function buttonClick() {
       stopAudio();
     }
@@ -3732,15 +5709,25 @@ function stopVideo() {
     }
   });
 
-  detachMyVideo();
+  detachVideo(token);
+  if (videoArray[token + "Re"]) {
+    detachVideo(token + "Re");
+  }
+  if (videoArray[token + "Inv"]) {
+    detachVideo(token + "Inv");
+  }
+  if (videoArray[token + "IR"]) {
+    detachVideo(token + "IR");
+  }
   if (!videoStatus && !audioStatus) {
     stopLocalStream(localStream);
     localStream = null;
   }
-  socket.emit('message', { type: "remove video button" });
+  socket.emit('message', { type: "remove video button", });
   document.getElementById('startVideo').onclick = function buttonClick() {
     startVideo();
   }
+  socket.json.emit("stream", { format: "videoStop", });
 }
 
 
@@ -3770,12 +5757,12 @@ function stopAudio() {
     stopLocalStream(localStream);
     localStream = null;
   }
-  socket.emit('message', { type: "remove audio button" });
+  socket.emit('message', { type: "remove audio button", });
 
   document.getElementById('startAudio').onclick = function buttonClick() {
     startAudio();
-    document.getElementById('startAudio').style.backgroundColor = "skyblue"
   }
+  socket.json.emit("stream", { format: "audioStop", });
 }
 
 function checkAllListenFunk() {
@@ -3798,10 +5785,9 @@ function checkAllListenFunk() {
         mediaConnect(key, "stop audio");
       }
     });
-  } else {
+  } else {//checkAllListenを動かすとき
     checkAllListen = true;
     document.getElementById('checkAllListen').style.backgroundColor = "#6C9BD2";
-
     Object.keys(mediaElement).forEach(function (key) {
       if (videoButton[key] && videoButtonFlag[key] === undefined) {
         videoButtonFlag[key] = true;
@@ -3892,13 +5878,13 @@ function pauseMedia(element) {//メディアの停止
 
 
 function sendSdp(id, sessionDescription) {
-  let message = { type: sessionDescription.type, sdp: sessionDescription.sdp };
+  let message = { type: sessionDescription.type, sdp: sessionDescription.sdp, };
   message.sendto = id;
   socket.emit('message', message);
 }
 
 function sendIceCandidate(id, candidate) {
-  let obj = { type: 'candidate', ice: candidate };
+  let obj = { type: 'candidate', ice: candidate, };
 
 
   if (peerConnections[id]) {
@@ -3919,18 +5905,21 @@ function createVideoButton(id) {
     mediaElement[id] = document.createElement('li');
     mediaElement[id].classList.add('flexContainer');
     mediaElement[id].classList.add('mediaElement');
-    document.getElementById("recieve_menu").appendChild(mediaElement[id]);
+    document.getElementById("mediaMenu").appendChild(mediaElement[id]);
     distributor[id] = document.createElement('text');
     distributor[id].classList.add("order1");
     distributor[id].innerHTML = avaP[id].userName;
     mediaElement[id].prepend(distributor[id]);
   }
-  videoButton[id] = document.createElement('input');
-  videoButton[id].classList.add("order2");
-  videoButton[id].value = "動画受信"
-  videoButton[id].type = "button";
-  mediaElement[id].appendChild(videoButton[id]);
-
+  if (!videoButton[id]) {
+    videoButton[id] = document.createElement('input');
+    videoButton[id].classList.add("order2");
+    videoButton[id].value = "動画受信"
+    videoButton[id].type = "button";
+  }
+  videoButton[id].style.visibility = "visible";
+  // mediaElement[id].appendChild(videoButton[id]);
+  mediaElement[id].insertBefore(videoButton[id], mediaElement[id].firstElementChild);
   if (checkAllListen) {//checkAllListenがonだったらボタンを押す
     if (videoButtonFlag[id] === undefined) {
       videoButtonFlag[id] = true;
@@ -3960,39 +5949,44 @@ function createAudioButton(id) {
     mediaElement[id] = document.createElement('li');
     mediaElement[id].classList.add('flexContainer');
     mediaElement[id].classList.add('mediaElement');
-    document.getElementById("recieve_menu").appendChild(mediaElement[id]);
+    document.getElementById("mediaMenu").appendChild(mediaElement[id]);
     distributor[id] = document.createElement('text');
     distributor[id].classList.add("order1");
     distributor[id].innerHTML = avaP[id].userName;
     mediaElement[id].prepend(distributor[id]);
+
   }
-
-  audioButton[id] = document.createElement('input');
-  audioButton[id].classList.add("order2");
-  audioButton[id].value = "音声受信"
-  audioButton[id].type = "button";
+  if (!audioButton[id]) {
+    audioButton[id] = document.createElement('input');
+    audioButton[id].classList.add("order2");
+    audioButton[id].value = "音声受信"
+    audioButton[id].type = "button";
+  }
+  audioButton[id].style.visibility = "visible";
   mediaElement[id].appendChild(audioButton[id]);
-
-
   if (!audioVolume[id]) {
     audioVolume[id] = document.createElement('input');
     audioVolume[id].id = id;
     audioVolume[id].classList.add("order3");
-    // audioVolume[id] =  classList.add('audioVolume');
+    audioVolume[id].classList.add('audioVolume');
     audioVolume[id].type = "range";
     audioVolume[id].name = "speed";
     audioVolume[id].value = 0.5;
     audioVolume[id].min = "0";
     audioVolume[id].max = "1";
-    audioVolume[id].step = "0.01";
+    audioVolume[id].step = "0.001";
+    // audioVolume[id].width = "500px";
     audioVolume[id].onchange = function setAudioVolume() {
       if (remoteAudios[id]) {
         let audio = remoteAudios[id];
         audio.volume = document.getElementById(id).value;
       }
     }
-    mediaElement[id].appendChild(audioVolume[id]);
+  } else {
+    let audio = remoteAudios[id];
+    // audio.volume = document.getElementById(id).value;
   }
+  mediaElement[id].appendChild(audioVolume[id]);
 
   if (checkAllListen) {//checkAllListenがonだったらボタンを押す
     if (audioButtonFlag[id] === undefined) {
@@ -4028,26 +6022,25 @@ function prepareNewConnection(id) {
   // --- on get remote stream ---
   if ('ontrack' in peer) {
     peer.ontrack = function (event) {
-      console.log("test1");
-      let stream = event.streams[0];
-      console.log("test2");
-      //追加の場合
+      stream[id] = event.streams[0];//追加の場合
       let track = event.track;
-      console.log("test3");
       if (track.kind === 'video') {
-        console.log("test4");
-        if (videoButtonFlag[id] === true && !remoteVideos[id]) {//videoButtonがonの時
-          console.log("test5");
+        if (videoButtonFlag[id] === true && !videoArray[id]) {//videoButtonがonの時
           videoButton[id].style.backgroundColor = 'skyblue';
-          console.log("test6");
-          attachVideo(id, stream);
-          console.log("test7");
+          attachVideo(id, stream[id]);
+
+          if (selectVideoReverseOther.checked) {//受信した動画の左右反転にチェックが入ってたら
+            attachVideo(id + "Re", stream[id]);
+          }
+          if (selectVideoInverseOther.checked) {//受信した動画の上下反転にチェックが入ってたら
+            attachVideo(id + "Inv", stream[id]);
+          }
+          if (selectVideoInverseAndReverseOther.checked) {//受信した動画の上下左右反転にチェックが入ってたら
+            attachVideo(id + "IR", stream[id]);
+          }
           videoButton[id].onclick = function buttonClick() {//videoButtonがクリックされた時
-            console.log("test8");
             videoButtonFlag[id] = false;
-            console.log("test9");
             mediaConnect(id, "stop video");
-            console.log("test10");
             ///映像が直ぐに消えないならdetachvideoとかやる
           }
         }
@@ -4055,14 +6048,14 @@ function prepareNewConnection(id) {
       else if (track.kind === 'audio') {
         if (audioButtonFlag[id] === true && !remoteAudios[id]) {//audioButtonがonの時
           audioButton[id].style.backgroundColor = 'skyblue';
-          attachAudio(id, stream);
+          attachAudio(id, stream[id]);
           audioButton[id].onclick = function buttonClick() {//audioButtonがクリックされた時
             audioButtonFlag[id] = false;
             mediaConnect(id, "stop audio");
           }
         }
       }
-      stream.onaddtrack = function (evt) {
+      stream[id].onaddtrack = function (evt) {
         const trackOnAdd = evt.track;
         if (trackOnAdd.kind === 'video') {
           console.log("onAddTrackVideo");
@@ -4072,36 +6065,24 @@ function prepareNewConnection(id) {
         }
       };
 
-      stream.onremovetrack = function (evt) {//除去の場合
-        console.log("remTest1");
-
+      stream[id].onremovetrack = function (evt) {//除去の場合        
         const trackRemove = evt.track;
-        console.log("remTest2");
         if (trackRemove.kind === 'video') {// video除去時の処理
-          console.log("remTest3");
-          if (remoteVideos[id]) {
-            console.log("remTest4");
+          if (videoArray[id]) {
             detachVideo(id);
-            console.log("remTest5");
           }
-          console.log("remTest6");
-          if (videoButton[id] && videoButtonFlag[id] === false) {//リスナー側が切っただけの場合
-            console.log("remTest7");
+          if (videoButton[id] && !videoButtonFlag[id]) {//リスナー側が切っただけの場合
             videoButton[id].style.backgroundColor = "red";
-            console.log("remTest8");
             videoButton[id].onclick = function buttonClick() {
-              console.log("remTest9");
               videoButtonFlag[id] = true;
-              console.log("remTest10");
-              mediaConnect(id, "call video");
-              console.log("remTest11");
+              mediaConnect(id, "call video");;
             }
           }
         } else if (trackRemove.kind === 'audio') {// audio除去時の処理
           if (remoteAudios[id]) {
             detachAudio(id);
           }
-          if (audioButton[id] && audioButtonFlag[id] === false) {//リスナー側が切っただけの場合
+          if (audioButton[id] && !audioButtonFlag[id]) {//リスナー側が切っただけの場合
             audioButton[id].style.backgroundColor = "red";
             audioButton[id].onclick = function buttonClick() {
               audioButtonFlag[id] = true;
@@ -4111,7 +6092,7 @@ function prepareNewConnection(id) {
 
 
           // if (!audioButton[id] && mediaElement[id]) {
-          //   document.getElementById("recieve_menu").removeChild(mediaElement[id]);
+          //   document.getElementById("mediaMenu").removeChild(mediaElement[id]);
           // }
         }
       };
@@ -4195,7 +6176,7 @@ function prepareNewConnection(id) {
     console.log('== ice connection status=' + peer.iceConnectionState);
     if (peer.iceConnectionState === 'disconnected') {
       console.log('-- disconnected --');
-      stopConnection(id);
+      // stopConnection(id);/////とりあえず消してみてテスト
 
       debugMode('-- disconnected --');
     }
@@ -4279,23 +6260,14 @@ function setupDataChannelEventHandler(rtcPeerConnection) {
         });
     }
     else if ("call video" === objData.type) {
-      debugMode("calltest1");
       if (videoStatus) {
-        debugMode("calltest2");
         mapPeer.forEach(function (value, id) {
-          debugMode("calltest3");
           if (value.get("rtc") === rtcPeerConnection) {
-            debugMode("calltest4");
             if (!value.get("idOldVideo")) {
-              debugMode("calltest5");
               value.set("onVideo", true);
-              debugMode("calltest6");
               value.set("oldVideo", localStream.getVideoTracks()[0]);
-              debugMode("calltest7");
               value.set("idOldVideo", localStream.getVideoTracks()[0].id);
-              debugMode("calltest8");
               value.get("rtc").addTrack(value.get("oldVideo"), localStream);
-              debugMode("calltest9");
             }
           }
         });
@@ -4608,31 +6580,38 @@ function addIceCandidate(id, candidate) {
 
 // start PeerConnection
 function mediaConnect(id, type) {
-  console.log("mediaConnectTest1");
   if (!canConnectMore()) {
-    console.log("mediaConnectTest2");
     console.log('TOO MANY connections');
-    console.log("mediaConnectTest3");
   } else {
-    console.log("mediaConnectTest4");
     if (mapPeer.get(id)) {
-      console.log("mediaConnectTest5");
       if (isDataChannelOpen(mapPeer.get(id).get("rtc"))) {//接続済の場合
-        console.log("mediaConnectTest6");
         mapPeer.get(id).get("rtc").datachannel.send(JSON.stringify({ type: type }));
-        console.log("mediaConnectTest7");
       }
-      console.log("mediaConnectTest8");
     } else {//まだ未接続の場合
-      console.log("mediaConnectTest9");
       if (type == "call video and audio" || type == "call video" || type == "call audio") {
-        console.log("mediaConnectTest10");
-        socket.emit('message', { sendto: id, type: type });
-        console.log("mediaConnectTest11");
+        socket.emit('message', { sendto: id, type: type, });
       }
     }
   }
 }
+
+
+document.getElementById('startVideo').onkeypress = function (e) {
+  // エンターキーだったら無効にする
+  if (e.key === 'Enter') {
+    outputMsg("配信ボタン選択時のenterは無効です。", "red");
+    return false;
+  }
+}
+
+document.getElementById('startAudio').onkeypress = function (e) {
+  // エンターキーだったら無効にする
+  if (e.key === 'Enter') {
+    outputMsg("配信ボタン選択時のenterは無効です。", "red");
+    return false;
+  }
+}
+
 
 
 

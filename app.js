@@ -11,8 +11,16 @@ var QandA = require("./routes/Q-A");//Q-A.jsモジュールを読みこむ
 var link = require("./routes/link");//link.jsモジュールを読みこむ
 var loginErrorHandling = require("./routes/login_error_handling");//error_handling.jsモジュールを読みこむ
 var dominionrule = require("./routes/dominionrule");//dominionrule.jsモジュールを読みこむ
-var talk = require("./routes/talk");//talk.jsモジュールを読みこむ
-var watch = require("./routes/watch");//watch.jsモジュールを読みこむ
+var uowamemo01 = require("./routes/uowamemo01");
+var uowamemo02 = require("./routes/uowamemo02");
+var uowamemo03 = require("./routes/uowamemo03");
+var uowamemo04 = require("./routes/uowamemo04");
+var uowamemo05 = require("./routes/uowamemo05");
+var uowamemo06 = require("./routes/uowamemo06");
+var uowamemo07 = require("./routes/uowamemo07");
+var uowamemo08 = require("./routes/uowamemo08");
+var uowamemo09 = require("./routes/uowamemo09");
+var uowamemo10 = require("./routes/uowamemo10");
 
 
 
@@ -35,14 +43,18 @@ app.use('/', indexRouter);//indexリクエストがあった時に.jsモジュ�
 app.use("/kousinrireki", kousinrireki);//kousinrirekiリクエストがあった時にkousinrireki.jsモジュールを使うよう設定する
 app.use("/Q-A", QandA);//
 app.use("/link", link);
-app.use("/login_error_handling", loginErrorHandling);
+app.use("/login_error_handling",loginErrorHandling );
 app.use("/dominionrule", dominionrule);
-app.use("/talk", talk);
-app.use("/watch", watch);
-
-// app.get('/', (req, res) => {//httpからのリダイレクトやりたいのにやり方がわからん
-//   res.redirect(301, '/talk');
-// });
+app.use("/uowamemo01", uowamemo01);
+app.use("/uowamemo02", uowamemo02);
+app.use("/uowamemo03", uowamemo03);
+app.use("/uowamemo04", uowamemo04);
+app.use("/uowamemo05", uowamemo05);
+app.use("/uowamemo06", uowamemo06);
+app.use("/uowamemo07", uowamemo07);
+app.use("/uowamemo08", uowamemo08);
+app.use("/uowamemo09", uowamemo09);
+app.use("/uowamemo10", uowamemo10);
 
 
 
@@ -63,3 +75,7 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+
+
+
+
