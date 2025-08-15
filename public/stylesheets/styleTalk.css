@@ -1,0 +1,869 @@
+body {
+    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    color: #eee;
+    font-size: 14px;
+    margin: 0 0 0 2px;
+    background-color: rgb(50, 50, 58);
+    /* background-color: rgb(35, 35, 39); こっちとで迷う*/
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ページ全体のスクロールの幅の指定 */
+
+html::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+}
+
+/* ページ全体のスクロールの背景の設定 */
+
+html::-webkit-scrollbar-track {
+    border-radius: 5px;
+    box-shadow: 0 0 4px #aaa inset;
+}
+
+/* ページ全体のスクロールのつまみ部分の設定 */
+
+html::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: rgba(195, 193, 207, 0.315);
+}
+
+/* その他のスクロールの幅の指定 */
+
+#chatLog::-webkit-scrollbar, #kousinrireki::-webkit-scrollbar {
+    width: 20px;
+    height: 0px;
+}
+
+/* その他のスクロールの背景の設定 */
+
+#chatLog-webkit-scrollbar-track, #kousinrireki::-webkit-scrollbar-track {
+    border-radius: 5px;
+    box-shadow: 0 0 4px #aaa inset;
+}
+
+/* その他のスクロールのつまみ部分の設定 */
+
+#chatLog::-webkit-scrollbar-thumb, #kousinrireki::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: rgba(207, 199, 255, 0.315);
+}
+
+main {
+    /* overflow: hidden; */
+}
+
+h1 {
+    margin: 0;
+}
+
+p {
+    margin: 0px;
+}
+
+a {
+    color: #ebd40e;
+}
+
+.fontSize18px {
+    font-size: 18px;
+}
+
+.flexContainer {
+    display: -webkit-flex;
+    display: flex;
+}
+
+.flexContainerColumn {
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
+}
+
+.flexspaceBetween {
+    display: -webkit-flex;
+    display: flex;
+    justify-content: space-between;
+}
+
+.flexCenter {
+    display: -webkit-flex;
+    display: flex;
+    justify-content: center;
+}
+
+.flexEnd {
+    display: -webkit-flex;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.flexShrink0 {
+    flex-shrink: 0;
+}
+
+.order1 {
+    order: 1;
+}
+
+.order2 {
+    order: 2;
+}
+
+.order3 {
+    order: 3;
+}
+
+.order4 {
+    order: 4;
+}
+
+.order5 {
+    order: 5;
+}
+
+.rightSpace {
+    /* IE11でも空白を使えるようにするための処置 */
+    display: inline-block;
+    padding-right: 15px;
+}
+
+.topMarginPlus {
+    margin: 20px 0 0 0;
+}
+
+.topPaddingPlus {
+    padding: 20px 0 0 0;
+}
+
+.bottom {
+    margin: auto 0 0 0;
+}
+
+#day {
+    font-size: 14px;
+    flex: 1 0 auto;
+    align-self: flex-end;
+    margin-top: auto;
+}
+
+.logNoiseButton {
+    background-color: green;
+    /* height: 23px; */
+    /* margin-right: 5px; */
+    float: right;
+}
+
+#title {
+    font-family: "microsoft jhenghei UI light";
+    font-size: 40px;
+    font-weight: bold;
+}
+
+#graphic {
+    display: inline-block;
+    position: relative;
+    /* z-index: 1; */
+    /* たぶんいらない、なんだこれ*/
+    /* width: 660px; */
+    /* background-color: rgb(76, 76, 82); */
+    /* background-size: cover; */
+    /* flex-basis: 10000px; */
+}
+
+#loginButton {
+    position: absolute;
+    font-weight: bold;
+    border-style: none;
+    color: rgb(76, 76, 82);
+    /* 文字の色 */
+    font-size: 25px;
+    /* 文字のサイズ */
+    letter-spacing: 4px;
+    /* 文字間 */
+    text-shadow: 2px 2px 5px #ffff1a, -2px 2px 5px #ffff1a, 2px -2px 5px #ffff1a, -2px -2px 5px #ffff1a, 2px 0px 5px #ffff1a, 0px 2px 5px #ffff1a, -2px 0px 5px #ffff1a, 0px -2px 5px #ffff1a;
+    /* 文字の影 */
+    background-color: rgb(76, 76, 82);
+    transform: translateY(-50%) translateX(-50%);
+    /*要素の大きさの半分ずつを戻す*/
+    -webkit-transform: translateY(-50%) translateX(-50%);
+    top: 50%;
+    left: 61%;
+    /*ここで左右調整*/
+    transform: translateY(-50%) translateX(-50%);
+    -webkit-transform: translateY(-50%) translateX(-50%);
+}
+
+#loginButton:hover {
+    text-shadow: 2px 2px 5px red, -2px 2px 5px red, 2px -2px 5px red, -2px -2px 5px red, 2px 0px 5px red, 0px 2px 5px red, -2px 0px 5px red, 0px -2px 5px red;
+}
+
+/* #Pmachi{ */
+
+/* 画面サイズ大き過ぎたから80%にするための処理 */
+
+/* -webkit-transform: scale(0.8);
+    -moz-transform: scale(0.8);
+    -ms-transform: scale(0.8);
+    -o-transform: scale(0.8);
+    transform: scale(0.8); */
+
+/* -moz-transform-origin: 0px 0px;
+    -webkit-transform-origin: 0px 0px;
+    -o-transform-origin: 0px 0px;
+    -ms-transform-origin: 0px 0px;
+    transform-origin: 0px 0px; */
+
+/* position: absolute; */
+
+/* width: 528px; */
+
+/* height: 480px;
+/* } */
+
+#Pmain {
+    /* 画面サイズ大き過ぎたから80%にするための処理 */
+    /* -webkit-transform: scale(0.8);
+    -moz-transform: scale(0.8);
+    -ms-transform: scale(0.8);
+    -o-transform: scale(0.8);
+    transform: scale(0.8);  */
+    /* width: 528px; */
+    -moz-transform-origin: 0px 0px;
+    -webkit-transform-origin: 0px 0px;
+    -o-transform-origin: 0px 0px;
+    -ms-transform-origin: 0px 0px;
+    transform-origin: 0px 0px;
+}
+
+#PmainFooter, #form, #footer {
+    width: 660px;
+}
+
+#nameForm {
+    text-align: right;
+    background-color: #939393;
+}
+
+#userName {
+    font-size: 19px;
+    width: 99%;
+    background-color: #E1E1E1;
+    -moz-transform-origin: 3px 0px;
+    -webkit-transform-origin: 3px 0px;
+    -o-transform-origin: 3px 0px;
+    -ms-transform-origin: 3px 0px;
+    transform-origin: 3px 0px;
+    line-height: 20px;
+    /* IE11対策 */
+}
+
+#msgForm {
+    text-align: right;
+    display: none;
+    background-color: #939393;
+}
+
+#msg {
+    font-size: 19px;
+    width: 99%;
+    background-color: #E1E1E1;
+    -moz-transform-origin: 3px 0px;
+    -webkit-transform-origin: 3px 0px;
+    -o-transform-origin: 3px 0px;
+    -ms-transform-origin: 3px 0px;
+    transform-origin: 3px 0px;
+    line-height: 20px;
+    /* IE11対策 */
+}
+
+#msg::placeholder {
+    text-align: right;
+}
+
+/* 
+input,//リセットCSS
+button,
+select,
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  display: none;
+}
+
+input[type='submit'],
+input[type='button'],
+label,
+button,
+select {
+  cursor: pointer;
+}
+
+select::-ms-expand {
+  display: none;
+} */
+
+.input {
+    height: 21px;
+}
+
+.topAndBottomadding6px {
+    padding: 6px 0;
+}
+
+#effectVolume {
+    width: 280px;
+}
+
+#switchBar {
+    padding: 16px 0 0 0;
+}
+
+#checkAllListen {
+    background-color: pink;
+}
+
+#PmainFooter {
+    /* width: 100%; */
+    background-color: #b6a3a3;
+}
+
+#footer {
+    padding: 60px 0 0 0;
+    /* width: 125%; */
+}
+
+#container {
+    /* width: 125%; */
+}
+
+#chatLog {
+    font-family: "教科書体", "MS ゴシック", "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    background-color: rgb(76, 76, 82);
+    color: #999;
+    overflow: scroll;
+    width: 100%;
+    height: 660px;
+    max-width: 1000px;
+    padding: 0px;
+}
+
+#chatLog ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background-image: url(../img/chatscroll.png);
+    background-repeat: repeat-y;
+    background-size: 100% auto;
+}
+
+#chatLog li {
+    color: black;
+}
+
+.inlineBlock {
+    display: inline-block;
+}
+
+.defaultRed {
+    background-color: red;
+}
+
+.right {
+    float: right;
+}
+
+.strike {
+    text-decoration: line-through;
+}
+
+.nonUnder {
+    /* リンクの下線を消す用 */
+    text-decoration: none;
+}
+
+/*配信メニュー*/
+
+#recieve_menu {
+    position: relative;
+    right: +40px;
+    width: 100%;
+    /* height: 50px; */
+    max-width: 1000px;
+    margin: 0 auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+}
+
+#recieve_menu>li {
+    /* width: 25%; グローバルナビ4つの場合 */
+    height: 34px;
+    /* line-height: 50px; */
+    background: rgb(29, 33, 19);
+}
+
+/* #recieve_menu > li a {
+    display: block;
+    color: #fff;
+} */
+
+#recieve_menu>li a:hover {
+    color: #999;
+}
+
+ul#recieve_menu_second-level {
+    visibility: hidden;
+    opacity: 0;
+    z-index: 1;
+    list-style: none;
+}
+
+/* .mediaElement{ */
+
+/* margin: 0; */
+
+/* } */
+
+/* #recieve_menu > li:hover {
+    background: #072A24;
+    -webkit-transition: all .5s;
+    transition: all .5s;
+} */
+
+/* .recieve_menu_second-level li {
+    border-top: 1px solid #111;
+} */
+
+/* #recieve_menu_second-level li a:hover {
+    background: #111;
+} */
+
+/* 下矢印 */
+
+/* .init-bottom:after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 0 0 15px;
+    border-right: 1px solid #fff;
+    border-bottom: 1px solid #fff;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+} */
+
+/* floatクリア */
+
+/* #recieve_menu:before,
+#recieve_menu:after {
+    content: " ";
+    display: table;
+}
+
+#recieve_menu:after {
+    clear: both;
+}
+
+#recieve_menu {
+    *zoom: 1;
+}
+#recieve_menu > li#recieve_menu_single {
+    position: relative;
+}
+
+li#recieve_menu_single ul#recieve_menu_second-level {
+    position: absolute;
+    top: 40px;
+    width: 150%;
+    background: #072A24;
+    -webkit-transition: all .2s ease;
+    transition: all .2s ease;
+}
+
+li#recieve_menu_single:hover ul#recieve_menu_second-level {
+    top: 50px;
+    visibility: visible;
+    opacity: 1;
+} */
+
+#pkun {
+    cursor: pointer;
+    stroke-linecap: round;
+    fill: skyblue;
+}
+
+.svgText {
+    font-size: 40px;
+    font-weight: bold;
+    font-family: Arial;
+    fill: #fff;
+    text-anchor: middle;
+}
+
+#pkun.moved {
+    animation-name: spin;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+    /* animation-direction: alternate; */
+    animation-fill-mode: forwards;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0) scale(1.8) translateX(-80px);
+    }
+    10% {
+        transform: rotate(50) scale(1.8) translateX(-5px);
+    }
+    20% {
+        transform: rotate(75deg) scale(1.7);
+    }
+    25% {
+        transform: rotate(100deg) scale(1.7);
+    }
+    30% {
+        transform: rotate(270deg) scale(1.8) translateX(-80px);
+        border-radius: 25%;
+        width: 250px;
+    }
+    40% {
+        transform: rotate(400deg) scale(1.8) translateX(-80px);
+        border-radius: 25%;
+        width: 250px;
+        background-color: transparent;
+    }
+    50% {
+        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        border-radius: 50%;
+        background-color: transparent;
+        /* fill:skyblue; */
+    }
+    55% {
+        background-color: rosybrown;
+    }
+    60% {
+        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        border-radius: 50%;
+        background-color: transparent;
+        /*背景を初期値（透明）にする*/
+        /* fill: rgb(233, 200, 12); */
+    }
+    80% {
+        transform: rotate(640deg) scale(5.8) translateX(100px);
+        background-color: gold;
+        /* fill:skyblue; */
+    }
+    90% {
+        transform: rotate(640deg) scale(5.8) translateX(100px);
+        background-color: transparent;
+        /*背景を初期値（透明）にする*/
+    }
+    95% {
+        transform: rotate(720deg) scale(1.8) translateX(200px);
+        border-radius: 20%;
+    }
+    100% {
+        transform: rotate(720deg) scale(1.8) translateX(50px);
+        border-radius: 20%;
+    }
+}
+
+.Q-AColor {
+    color: rgb(169, 255, 111);
+}
+
+#Q-AURL {
+    font-size: 25px;
+}
+
+#Q-A {
+    font-size: 20px;
+}
+
+#Q-A a {
+    font-size: 18px;
+}
+
+.linkColor {
+    color: rgb(236, 236, 55);
+}
+
+#linkURL {
+    font-size: 25px;
+}
+
+#link {
+    font-size: 20px;
+}
+
+#link a {
+    font-size: 18px;
+}
+
+.errorHandlingColor {
+    color: rgb(238, 27, 97);
+}
+
+#errorHandlingURL {
+    font-size: 25px;
+}
+
+#errorHandlingTitle {
+    font-family: "Nico Moji";
+}
+
+#kousinrirekiURL {
+    font-size: 20px;
+    background-color: #333332;
+}
+
+#kousinrireki {
+    font-size: 18px;
+    /* max-width: 1528px; */
+    /*PMeinの幅とchatLogの幅の合計値に合わせる*/
+    /* height: 100px; */
+    /* overflow: scroll; */
+    background-color: #223852;
+}
+
+#kousinrireki a {
+    font-size: 14px;
+}
+
+#dominion p, a {
+    font-size: 17px;
+}
+
+#senburahaihu {
+    flex-wrap: wrap;
+    margin: 0 0 0 30px;
+}
+
+#senburahaihu p, a {
+    font-size: 15px;
+}
+
+.mzk {
+    display: inline-block;
+    color: rgba(153, 153, 153, 0.10);
+    /* 文字の色 */
+    font-size: 12pt;
+    /* 文字のサイズ */
+    letter-spacing: 2px;
+    /* 文字間 */
+    text-shadow: 1px 1px 1px #ffffff, -1px 1px 1px #ffffff, 1px -1px 1px #ffffff, -1px -1px 1px #ffffff, 1px 0px 1px #ffffff, 0px 1px 1px #ffffff, -1px 0px 1px #ffffff, 0px -1px 1px #ffffff;
+    /* 文字の影 */
+}
+
+#sizeSelecter {
+    width: 50px
+}
+
+.smartphone {
+    display: none;
+}
+
+@media(max-width: 870px) {
+    .PC {
+        display: none;
+    }
+    .smartphone {
+        display: inline;
+    }
+    body {
+        /* background:#F68B1F; */
+        background: skyblue;
+    }
+    #Pmachi {
+        flex-wrap: wrap;
+        flex-direction: column;
+        /* overflow: hidden; */
+    }
+    #form {
+        position:absolute;
+        top:270px;
+        left: 200px;
+        width: 200px;
+    }
+    #userName {
+        width: 50%;
+    }
+    #msg {
+        width: 50%;
+    }
+    #titleBar {
+        order: 3;
+        flex-wrap: wrap;
+    }
+    #logs {
+        flex-direction: column-reverse;
+    }
+    #switchBar {
+        padding: 0;
+    }
+    #recieve_menu>li {
+        /* ボタンが押しにくいので */
+        padding: 10px;
+    }
+}
+
+/* 右クリックメニュー */
+
+#contextmenu {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0px;
+    top: 0px;
+    width: 80px;
+    border: 1px solid rgb(59, 9, 9);
+    background-color: rgba(143, 199, 201, 0.5);
+    list-style: none;
+}
+
+#contextmenu li {
+    cursor: pointer;
+}
+
+#contextmenu>ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#abon {
+    display: none;
+}
+
+/* formatはファイルの拡張子を見て合わせる  ttfならtruetype otfならopentype*/
+
+@font-face {
+    font-family: 鉄瓶ゴシック;
+    src: url("/stylesheets/07鉄瓶ゴシック.otf") format("opentype");
+}
+
+@font-face {
+    font-family: JKゴシックM;
+    src: url("/stylesheets/JKG-L_3.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: kosugiMaru;
+    src: url("/stylesheets/KosugiMaru-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: チカラヅヨク;
+    src: url("/stylesheets/851CHIKARA-DZUYOKU_kanaA_004.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: チカラヨワク;
+    src: url("/stylesheets/851CHIKARA-YOWAKU_002.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: まるっかな;
+    src: url("/stylesheets/851CHIKARA-YOWAKU_002.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: M+フォント;
+    src: url("/stylesheets/851CHIKARA-YOWAKU_002.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: 源界明朝;
+    src: url("/stylesheets/title_genkai-mincho.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: にゃしぃフォント改二;
+    src: url("/stylesheets/title_Nyashi_Friends.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: PixelMplus;
+    src: url("/stylesheets/title_PixelMplus12-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: めもわーるしかく;
+    src: url("/stylesheets/title_memoir-square.otf") format("opentype");
+}
+
+/* @font-face {
+    font-family: ;
+    src: url("/stylesheets/") format("truetype");
+} */
+
+@font-face {
+    font-family: Q-A;
+    src: url("/stylesheets/Q-A.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: link;
+    src: url("/stylesheets/link.ttf") format("truetype");
+}
+
+select {
+    font-family: "鉄瓶ゴシック", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    background-color: #ffffffb9;
+}
+
+.鉄瓶ゴシック {
+    font-family: "鉄瓶ゴシック";
+}
+
+.JKゴシックM {
+    font-family: "JKゴシックM";
+}
+
+.kosugiMaru {
+    font-family: "kosugiMaru";
+}
+
+.チカラヅヨク {
+    font-family: "チカラヅヨク";
+}
+
+.チカラヨワク {
+    font-family: "チカラヨワク";
+}
+
+.MSゴシック {
+    font-family: "MSゴシック";
+}
+
+.UDDigiKyokashoN-R {
+    font-family: "UD Digi Kyokasho N-R";
+}
+
+.游ゴシック {
+    font-family: "游ゴシック";
+}
+
+.microsoftjhengheiUIlight {
+    font-family: "microsoft jhenghei UI light";
+}

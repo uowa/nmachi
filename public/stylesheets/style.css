@@ -78,6 +78,7 @@ html::-webkit-scrollbar-thumb {
 h1 {
     margin: 0;
 }
+
 h2 {
     margin: 0;
 }
@@ -85,11 +86,18 @@ h2 {
 p {
     margin: 0px;
 }
-pre {
+
+li>pre {
     margin: 0px;
+    word-break: break-all;
 }
 
-.nucomoe{
+li>a {
+    margin: 0px;
+    word-break: break-all;
+}
+
+.nucomoe {
     color: #ebd40e;
 }
 
@@ -168,12 +176,17 @@ pre {
     margin: auto 0 0 0;
 }
 
+.line-through{
+    text-decoration: line-through;
+}
+
 #day {
     font-size: 14px;
     flex: 1 0 auto;
     align-self: flex-end;
     margin-top: auto;
 }
+
 
 .logNoiseButton {
     background-color: green;
@@ -351,6 +364,8 @@ select::-ms-expand {
     height: 21px;
 }
 
+
+
 .topAndBottomadding6px {
     padding: 6px 0;
 }
@@ -359,8 +374,12 @@ select::-ms-expand {
     width: 280px;
 }
 
+.audioVolume{
+    width: 60%;
+}
+
 #switchBar {
-    padding: 16px 0 0 0;
+    padding: 0px 0 0 0;
     background-color: #b6a3a3;
 }
 
@@ -373,10 +392,14 @@ select::-ms-expand {
 }
 
 #footer {
-    padding: 60px 0 0 0;
+    /* padding: 60px 0 0 0; */
 }
 
-#container {}
+#mediaContainer {
+    position: relative;
+    
+    /* background-color: #b6a3a3; */
+}
 
 #chatLog {
     /* position:relative; */
@@ -402,15 +425,17 @@ select::-ms-expand {
     color: black;
 }
 
-li > pre{
-    font-size:100%;
-    white-space: pre-wrap ;
-    font-family:  "kosugiMaru", "教科書体", "MS ゴシック","游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+li>pre {
+    font-size: 100%;
+    white-space: pre-wrap;
+    font-family: "kosugiMaru", "教科書体", "MS ゴシック", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
 }
-li > a{
-    font-size:100%;
-    white-space: pre-wrap ;
-    font-family:  "kosugiMaru", "教科書体", "MS ゴシック","游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+
+li>a {
+    font-size: 100%;
+    /* word-break: break-all; */
+    overflow-wrap: break-word;
+    font-family: "kosugiMaru", "教科書体", "MS ゴシック", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
 }
 
 .inlineBlock {
@@ -434,9 +459,31 @@ li > a{
     text-decoration: none;
 }
 
-/*配信メニュー*/
 
-#recieve_menu {
+.video{
+    width: 100%;
+    height: 100%;
+    /* border-right: 10px solid rgb(160, 153, 153); */
+    
+}
+
+
+#setting{
+    display: none;
+    font-size: 11px;
+    color: rgb(114, 108, 153);
+    width: 655px;
+    height: 200px;
+    background-color: rgba(221, 220, 228, 0.904);
+    border: 2px solid black;
+    border-top: transparent; /* 上辺が透明になる */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+
+/*配信メニュー*/
+#mediaMenu {
     position: relative;
     right: +40px;
     width: 100%;
@@ -447,28 +494,29 @@ li > a{
     flex-direction: column;
 }
 
-#recieve_menu>li {
+#mediaMenu>li {
     /* width: 25%; グローバルナビ4つの場合 */
     height: 34px;
     /* line-height: 50px; */
     background: rgb(29, 33, 19);
 }
 
-/* #recieve_menu > li a {
+/* #mediaMenu > li a {
     display: block;
     color: #fff;
 } */
 
-#recieve_menu>li a:hover {
+#mediaMenu>li a:hover {
     color: #999;
 }
 
-ul#recieve_menu_second-level {
+ul#mediaMenu_second-level {
     visibility: hidden;
     opacity: 0;
     z-index: 1;
     list-style: none;
 }
+
 
 /* .mediaElement{ */
 
@@ -476,17 +524,17 @@ ul#recieve_menu_second-level {
 
 /* } */
 
-/* #recieve_menu > li:hover {
+/* #mediaMenu > li:hover {
     background: #072A24;
     -webkit-transition: all .5s;
     transition: all .5s;
 } */
 
-/* .recieve_menu_second-level li {
+/* .mediaMenu_second-level li {
     border-top: 1px solid #111;
 } */
 
-/* #recieve_menu_second-level li a:hover {
+/* #mediaMenu_second-level li a:hover {
     background: #111;
 } */
 
@@ -507,24 +555,24 @@ ul#recieve_menu_second-level {
 
 /* floatクリア */
 
-/* #recieve_menu:before,
-#recieve_menu:after {
+/* #mediaMenu:before,
+#mediaMenu:after {
     content: " ";
     display: table;
 }
 
-#recieve_menu:after {
+#mediaMenu:after {
     clear: both;
 }
 
-#recieve_menu {
+#mediaMenu {
     *zoom: 1;
 }
-#recieve_menu > li#recieve_menu_single {
+#mediaMenu > li#mediaMenu_single {
     position: relative;
 }
 
-li#recieve_menu_single ul#recieve_menu_second-level {
+li#mediaMenu_single ul#mediaMenu_second-level {
     position: absolute;
     top: 40px;
     width: 150%;
@@ -533,7 +581,7 @@ li#recieve_menu_single ul#recieve_menu_second-level {
     transition: all .2s ease;
 }
 
-li#recieve_menu_single:hover ul#recieve_menu_second-level {
+li#mediaMenu_single:hover ul#mediaMenu_second-level {
     top: 50px;
     visibility: visible;
     opacity: 1;
@@ -676,11 +724,13 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
     display: flex;
     font-size: 18px;
 }
+
 #kousinrireki {
     background-color: #223852;
     width: 61.803%;
-    border-right:5px solid rgb(0, 0, 0);
+    border-right: 5px solid rgb(0, 0, 0);
 }
+
 #bagusyusei {
     background-color: #e06818;
     width: 38.197%;
@@ -717,12 +767,11 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
 
 #sizeSelecter {
     width: 46px;
-    
 }
+
 #fontSizeSelecter {
     width: 40px;
 }
-
 
 .selectreFrame {
     border-bottom: 2px solid #ffffff;
@@ -741,20 +790,20 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
     /* outline: none; */
     border-radius: 0;
     border: none;
-    color:  #ffffff;
-    background-color:rgba(0,0,0,0);
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0);
 }
 
-.sel > option{
+.sel>option {
     color: #000;
-    background-color:rgba(18, 5, 141, 0.1);
+    background-color: rgba(18, 5, 141, 0.1);
 }
 
-#selecter{
+#selecter {
     width: 70%;
 }
 
-.bottomLine{
+.bottomLine {
     /* border-bottom: 4px solid rgba(0, 0, 0, 0.3); */
 }
 
@@ -795,11 +844,11 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
     #switchBar {
         padding: 0;
     }
-    #recieve_menu>li {
+    #mediaMenu>li {
         /* ボタンが押しにくいので */
         padding: 10px;
     }
-    #kousinrirekiFrame{
+    #kousinrirekiFrame {
         flex-direction: column;
     }
     #kousinrireki {
@@ -818,7 +867,7 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
     z-index: 1;
     left: 0px;
     top: 0px;
-    width: 80px;
+    width: 100px;
     border: 1px solid rgb(59, 9, 9);
     background-color: rgba(143, 199, 201, 0.5);
     list-style: none;
@@ -837,18 +886,22 @@ li#recieve_menu_single:hover ul#recieve_menu_second-level {
 #abon {
     display: none;
 }
+#userOekaki{
+    display: none;
+}
 
 /* formatはファイルの拡張子を見て合わせる  ttfならtruetype otfならopentype*/
+
+@font-face {
+    font-family: JKゴシックM;
+    src: url("/stylesheets/JKG-L_3.ttf") format("truetype");
+}
 
 @font-face {
     font-family: 鉄瓶ゴシック;
     src: url("/stylesheets/07鉄瓶ゴシック.otf") format("opentype");
 }
 
-@font-face {
-    font-family: JKゴシックM;
-    src: url("/stylesheets/JKG-L_3.ttf") format("truetype");
-}
 
 @font-face {
     font-family: kosugiMaru;
@@ -950,3 +1003,23 @@ select {
 .microsoftjhengheiUIlight {
     font-family: "microsoft jhenghei UI light";
 }
+
+.headIcon{
+    font-size: 100px;
+    content:"tes!!!";
+    
+}
+
+.gomanecoHead {
+    width: 17px; 
+    height: 17px;  
+    background-size: cover;
+    background-image: url(../img/gomanecoHead2.png);
+}
+.necosukeHead {
+    width: 17px; 
+    height: 17px;  
+    background-size: cover;
+    background-image: url(../img/necosukeHead2.png);
+}
+
