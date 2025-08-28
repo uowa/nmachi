@@ -17,6 +17,3 @@ res.render('index', data);
 });
 
 module.exports = router;
-
-
-

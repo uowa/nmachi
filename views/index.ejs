@@ -262,9 +262,14 @@
                   return str;
                 }
                 var ad = converter(String.fromCharCode(115, 110, 113, 96, 63, 109, 116, 98, 110, 45) + String.fromCharCode(108, 110, 100));
-                document.write("<a style='font-size:15px; color:yellow; font-weight: bold;' href=\"mai" + "lto:" + ad + "\">ﾒﾙｱﾄﾞ:" + ad + "<\/a>");
+                var a = document.createElement('a');
+                a.style.fontSize = '15px';
+                a.style.color = 'yellow';
+                a.style.fontWeight = 'bold';
+                a.href = 'mailto:' + ad;
+                a.textContent = 'ﾒﾙｱﾄﾞ:' + ad;
+                document.currentScript.parentNode.insertBefore(a, document.currentScript.nextSibling);
               </script>
-              <noscript>（画像などを設置）</noscript>
             </div>
 
 
@@ -422,7 +427,9 @@
     </div>
   </div> -->
 
- <script src="https://pixijs.download/v7.2.4/pixi.min.js"></script>
+
+  <script src="https://pixijs.download/v7.2.4/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marchingsquares@0.0.16/build/marchingsquares-isocontours.min.js"></script>
   <script type="text/javascript" src="/javascripts/index.js"></script>
   <noscript>
     <p>javascriptが無効になってるみたいやから、有効にしてね！！</p>

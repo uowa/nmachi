@@ -5,27 +5,16 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
 var indexRouter = require('./routes/index');//index.jsモジュールを読みこむ
-
-var kousinrireki = require("./routes/kousinrireki");//kousinrirekiモジュールを読みこむ
-var QandA = require("./routes/Q-A");//Q-A.jsモジュールを読みこむ
-var link = require("./routes/link");//link.jsモジュールを読みこむ
-var loginErrorHandling = require("./routes/login_error_handling");//error_handling.jsモジュールを読みこむ
-var dominionrule = require("./routes/dominionrule");//dominionrule.jsモジュールを読みこむ
-var uowamemo01 = require("./routes/uowamemo01");
-var uowamemo02 = require("./routes/uowamemo02");
-var uowamemo03 = require("./routes/uowamemo03");
-var uowamemo04 = require("./routes/uowamemo04");
-var uowamemo05 = require("./routes/uowamemo05");
-var uowamemo06 = require("./routes/uowamemo06");
-var uowamemo07 = require("./routes/uowamemo07");
-var uowamemo08 = require("./routes/uowamemo08");
-var uowamemo09 = require("./routes/uowamemo09");
-var uowamemo10 = require("./routes/uowamemo10");
-
-
-
+var pagesRouter = require("./routes/pages");//そのほかのページのモジュール用
+var polygonRouter = require('./routes/polygon'); //polygonモジュール
 
 var app = express();//expressモジュールを実体化
+
+
+//polygon生成用
+app.use('/polygon', polygonRouter);
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));//__dirnameはプロジェクト全体へのリンク
@@ -40,27 +29,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);//indexリクエストがあった時に.jsモジュールを使うよう設定する
 
-app.use("/kousinrireki", kousinrireki);//kousinrirekiリクエストがあった時にkousinrireki.jsモジュールを使うよう設定する
-app.use("/Q-A", QandA);//
-app.use("/link", link);
-app.use("/login_error_handling",loginErrorHandling );
-app.use("/dominionrule", dominionrule);
-app.use("/uowamemo01", uowamemo01);
-app.use("/uowamemo02", uowamemo02);
-app.use("/uowamemo03", uowamemo03);
-app.use("/uowamemo04", uowamemo04);
-app.use("/uowamemo05", uowamemo05);
-app.use("/uowamemo06", uowamemo06);
-app.use("/uowamemo07", uowamemo07);
-app.use("/uowamemo08", uowamemo08);
-app.use("/uowamemo09", uowamemo09);
-app.use("/uowamemo10", uowamemo10);
+app.use("/kousinrireki", pagesRouter);
+app.use("/Q-A", pagesRouter);
+app.use("/link", pagesRouter);
+app.use("/login_error_handling", pagesRouter);
+app.use("/dominionrule", pagesRouter);
+app.use("/uowamemo01", pagesRouter);
+app.use("/uowamemo02", pagesRouter);
+app.use("/uowamemo03", pagesRouter);
+app.use("/uowamemo04", pagesRouter);
+app.use("/uowamemo05", pagesRouter);
+app.use("/uowamemo06", pagesRouter);
+app.use("/uowamemo07", pagesRouter);
+app.use("/uowamemo08", pagesRouter);
+app.use("/uowamemo09", pagesRouter);
+app.use("/uowamemo10", pagesRouter);
 
 
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  next(createError(404));
+  res.status(404).render('404');
 });
 
 // error handler

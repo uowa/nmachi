@@ -17,23 +17,20 @@ const https = require('https');                    // HTTPSサーバー用
  */
 function normalizePort(val) {
   const port = parseInt(val, 10);
-
   if (isNaN(port)) {
     // 数字に変換できなければ named pipe とみなす
     return val;
   }
-
   if (port >= 0) {
     // 正の数字ならポート番号として返す
     return port;
   }
-
   return false; // 無効なポート
 }
 
-/**
- * サーバーエラー時の処理
- */
+
+
+//サーバーエラー時の処理
 function onError(error) {
   if (error.syscall !== 'listen') {
     throw error; // listen 系のエラーでなければ投げる
@@ -58,9 +55,8 @@ function onError(error) {
   }
 }
 
-/**
- * サーバーが起動したときの処理
- */
+
+// サーバーが起動したときの処理
 function onListening() {
   const addr = server.address();
   const bind = typeof addr === 'string'
@@ -69,9 +65,8 @@ function onListening() {
   debug('Listening on ' + bind); // デバッグ用出力
 }
 
-/**
- * 環境変数やデフォルト値からポート番号を取得して Express に設定
- */
+
+// 環境変数やデフォルト値からポート番号を取得して Express に設定
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
 
@@ -104,12 +99,8 @@ try {
   server = http.createServer(app);
 }
 
-/**
- * Socket.IO のセットアップ
- * - クライアントとリアルタイム通信するためのライブラリ
- */
+// Socket.IO のセットアップ - クライアントとリアルタイム通信するためのライブラリ
 const io = require('socket.io')(server);
-
 
 
 // 環境に応じてサーバーのバインド先を決定
@@ -117,10 +108,12 @@ const io = require('socket.io')(server);
 // Codespaces 上の場合 → process.env.CODESPACE が設定されているので 0.0.0.0 にバインド（外部アクセス可能）
 // それ以外（通常ローカル開発など） → localhost にバインド
 const isCodespaces = !!process.env.CODESPACES || !!process.env.CODESPACE_NAME;
-
 const host = process.env.NODE_ENV === 'production' ? 'localhost'
   : isCodespaces ? '0.0.0.0'
     : 'localhost';
+
+
+
 
 // サーバー起動
 server.listen(port, host, () => {
@@ -128,11 +121,6 @@ server.listen(port, host, () => {
 });
 server.on('error', onError);
 server.on('listening', onListening);
-
-
-
-
-
 
 
 let user = {};
@@ -168,8 +156,8 @@ const { setInterval } = require('timers');
 
 function tripCreate(isTrip) {
   let tripkey = isTrip;
-  let salt = tripkey + "H.";//未入力、又は1文字入れ用にH.を追加？？
-  salt = salt.substr(1, 2);//2文字目と3文字目を切り出す
+  let salt = tripkey + "H.";// ソルトが2文字以上になるように 'H.' を追加
+  salt = salt.slice(1, 3);//2文字目と3文字目を切り出す
   salt = salt.replace(/[^.-z]/g, ".");
   salt = salt.replace(/:/g, "A");
   salt = salt.replace(/;/g, "B");
@@ -188,7 +176,7 @@ function tripCreate(isTrip) {
   cipher.update(tripkey, 'utf-8', 'base64');
   let cipheredText = cipher.final('base64');
   let trip = cipheredText.substr(-10);
-  trip = trip.replace(/=/g, "");//なんかよくわからんけど、高確率で後ろに==が付くので消す
+  trip = trip.replace(/=/g, "");//なんかよくわからんけど(cipher.final('base64') の仕様)、高確率で後ろに==が付くので消す
   trip = "◆" + trip;
   return trip;
 }
@@ -234,7 +222,7 @@ io.on('connection', function (socket) {
   // サーバー再起動時にクライアントへ再読み込みを促すメッセージを送る関数
   function checkUser() {
     if (!user[tokenID[socket.id]]) {
-      io.to(socket.id).json.emit("emitSaikiMsg", {
+      io.to(socket.id).emit("emitSaikiMsg", {
         msg: "ブラウザを更新してください",
       });
       return false;
@@ -281,7 +269,7 @@ io.on('connection', function (socket) {
       },
     }
     tokenNum++;
-    io.to(socket.id).json.emit("myToken", {
+    io.to(socket.id).emit("socketStart", {
       token: tokenID[socket.id],
     });
     user[tokenID[socket.id]].countSleep();
@@ -309,7 +297,7 @@ io.on('connection', function (socket) {
     }
 
 
-    if (data.beforeRoom === "loginBack") {
+    if (data.previousRoom === "loginBack") {
       if (data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
         //トリップを作る
 
@@ -353,8 +341,8 @@ io.on('connection', function (socket) {
         userOekaki[tokenID[socket.id]] = data.userOekakiData;
 
         let msg = user[tokenID[socket.id]].userName + "が" + data.afterRoom + "に入室しました。" + time();
-        io.to(socket.id).json.emit("roomInSelf", {
-          beforeRoom: "loginBack",
+        io.to(socket.id).emit("roomInSelf", {
+          previousRoom: "loginBack",
           room: "エントランス",
           user: user,
           users: users[data.afterRoom],//部屋の人数
@@ -391,7 +379,7 @@ io.on('connection', function (socket) {
         user[tokenID[socket.id]].sleepTimeNum = 0;
       }
     } else {
-      let before = data.beforeRoom;
+      let before = data.previousRoom;
       let after = data.afterRoom;
 
 
@@ -416,7 +404,7 @@ io.on('connection', function (socket) {
       socket.broadcast.to(before).emit("roomOutNonSelf", {//自分以外が部屋を出た場合
         token: tokenID[socket.id],
         room: data.afterRoom,
-        random: volumeRandom(data.beforeRoom, "out"),
+        random: volumeRandom(data.previousRoom, "out"),
         msg: msg,
       });
 
@@ -424,10 +412,10 @@ io.on('connection', function (socket) {
       if (data.train) {
         msg = user[tokenID[socket.id]].userName + "が電車に乗ってきました。" + time();
       } else {
-        msg = user[tokenID[socket.id]].userName + "が" + data.beforeRoom + "から移動してきました。" + time();
+        msg = user[tokenID[socket.id]].userName + "が" + data.previousRoom + "から移動してきました。" + time();
       }
 
-      io.to(socket.id).json.emit("roomInSelf", {
+      io.to(socket.id).emit("roomInSelf", {
         room: data.afterRoom,
         user: user,
         users: users[after],
@@ -495,7 +483,7 @@ io.on('connection', function (socket) {
           n++;
         }
       });
-      io.to(socket.id).json.emit("list", {
+      io.to(socket.id).emit("list", {
         listName: listName,
         listToken: listToken,
       });
@@ -521,7 +509,7 @@ io.on('connection', function (socket) {
         trainList[i] += users[roomString[i]];
       }
 
-      io.to(socket.id).json.emit("train", {
+      io.to(socket.id).emit("train", {
         roomString: roomString,
         trainList: trainList,
       });
@@ -553,7 +541,7 @@ io.on('connection', function (socket) {
     let abonAvaMsg;
     if (user[data.token] == null) {
       abonMsg = "その住民は退出済みです";
-      io.to(socket.id).json.emit("abonSetting", {
+      io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
         token: data.token,
         avaMsg: abonAvaMsg,
@@ -561,7 +549,7 @@ io.on('connection', function (socket) {
     } else if (data.setAbon) {
       abonMsg = user[data.token].userName + "をアボンしました。";
       abonAvaMsg = "アボン";//吹き出しをアボンにする。
-      io.to(socket.id).json.emit("abonSetting", {
+      io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
         token: data.token,
         avaMsg: abonAvaMsg,
@@ -573,7 +561,7 @@ io.on('connection', function (socket) {
     } else {
       abonMsg = user[data.token].userName + "のあぼんをやめました";
       abonAvaMsg = "";
-      io.to(socket.id).json.emit("abonSetting", {
+      io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
         token: data.token,
         avaMsg: abonAvaMsg,
@@ -1089,9 +1077,10 @@ io.on('connection', function (socket) {
     // close user connection
     console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
 
-    // --- emit ----
+    // --- emit ----//ユーザー全体に退出を伝えるための関数だが、部屋をまたがる通知を実装してないのでつかってない。
     // emitMessageBroadcast('user disconnected', { id: tokenID[socket.id]});
 
+    //  socket.roomname という変数があれば、その部屋からユーザーを強制的に退出させるためのコード
     // --- leave room --socket.roomname = roomname;
     // if (socket.roomname) {
     //   socket.leave(socket.roomname);
