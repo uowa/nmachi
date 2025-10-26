@@ -13,6 +13,7 @@
   <meta name="google-site-verification" content="2-dgALIrrcUCpiJ44mdiBI8rdcOLkvbICL5CLBFnTLc" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
   <script src="/socket.io/socket.io.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.9/mediaelement-and-player.js"></script>
   <!-- <script src="https://github.com/Jam3/voice-activity-detection.git"></script> -->
@@ -71,13 +72,13 @@
 
       <!--元プロ街の画面比率は11:8-->
 
-      <div id="contextmenu" oncontextmenu="return false">
+      <div id="contextMenu" oncontextmenu="return false">
         <!-- 右クリックメニュー -->
         <ul>
-          <li id="sit" onClick="menu1()">座る</li>
-          <li id="sleep" onClick="menu2()">寝る</li>
-          <li id="abon" onClick="menu3()">アボン</li>
-          <li id="userOekaki" onClick="menu4()">ラクガキする</li>
+          <li id="sitMenu">座る</li>
+          <li id="sleepMenu">寝る</li>
+          <li id="abonMenu">アボン</li>
+          <li id="avatarOekakiMenu">ラクガキする</li>
         </ul>
       </div>
       <div id="Pmachi" class="flexContainerColumn">
@@ -86,7 +87,8 @@
             <div id="PmainTop" class="flexContainer">
               <div class="flexContainerColumn">
                 <div id="graphic" oncontextmenu="return false">
-                  <button id="loginButton" onclick="login()">LOGIN</button>
+                  <!-- <button id="loginButton" onclick="login()">LOGIN</button> -->
+                   <!-- まだ残しとく前どんなんだっけって言われるかもなので、cssは消してない -->
                 </div>
 
                 <div id="form">
@@ -116,8 +118,9 @@
                         <button id="checkAllListen" type="button" onclick="checkAllListenFunk();">自動受信</button>
                       </div>
                       <div class="flexContainer">
-                        <button type="button" id="pastLog" class="smartphone" class="defaultRed">過去ログ表示</button>
-                        <button type="button" id="visibleLogButton" class="smartphone" class="right">画面ログ表示</button>
+                        <button type="button" id="mainLogButton" class="smartphone" class="defaultRed">下ログ表示</button>
+                        <button type="button" id="useOverlayChatButton" class="smartphone"
+                          class="right">画面チャット表示</button>
                       </div>
                       <div class="flexContainer">
                         <button type="button" class="right" id="wa_i">wa-i!</button>
@@ -127,20 +130,18 @@
                       </div>
                       <button type="button" id="logNoiseButton">SE📢✖</button>
                       <button type="button" id="settingButton" onclick="settingClick();">⚙🔩🔧</button>
-                      <button type="button" id="usersDisplay" onclick="usresDisplayClick();"> users:<span
+                      <button type="button" id="usersDisplay" onclick="usersDisplayClick();"> users:<span
                           id="usersNumber">0</span></button>
                     </div>
                   </div>
                 </div>
                 <!-- スイッチ類↑↑↑↑↑↑↑↑ -->
               </div>
-
-              <div id="chatLogFrame">
-                <!-- 何故か知らんがこれがないとchatLogの大きさがちゃんと可変されない切れそう -->
-                <div id="chatLog">
-                  <ul id="logs" class="flexContainerColumn">
-                  </ul>
+              <div id="mainLogFrame">
+                <div id="mainLog">
+                  <ul id="logs" class="flexContainerColumn"></ul>
                 </div>
+                <div id="mainLogResizeBar"></div>
               </div>
             </div>
             <div id="setting">
@@ -382,7 +383,7 @@
       </span>
       <span class="flexShrink0">チャット欄</span>
       <span class="selectForm" class="flexShrink0">
-        <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChange('chatLog')">
+        <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChange('mainLog')">
           <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
           <option class="JKゴシックM">JKゴシックM</option>
           <option class=kosugiMaru>kosugiMaru</option>

@@ -123,41 +123,29 @@ server.on('error', onError);
 server.on('listening', onListening);
 
 
-let user = {};
 let ip = {};
 
-let roomString = ["エントランス", "うちゅー", "星1",];
-let streamer = {}
-let redoStock = {};
-let clearStock = {};
-let oekaki = {};
-for (let i = 0; i < roomString.length; i++) {
-  oekaki[roomString[i]] = {};
-  redoStock[roomString[i]] = {};
-  clearStock[roomString[i]] = {};
-  streamer[roomString[i]] = [];
+let user = {};
+let socketID = {};
+let tokenNum = 0;
+
+let rooms = {};
+let roomNameList = ["エントランス", "うちゅー", "星1",];
+for (let i = 0; i < roomNameList.length; i++) {
+  rooms[roomNameList[i]] = {
+    drawHistory: [],
+    usersToken: new Set(),
+  };
 }
 
-let userOekaki = {};
-let userRedoStock = {};
-let userClearStock = {};
-
-let tokenNum = 0;
-let tokenID = [];
-
-let users = { "エントランス": 0, "うちゅー": 0, "星1": 0, };
+const { setInterval } = require('timers');
 
 const crypto = require("crypto");
-const { setInterval } = require('timers');
-// const cipers = crypto.getCiphers();
-// console.log(cipers);
-// const hashes = crypto.getHashes();
-// console.log(hashes);
 
 function tripCreate(isTrip) {
   let tripkey = isTrip;
-  let salt = tripkey + "H.";// ソルトが2文字以上になるように 'H.' を追加
-  salt = salt.slice(1, 3);//2文字目と3文字目を切り出す
+  // ソルト生成（2文字以上になるように 'H.' を追加し、2文字目と3文字目を切り出し）
+  let salt = (tripkey + "H.").slice(1, 3);
   salt = salt.replace(/[^.-z]/g, ".");
   salt = salt.replace(/:/g, "A");
   salt = salt.replace(/;/g, "B");
@@ -172,15 +160,23 @@ function tripCreate(isTrip) {
   salt = salt.replace(/\^/g, "d");
   salt = salt.replace(/_/g, "e");
   salt = salt.replace(/`/g, "f");
-  let cipher = crypto.createCipher("des", salt);
-  cipher.update(tripkey, 'utf-8', 'base64');
-  let cipheredText = cipher.final('base64');
-  let trip = cipheredText.substr(-10);
-  trip = trip.replace(/=/g, "");//なんかよくわからんけど(cipher.final('base64') の仕様)、高確率で後ろに==が付くので消す
+
+  // AES用のキーとIVを生成（16バイトずつ、saltを埋めて残りは0埋め）
+  const key = Buffer.alloc(32, 0); // AES-256なので32バイト
+  key.write(salt, 0, "utf-8");
+  const iv = Buffer.alloc(16, 0);  // IVは16バイト
+  iv.write(salt, 0, "utf-8");
+
+  // 暗号化
+  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+  let encrypted = cipher.update(tripkey, "utf-8", "base64");
+  encrypted += cipher.final("base64");
+
+  // トリップとして末尾10文字（=は除去）
+  let trip = encrypted.substr(-10).replace(/=/g, "");
   trip = "◆" + trip;
   return trip;
 }
-
 
 let msgSE = {};
 msgSE.login = {};
@@ -190,38 +186,50 @@ msgSE.other = {};
 msgSE.other.in = new Array(1);
 msgSE.other.out = new Array(3);
 msgSE.other.logout = new Array(1);
-msgSE.utyu = {};
-msgSE.utyu.in = new Array(1);
-msgSE.utyu.out = new Array(1);
-msgSE.utyu.logout = new Array(1);
+msgSE.outerSpace = {};
+msgSE.outerSpace.in = new Array(1);
+msgSE.outerSpace.out = new Array(1);
+msgSE.outerSpace.logout = new Array(1);
 
 function time() {
   return " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
 }
 
 
-
-
-function volumeRandom(room, move) {
-  let random;
-  if (room == "エントランス") {//※部屋数が増えたら||で継ぎ足す
+let random;
+function volumeRandom(roomName, move) {
+  if (roomName === "エントランス") {//※部屋数が増えたら||で継ぎ足す
     random = Math.floor(Math.random() * msgSE.other[move].length);
-  } else if (room === "うちゅー" || room === "星1") {
-    random = Math.floor(Math.random() * msgSE.utyu[move].length);
-  } else {//部屋ごとにSEを割り振ってる場合
-    random = Math.floor(Math.random() * msgSE[room][move].length);
+  } else if (roomName === "うちゅー" || roomName === "星1") {
+    random = Math.floor(Math.random() * msgSE.outerSpace[move].length);
+  } else {
+    random = Math.floor(Math.random() * msgSE[roomName][move].length);
   }
   return random;
 }
 
+//星1の星の色用ランダムカラー配列作成
+const starColors = [];
+setStarRandomColor();
+
+function setStarRandomColor() {
+  starColors.length = 0;
+  for (let i = 0; i < 1000; i++) {
+    // 0x000000～0xFFFFFFのランダムカラー
+    starColors.push(Math.floor(Math.random() * 0xFFFFFF));
+  }
+}
+
 
 // クライアントがサーバーに接続したときの処理
-io.on('connection', function (socket) {
-  // フォント切り替え（未使用？）
+io.on('connection', socket => {
+  // ユーザーごとに一意なトークンを発行
+  const token = crypto.randomUUID();
+  socketID[token] = socket.id;
 
   // サーバー再起動時にクライアントへ再読み込みを促すメッセージを送る関数
   function checkUser() {
-    if (!user[tokenID[socket.id]]) {
+    if (!user[token]) {
       io.to(socket.id).emit("emitSaikiMsg", {
         msg: "ブラウザを更新してください",
       });
@@ -230,225 +238,321 @@ io.on('connection', function (socket) {
     return true;
   }
 
+  /**
+ * ユーザーが寝てたら起こす関数。
+ * sleepTimeNumが30分以上かつselfSleepがfalseの場合、ユーザーのsleep状態をfalseに設定し、
+ * 対応するルームにsleepイベントを送信します。その後、sleepTimeNumをリセットします。
+ */
+  function sleepTime() {
+    if (user[token].sleepTimeNum >= 30 * 60 && user[token].selfSleep == false) {
+      user[token].sleep = false;
+      io.to(user[token].room).emit("sleep", {
+        token: token,
+        sleep: user[token].sleep,
+      });
+    }
+    user[token].sleepTimeNum = 0;
+  }
+
+
+
   // ユーザー情報を取得するイベント
-  socket.on("getMyUser", function () {
-    // ユーザーごとに一意なトークンを発行
-    tokenID[socket.id] = "tokenID" + tokenNum;
+  socket.on("getMyUser", () => {
     // ユーザー情報を初期化して保存
-    user[tokenID[socket.id]] = {
+    user[token] = {
       userName: "名もなき名無し", // デフォルト名
-      token: tokenID[socket.id],
+      token: token,
       AX: 457, // 初期X座標
       AY: 80,  // 初期Y座標
       DIR: "S", // 初期向き
       msg: "",
-      avatar: "gomaneco", // デフォルトアバター
-      room: "loginBack",   // 初期部屋
+      tarAspect: "gomaneco", // デフォルトアバター
+      room: "loginRoom",   // 初期部屋
       video: false,
       audio: false,
       timeShade: new Date().getHours(),
+      avatarAlpha: 1.0,//アバターの透明度
       sleep: false,
-      selfSleep: false,
+      sit: false,
+      selfSleep: false,//ユーザー自身で設定した眠り状態
       sleepTimeNum: 0,
+      drawHistory: [],
+      carryOver: false,//ログ残し状態かどうか
+
       // 一定時間操作がなければ自動でスリープ状態にする関数
-      countSleep: function () {
+      countSleep: () => {
         let setTimeoutSleep;
-        if (user[tokenID[socket.id]]) {
-          user[tokenID[socket.id]].sleepTimeNum++;
-          if (user[tokenID[socket.id]].sleepTimeNum == 30 * 60) {
-            user[tokenID[socket.id]].sleep = true;
-            io.to(user[tokenID[socket.id]].room).emit("sleep", {
-              token: tokenID[socket.id],
-              sleep: user[tokenID[socket.id]].sleep,
+        if (user[token]) {
+          user[token].sleepTimeNum++;
+          // 30分（1800秒）経過でスリープ
+          if (user[token].sleepTimeNum == 30 * 60) {
+            user[token].sleep = true;
+            io.to(user[token].room).emit("sleep", {
+              token: token,
+              sleep: user[token].sleep,
             });
           }
-          setTimeoutSleep = setTimeout(user[tokenID[socket.id]].countSleep, 1000);
+          setTimeoutSleep = setTimeout(user[token].countSleep, 1000); // 1秒ごとにカウント
         } else {
-          clearTimeout(setTimeoutSleep);
+          clearTimeout(setTimeoutSleep); // ユーザーがいなければタイマー解除
         }
       },
     }
+
     tokenNum++;
-    io.to(socket.id).emit("socketStart", {
-      token: tokenID[socket.id],
+
+    io.to(socket.id).emit("userInit", {
+      token: token,
     });
-    user[tokenID[socket.id]].countSleep();
-
+    user[token].countSleep();
   });
 
 
-  socket.on("roomInSelf", function (data) {//部屋移動
-    console.log("userIP");
-    console.log(socket.handshake.address);
-    console.log(socket.handshake.address.address);
-    console.log(socket.handshake.address.port);
-    console.log(socket.handshake.headers['x-forwarded-for']);
-    console.log(socket.request.headers['x-forwarded-for']);
-    console.log(socket.request.connection.remoteAddress);
+  socket.on("joineRoom", data => {//部屋移動
+    if (!checkUser()) return;
+    // IP取得方法の検証用
+    // console.log("userIP");
+    // console.log(socket.handshake.address);
+    // console.log(socket.handshake.address.address);
+    // console.log(socket.handshake.address.port);
+    // console.log(socket.handshake.headers['x-forwarded-for']);
+    // console.log(socket.request.headers['x-forwarded-for']);
+    // console.log(socket.request.connection.remoteAddress);
+    let announce;
+    let fromRoom = user[token].room;
+    user[token].room = data.toRoom;
+    rooms[data.toRoom].usersToken.add(token);//部屋のユーザーリストに追加
+    user[token].carryOver = false;
 
 
-    // サーバ再起動前のクライアントからの入力を阻止
+    if (fromRoom === "loginRoom" && data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
+      //トリップを作る
+      if (!ip[socket.handshake.address]) {
+        ip[socket.handshake.address] = { name: [data.userName], ip: socket.handshake.address };
+      } else {
+        if (!ip[socket.handshake.address].name.includes(data.userName)) {
+          ip[socket.handshake.address].name.push(data.userName);
+        }
+      }
+      data.userName = data.userName.replace(/◆/g, '□');
+      if (data.userName.match(/#/)) {
+        let index = data.userName.indexOf("#");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      if (data.userName.match(/＃/)) {
+        let index = data.userName.indexOf("＃");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      user[token].userName = data.userName;//名前をサバに保存
+      user[token].avatarAspect = data.avatarAspect;//アバターを設定
+      user[token].avatarColor = data.avatarColor;//アバターの色を設定
+      user[token].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
 
-    user[tokenID[socket.id]].room = data.afterRoom;
-    users[data.afterRoom]++;//部屋人数を変更
+      //soundNumの決定
+      user[token].soundNum = data.userName.length;
+      if (data.avatar == "necosuke" || data.avatar == "necosukeMono") {
+        user[token].soundNum++;
+      }
+      user[token].soundNum += data.avatarColor;
+      user[token].soundNum = user[token].soundNum % 9;
 
-    if (!clearStock[data.afterRoom][tokenID[socket.id]]) {
-      clearStock[data.afterRoom][tokenID[socket.id]] = [];
+      random = volumeRandom("login", "in");
+
+      //アバターお絵描き
+      user[token].drawHistory = data.drawHistory;
+
+      announce = user[token].userName + "が" + data.toRoom + "に入室しました。" + time();
+    } else {//loginRoomから以外の時
+      //退室処理
+      rooms[fromRoom].usersToken.delete(token);//元の部屋のユーザーリストから削除
+
+      if (data.train) {
+        announce = user[token].userName + "が電車に乗り込みました、ゆんやー！" + time();
+      } else {
+        announce = user[token].userName + "が" + data.toRoom + "に移動しました。" + time();
+      }
+
+      if (fromRoom === "星1") {
+        setStarRandomColor();
+      }
+
+      socket.broadcast.to(fromRoom).emit("otherLeft", {//自分以外が部屋を出た場合
+        token: token,
+        random: volumeRandom(fromRoom, "out"),
+        announce: announce,
+        starColors: starColors,
+      });
+
+
+
+      //入室処理
+      switch (data.toSpot) {
+        case "entranceCloud1":
+          user[token].AX = 150;
+          user[token].AY = 130;
+          user[token].DIR = "S";
+          break;
+        case "outerSpaceMainSpot":
+          user[token].AX = 200;
+          user[token].AY = 300;
+          user[token].DIR = "S";
+          break;
+        case "star1EntrySpot":
+          user[token].AX = 334;
+          user[token].AY = 450;
+          user[token].DIR = "N";
+          break;
+      }
+      user[token].msg = "";
+
+      if (data.train) {
+        announce = user[token].userName + "が電車に乗ってきました。" + time();
+      } else {
+        announce = user[token].userName + "が" + fromRoom + "から移動してきました。" + time();
+      }
+      random = volumeRandom(data.toRoom, "in");
     }
 
 
-    if (data.previousRoom === "loginBack") {
-      if (data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
-        //トリップを作る
+    if (fromRoom !== data.toRoom) {
+      socket.leave(fromRoom);
+      socket.join(data.toRoom);
+    }
 
-        if (!ip[socket.handshake.address]) {
-          ip[socket.handshake.address] = { name: [data.userName], ip: socket.handshake.address };
-        } else {
-          if (!ip[socket.handshake.address].name.includes(data.userName)) {
-            ip[socket.handshake.address].name.push(data.userName);
-          }
-        }
-        data.userName = data.userName.replace(/◆/g, '□');
-        if (data.userName.match(/#/)) {
-          let index = data.userName.indexOf("#");
-          let tripStr = data.userName.slice(index + 1);
-          let tripName = data.userName.slice(0, index);
-          data.userName = tripName + tripCreate(tripStr);
-        }
-        if (data.userName.match(/＃/)) {
-          let index = data.userName.indexOf("＃");
-          let tripStr = data.userName.slice(index + 1);
-          let tripName = data.userName.slice(0, index);
-          data.userName = tripName + tripCreate(tripStr);
-        }
-        user[tokenID[socket.id]].userName = data.userName;//名前をサバに保存
-        user[tokenID[socket.id]].avatar = data.avatar;//アバターを設定
-        user[tokenID[socket.id]].avatarColor = data.avatarColor;//アバターの色を設定
-        user[tokenID[socket.id]].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
+    io.to(socket.id).emit("joineRoom", {
+      user: user,
+      announce: announce,
+      fromRoom: fromRoom,
+      toRoom: data.toRoom,
+      drawHistory: rooms[data.toRoom].drawHistory,
+      random: random,
+      starColors: starColors,
+    });
 
-        socket.join("エントランス");
+    socket.broadcast.to(data.toRoom).emit("otherJoined", {
+      userName: user[token].userName,
+      token: token,
+      avatarAspect: user[token].avatarAspect,
+      avatarColor: user[token].avatarColor,
+      avatarAlpha: user[token].avatarAlpha,
+      AX: user[token].AX,
+      AY: user[token].AY,
+      DIR: user[token].DIR,
+      sit: user[token].sit,
+      sleep: user[token].sleep,
+      announce: announce,
+      msg: user[token].msg,
+      drawHistory: user[token].drawHistory,
 
-        //soundNumの決定
-        user[tokenID[socket.id]].soundNum = data.userName.length;
-        if (data.avatar == "necosuke" || data.avatar == "necosukeMono") {
-          user[tokenID[socket.id]].soundNum++;
-        }
-        user[tokenID[socket.id]].soundNum += data.avatarColor;
-        user[tokenID[socket.id]].soundNum = user[tokenID[socket.id]].soundNum % 9;
+      fromRoom: fromRoom,
+      toRoom: data.toRoom,
+      random: random
+    });
+    sleepTime();
+  });
 
 
-        //アバターお絵描き
-        userOekaki[tokenID[socket.id]] = data.userOekakiData;
 
-        let msg = user[tokenID[socket.id]].userName + "が" + data.afterRoom + "に入室しました。" + time();
-        io.to(socket.id).emit("roomInSelf", {
-          previousRoom: "loginBack",
-          room: "エントランス",
-          user: user,
-          users: users[data.afterRoom],//部屋の人数
-          msg: msg,
-          roomSE: "login",
-          random: volumeRandom("login", "in"),
-          oekaki: oekaki[data.afterRoom],
-          userOekaki: userOekaki,
-        });
 
-        socket.broadcast.to(data.afterRoom).emit("roomInNonSelf", {
-          token: tokenID[socket.id],
-          room: "エントランス",
-          msg: msg,
-          user: user[tokenID[socket.id]],
-          users: users[data.afterRoom],//部屋の人数
-          AX: 457,
-          AY: 80,
-          DIR: "S",
-          roomSE: "login",
-          random: volumeRandom("login", "in"),
-          sleep: user[tokenID[socket.id]].sleep,//これがあやC
-          userName: user[tokenID[socket.id]].userName,
-          userOekaki: userOekaki,
-        });
 
-        if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-          user[tokenID[socket.id]].sleep = false;
-          io.to(user[tokenID[socket.id]].room).emit("sleep", {
-            token: tokenID[socket.id],
-            sleep: user[tokenID[socket.id]].sleep,
-          });
-        }
-        user[tokenID[socket.id]].sleepTimeNum = 0;
-      }
+  //sleep情報を受け取ったら自分以外の部屋の人にスリープ情報を送る
+  socket.on("sleep", () => {
+    if (!checkUser()) return;
+    if (user[token].sleep) {//寝てた時
+      user[token].sleep = false;
+      user[token].selfSleep = false;
+      user[token].DIR = "S";
+    } else {//起きてた時
+      user[token].sleep = true;
+      user[token].selfSleep = true;
+    }
+    socket.broadcast.to(user[token].room).emit("sleep", {
+      token: token,
+      sleep: user[token].sleep,
+    });
+    user[token].sleepTimeNum = 0;
+  });
+
+  //アボンを受け取ったら、アボン設定を行う
+  socket.on("abonSetting", data => {
+    if (!checkUser()) return;
+    let abonMsg;
+    if (user[data.token] == null) {
+      abonMsg = "その住民は退出済みです";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+      });
+    } else if (!data.setAbon) {
+      abonMsg = user[data.token].userName + "をアボンしました。";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+        token: data.token,
+      });
     } else {
-      let before = data.previousRoom;
-      let after = data.afterRoom;
-
-
-      if (before !== after) {
-        socket.leave(before);
-        socket.join(after);
-      }
-      users[before]--//入室前の部屋人数を減らす
-
-      user[tokenID[socket.id]].room = data.afterRoom;
-      user[tokenID[socket.id]].AX = data.AX;
-      user[tokenID[socket.id]].AY = data.AY;
-      user[tokenID[socket.id]].DIR = data.DIR;
-      user[tokenID[socket.id]].msg = "";
-
-      let msg;
-      if (data.train) {
-        msg = user[tokenID[socket.id]].userName + "が電車に乗り込みました、ゆんやー！" + time();
-      } else {
-        msg = user[tokenID[socket.id]].userName + "が" + data.afterRoom + "に移動しました。" + time();
-      }
-      socket.broadcast.to(before).emit("roomOutNonSelf", {//自分以外が部屋を出た場合
-        token: tokenID[socket.id],
-        room: data.afterRoom,
-        random: volumeRandom(data.previousRoom, "out"),
-        msg: msg,
+      abonMsg = user[data.token].userName + "のあぼんをやめました";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+        token: data.token,
+        AX: user[data.token].AX,
+        AY: user[data.token].AY,
+        DIR: user[data.token].DIR,
+        sit: user[data.token].sit,
+        room: user[data.token].room,
+        alpha: user[data.token].avatarAlpha,
+        sleep: user[data.token].sleep,
       });
-
-
-      if (data.train) {
-        msg = user[tokenID[socket.id]].userName + "が電車に乗ってきました。" + time();
-      } else {
-        msg = user[tokenID[socket.id]].userName + "が" + data.previousRoom + "から移動してきました。" + time();
-      }
-
-      io.to(socket.id).emit("roomInSelf", {
-        room: data.afterRoom,
-        user: user,
-        users: users[after],
-        msg: msg,
-        roomSE: data.afterRoom,
-        random: volumeRandom(data.afterRoom, "in"),
-        oekaki: oekaki[after],
-        sleep: user[tokenID[socket.id]].sleep,
-        userOekaki: userOekaki,
-      });
-
-      socket.broadcast.to(after).emit("roomInNonSelf", {//自分以外への通知
-        token: tokenID[socket.id],
-        room: data.afterRoom,
-        msg: msg,
-        user: user[tokenID[socket.id]],
-        users: users[data.afterRoom],//人数
-        AX: data.AX,
-        AY: data.AY,
-        DIR: data.DIR,
-        roomSE: data.afterRoom,
-        random: volumeRandom(data.afterRoom, "in"),
-        sleep: user[tokenID[socket.id]].sleep,
-        userOekaki: userOekaki,
-      });
-
     }
+    sleepTime();
+  });
+
+
+  //tapイベント
+  socket.on('tapMap', data => {
+    if (!checkUser()) return;
+    user[token].DIR = data.DIR;
+    user[token].AX = data.AX;
+    user[token].AY = data.AY;
+    user[token].sit = data.sit;
+
+    socket.broadcast.to(user[token].room).emit("tapMap", {
+      DIR: data.DIR,
+      token: token,
+      AX: data.AX,
+      AY: data.AY,
+      sit: data.sit,
+    });
+    sleepTime();
+  });
+
+
+  //空から落ちた時の位置情報是正用
+  socket.on('transformData', data => {
+    if (!checkUser()) return;
+    user[token].DIR = data.DIR;
+    user[token].AX = data.AX;
+    user[token].AY = data.AY;
+  });
+
+  socket.on("alphaChange", data => {//透明にする
+    if (!checkUser()) return;
+    user[token].avatarAlpha = data.alpha;//アバターの透明度を設定
+    if (user[token].room !== "loginRoom") {
+      socket.broadcast.to(user[token].room).emit("alphaChange", {
+        token: token,
+        alpha: data.alpha,
+      });
+    }
+    sleepTime();
   });
 
 
 
-  //クライアントからメッセージを受け取って送信
-  socket.on("emit_msg", function (data) {
+  //クライアントからメッセージを受けとったら送信
+  socket.on("emit_msg", data => {
     if (!checkUser()) return;
 
     let fontColor = "black";
@@ -459,16 +563,18 @@ io.on('connection', function (socket) {
     if (data.msg == "もみころ") {
       data.msg += "(もみじゆるさんの略)";
     }
-    if (data.kanban) {
-      user[tokenID[socket.id]].msg = data.msg;
+    if (data.carryOver) {
+      user[token].msg = data.msg;
+      user[token].carryOver = true;
 
-      //最後に発言したkanbanをuserの最後に入れなおす
-      let value = user[tokenID[socket.id]];
-      delete user[tokenID[socket.id]];
-      user[tokenID[socket.id]] = value;
+      //最後に発言したcarryOverメッセージをuserの最後に入れなおす
+      let value = user[token];
+      delete user[token];
+      user[token] = value;
 
-    } else {//kanbanじゃないなら、userのメッセージ情報は消しとく
-      user[tokenID[socket.id]].msg = "";
+    } else {//carryOverじゃないなら、userのメッセージ情報は消しとく
+      user[token].msg = "";
+      user[token].carryOver = false;
     }
 
 
@@ -476,8 +582,8 @@ io.on('connection', function (socket) {
       let listName = [];
       let listToken = [];
       let n = 0;
-      Object.keys(user).forEach(function (key) {
-        if (user[key].room == user[tokenID[socket.id]].room) {
+      Object.keys(user).forEach(key => {
+        if (user[key].room == user[token].room) {
           listName[n] = user[key].userName;
           listToken[n] = key;
           n++;
@@ -492,10 +598,10 @@ io.on('connection', function (socket) {
     } else if (data.msg == "#train" || data.msg == "#ﾄﾚｲﾝ" || data.msg == "#トレイン" || data.msg == "#rula" || data.msg == "#ﾙｰﾗ" || data.msg == "#ルーラ" || data.msg == "#電車") {
 
       let trainList = [];
-      for (let i = 0; i < roomString.length; i++) {
-        trainList[i] = roomString[i] + ":";
-        Object.keys(user).forEach(function (key) {
-          if (user[key].room === roomString[i]) {
+      for (let i = 0; i < roomNameList.length; i++) {
+        trainList[i] = roomNameList[i] + ":";
+        Object.keys(user).forEach(key => {
+          if (user[key].room === roomNameList[i]) {
             if (user[key].video && user[key].audio) {
               trainList[i] += user[key].userName + "📺🔊 "
             } else if (user[key].video) {
@@ -506,579 +612,150 @@ io.on('connection', function (socket) {
             }
           }
         });
-        trainList[i] += users[roomString[i]];
+        trainList[i] += rooms[roomNameList[i]].usersToken.size;
       }
 
       io.to(socket.id).emit("train", {
-        roomString: roomString,
+        roomNameList: roomNameList,
         trainList: trainList,
       });
     } else {
-      io.to(user[tokenID[socket.id]].room).emit("emit_msg", {
-        userName: user[tokenID[socket.id]].userName,
+      io.to(user[token].room).emit("emit_msg", {
+        userName: user[token].userName,
         msg: data.msg,
-        token: tokenID[socket.id],
-        avaMsg: data.msg,
-        kanban: data.kanban,
+        token: token,
+        carryOver: data.carryOver,
         fontColor: fontColor,
-        soundNum: user[tokenID[socket.id]].soundNum,
+        soundNum: user[token].soundNum,
       });
     }
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
+    sleepTime();
+  });
+
+
+  //お絵描き関連
+  socket.on("oekaki", data => {
+    if (!checkUser()) return;
+    if (user[token].room !== "loginRoom") {
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+
+      target.drawHistory.push(data.line);
+
+      socket.broadcast.to(user[token].room).emit("oekaki", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        line: data.line,
       });
+      sleepTime();
     }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
   });
 
-  //アボンの時
-  socket.on("abonSetting", function (data) {
+  socket.on("oekakiClear", data => {
     if (!checkUser()) return;
-    let abonMsg;
-    let abonAvaMsg;
-    if (user[data.token] == null) {
-      abonMsg = "その住民は退出済みです";
-      io.to(socket.id).emit("abonSetting", {
-        msg: abonMsg,
-        token: data.token,
-        avaMsg: abonAvaMsg,
+    if (user[token].room !== "loginRoom") {
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+      target.drawHistory = data.history;
+      socket.broadcast.to(user[token].room).emit("oekakiClear", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        history: target.drawHistory,
       });
-    } else if (data.setAbon) {
-      abonMsg = user[data.token].userName + "をアボンしました。";
-      abonAvaMsg = "アボン";//吹き出しをアボンにする。
-      io.to(socket.id).emit("abonSetting", {
-        msg: abonMsg,
-        token: data.token,
-        avaMsg: abonAvaMsg,
-        // AX: user[data.token].AX,
-        // AY: user[data.token].AY,
-        // DIR: user[data.token].DIR,
-        // room: user[data.token].room,
+      sleepTime();
+    }
+  });
+
+  socket.on("undo", data => {//お絵描きを戻す
+    if (!checkUser()) return;
+    if (user[token].room !== "loginRoom") {
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+      target.drawHistory = data.history;
+      socket.broadcast.to(user[token].room).emit("undo", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        history: target.drawHistory
       });
-    } else {
-      abonMsg = user[data.token].userName + "のあぼんをやめました";
-      abonAvaMsg = "";
-      io.to(socket.id).emit("abonSetting", {
-        msg: abonMsg,
-        token: data.token,
-        avaMsg: abonAvaMsg,
-        AX: user[data.token].AX,
-        AY: user[data.token].AY,
-        DIR: user[data.token].DIR,
-        room: user[data.token].room,
-      });
-    }
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-
-
-  //クリックイベント
-  socket.on('tapMap', function (data) {
-    if (!checkUser()) return;
-    user[tokenID[socket.id]].DIR = data.DIR;
-    user[tokenID[socket.id]].AX = data.AX;
-    user[tokenID[socket.id]].AY = data.AY;
-
-    socket.broadcast.to(user[tokenID[socket.id]].room).emit("tapMap", {
-      DIR: data.DIR,
-      token: tokenID[socket.id],
-      AX: data.AX,
-      AY: data.AY,
-    });
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-  socket.on('avaPData', function (data) {
-    if (!checkUser()) return;
-    user[tokenID[socket.id]].DIR = data.DIR;
-    user[tokenID[socket.id]].AX = data.AX;
-    user[tokenID[socket.id]].AY = data.AY;
-  });
-
-  socket.on("alphaChange", function (data) {//透明にする
-    if (!checkUser()) return;
-    user[tokenID[socket.id]].avatarAlpha = data.alpha;//アバターの透明度を設定
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-      socket.broadcast.to(user[tokenID[socket.id]].room).emit("alphaChange", {
-        token: tokenID[socket.id],
-        alpha: data.alpha,
-      });
-    }
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-  socket.on("sleep", function () {//sleepに関して,受け取ったら自分以外の部屋の人にスリープ情報を送る
-    if (!checkUser()) return;
-    if (user[tokenID[socket.id]].sleep) {//寝てた時
-      user[tokenID[socket.id]].sleep = false;
-      user[tokenID[socket.id]].selfSleep = false;
-      user[tokenID[socket.id]].DIR = "S";
-    } else {//起きてた時
-      user[tokenID[socket.id]].sleep = true;
-      user[tokenID[socket.id]].selfSleep = true;
-    }
-    socket.broadcast.to(user[tokenID[socket.id]].room).emit("sleep", {
-      token: tokenID[socket.id],
-      sleep: user[tokenID[socket.id]].sleep,
-    });
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-
-
-  socket.on("oekaki", function (data) {
-    if (!checkUser()) return;
-    //oekaki[部屋][token][長さ]
-    if (!oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]]) {
-      oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]] = [];
-    }
-
-
-    oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]][oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]].length] = { X: data.oekakiX, Y: data.oekakiY, dataColor: data.oekakiColor, dataAlpha: data.oekakiAlpha };
-    socket.broadcast.to(user[tokenID[socket.id]].room).emit("oekaki", {
-      token: tokenID[socket.id],
-      oekakiX: data.oekakiX,
-      oekakiY: data.oekakiY,
-      oekakiColor: data.oekakiColor,
-      oekakiAlpha: data.oekakiAlpha,
-    });
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-
-  });
-
-
-  socket.on("userOekaki", function (data) {
-    if (!checkUser()) return;
-    //oekaki[部屋][token][長さ]
-    if (!userOekaki[data.token]) {
-      userOekaki[data.token] = {};
-    }
-    if (!userOekaki[data.token][tokenID[socket.id]]) {
-      userOekaki[data.token][tokenID[socket.id]] = [];
-    }
-
-
-    userOekaki[data.token][tokenID[socket.id]][userOekaki[data.token][tokenID[socket.id]].length] = data.oekaki;
-
-
-    socket.broadcast.to(user[tokenID[socket.id]].room).emit("userOekaki", {
-      token: tokenID[socket.id],
-      setToken: data.token,
-      oekaki: data.oekaki,
-    });
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-
-  socket.on("clearCanvas", function () {
-    if (!checkUser()) return;
-    if (oekaki && user[tokenID[socket.id]].room !== "loginBack") {
-      if (Object.keys(oekaki[user[tokenID[socket.id]].room]).length) {//空オブジェクトを阻止する
-
-        if (!clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]]) {//トークンの配列がなかったら作る
-          clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]] = [];
-        }
-
-        //
-        clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]][clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length] = { ...oekaki[user[tokenID[socket.id]].room] }
-
-        Object.keys(oekaki[user[tokenID[socket.id]].room]).forEach(function (key) {
-          delete oekaki[user[tokenID[socket.id]].room][key];
-        });
-        socket.broadcast.to(user[tokenID[socket.id]].room).emit("clearCanvas", {
-          token: tokenID[socket.id],
-        });
-      }
-    }
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-
-  socket.on("userClearCanvas", function (data) {
-    if (!checkUser()) return;
-
-    if (oekaki && user[tokenID[socket.id]].room !== "loginBack") {
-      if (Object.keys(userOekaki[data.token]).length) {//空オブジェクトを阻止する
-        if (!userClearStock[data.token]) {
-          userClearStock[data.token] = {};
-        }
-
-        if (!userClearStock[data.token][tokenID[socket.id]]) {//トークンの配列がなかったら作る
-          userClearStock[data.token][tokenID[socket.id]] = [];
-        }
-
-        userClearStock[data.token][tokenID[socket.id]][userClearStock[data.token][tokenID[socket.id]].length] = { ...userOekaki[data.token] };//クリアストックに入れる
-
-        Object.keys(userOekaki[data.token]).forEach(function (key) {
-          delete userOekaki[data.token][key];
-        });
-        socket.broadcast.to(user[tokenID[socket.id]].room).emit("userClearCanvas", {
-          token: data.token,
-        });
-      }
-    }
-    if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-      user[tokenID[socket.id]].sleep = false;
-      io.to(user[tokenID[socket.id]].room).emit("sleep", {
-        token: tokenID[socket.id],
-        sleep: user[tokenID[socket.id]].sleep,
-      });
-    }
-    user[tokenID[socket.id]].sleepTimeNum = 0;
-  });
-
-  socket.on("undo", function () {//お絵描きを戻す
-    if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-      if (!redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]]) {//トークンの配列がなかったら作る
-        redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]] = [];
-      }
-
-      if (!oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]] && clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length) {//自分のお絵描きがなくて、clearがあるとき
-        //自分の部屋名・自分のトークン・クリアストックの長さ-1・全てのtoken・
-        const keys = Object.keys(clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]][clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1]);
-        keys.forEach(function (key) {//クリアストックソケットIDの数だけ繰り返す
-          if (!oekaki[user[tokenID[socket.id]].room][key]) {//トークンに配列が無ければ作る
-            oekaki[user[tokenID[socket.id]].room][key] = [];
-          }
-
-          for (let i = 0; i < clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]][clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1][key].length; i++) {//クリアストックの中身を順番にoekakiに入れてく
-            oekaki[user[tokenID[socket.id]].room][key].push(clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]][clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1][key][i]);
-          }
-        });
-
-
-        io.to(user[tokenID[socket.id]].room).emit("undoClear", {
-          oekaki: clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]][clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1],
-        });
-        clearStock[user[tokenID[socket.id]].room][tokenID[socket.id]].pop();
-
-      } else if (oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]]) {//自分のお絵描きがあれば※エラー防止
-        if (oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]].length) {//自分のお絵描きの履歴があれば
-          //redoStockに入れる
-          redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]][redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length] = oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]].pop();
-          if (!oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]].length) {//自分のお絵描きの長さがなくなれば
-            delete oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]];//自分のお絵描きのオブジェクトを消す
-          }
-        }
-
-        socket.broadcast.to(user[tokenID[socket.id]].room).emit("undo", {
-          token: tokenID[socket.id],
-        });
-      }
-
-
-      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {//眠り回避
-        user[tokenID[socket.id]].sleep = false;
-        io.to(user[tokenID[socket.id]].room).emit("sleep", {
-          token: tokenID[socket.id],
-          sleep: user[tokenID[socket.id]].sleep,
-        });
-      }
-      user[tokenID[socket.id]].sleepTimeNum = 0;
+      sleepTime();
     }
   });
 
 
-  socket.on("userUndo", function (data) {//お絵描きを戻す
-    if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-
-      //userRedoStockの配列がなかったら作る
-      if (!userRedoStock[data.token]) {
-        userRedoStock[data.token] = {};
-      }
-      if (!userRedoStock[data.token][tokenID[socket.id]]) {
-        userRedoStock[data.token][tokenID[socket.id]] = [];
-      }
-
-      //userClearStockの配列が無かったら作る
-      if (!userClearStock[data.token]) {
-        userClearStock[data.token] = {};
-      }
-      if (!userClearStock[data.token][tokenID[socket.id]]) {
-        userClearStock[data.token][tokenID[socket.id]] = [];
-      }
-      if (!userOekaki[data.token][tokenID[socket.id]] && userClearStock[data.token][tokenID[socket.id]].length) {//自分のお絵描きがなくて、userClearStockがあるとき
-        //token・全員のトークン
-        const keys = Object.keys(userClearStock[data.token][tokenID[socket.id]][userClearStock[data.token][tokenID[socket.id]].length - 1]);
-        keys.forEach(function (key) {//クリアストックソケットIDの数だけ繰り返す
-          if (!userOekaki[data.token][key]) {//トークンに配列が無ければ作る
-            userOekaki[data.token][key] = [];
-          }
-          //token・自分のトークン・全員のトークン
-          for (let i = 0; i < userClearStock[data.token][tokenID[socket.id]][userClearStock[data.token][tokenID[socket.id]].length - 1][key].length; i++) {//クリアストックの中身を順番にoekakiに入れてく
-            userOekaki[data.token][key].push(userClearStock[data.token][tokenID[socket.id]][userClearStock[data.token][tokenID[socket.id]].length - 1][key][i]);
-          }
-        });
-
-        io.to(user[tokenID[socket.id]].room).emit("userUndoClear", {
-          oekaki: userClearStock[data.token][tokenID[socket.id]][userClearStock[data.token][tokenID[socket.id]].length - 1],
-          token: data.token,
-        });
-        userClearStock[data.token][tokenID[socket.id]].pop();
-
-      } else if (userOekaki[data.token][tokenID[socket.id]]) {//自分のuserお絵描きがあれば
-        if (userOekaki[data.token][tokenID[socket.id]].length) {//自分のuserお絵描きの長さが有れば
-          //userRedoStockに入れる
-          userRedoStock[data.token][tokenID[socket.id]][userRedoStock[data.token][tokenID[socket.id]].length] = userOekaki[data.token][tokenID[socket.id]].pop();
-          if (!userOekaki[data.token][tokenID[socket.id]].length) {//自分のuserお絵描きの長さがなくなれば
-            delete userOekaki[data.token][tokenID[socket.id]];//自分のuserお絵描きのオブジェクトを消す
-          }
-        }
-
-        socket.broadcast.to(user[tokenID[socket.id]].room).emit("userUndo", {
-          token: tokenID[socket.id],
-          setToken: data.token,
-        });
-      }
 
 
-      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {//眠り回避
-        user[tokenID[socket.id]].sleep = false;
-        io.to(user[tokenID[socket.id]].room).emit("sleep", {
-          token: tokenID[socket.id],
-          sleep: user[tokenID[socket.id]].sleep,
-        });
-      }
-      user[tokenID[socket.id]].sleepTimeNum = 0;
-    }
-  });
-
-
-  socket.on("redo", function () {//お絵描き戻したのを戻す
-    if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-      if (redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length) {
-        socket.broadcast.to(user[tokenID[socket.id]].room).emit("oekaki", {
-          token: tokenID[socket.id],
-          oekakiX: redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]][redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1].X,
-          oekakiY: redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]][redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1].Y,
-          oekakiColor: redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]][redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1].dataColor,
-          oekakiAlpha: redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]][redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].length - 1].dataAlpha,
-        });
-      }
-      if (!oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]]) {
-        oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]] = [];
-      }
-      oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]][oekaki[user[tokenID[socket.id]].room][tokenID[socket.id]].length] = redoStock[user[tokenID[socket.id]].room][tokenID[socket.id]].pop();
-
-      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-        user[tokenID[socket.id]].sleep = false;
-        io.to(user[tokenID[socket.id]].room).emit("sleep", {
-          token: tokenID[socket.id],
-          sleep: user[tokenID[socket.id]].sleep,
-        });
-      }
-      user[tokenID[socket.id]].sleepTimeNum = 0;
-    }
-  });
-
-  socket.on("userRedo", function (data) {//お絵描き戻したのを戻す
-    if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-      if (Object.keys(userRedoStock[data.token]).length) {
-        if (userRedoStock[data.token][tokenID[socket.id]].length) {
-          socket.broadcast.to(user[tokenID[socket.id]].room).emit("userOekaki", {
-            token: tokenID[socket.id],
-            setToken: data.token,
-            oekaki: userRedoStock[data.token][tokenID[socket.id]][userRedoStock[data.token][tokenID[socket.id]].length - 1]
-          });
-        }
-      }
-      if (!userOekaki[data.token][tokenID[socket.id]]) {
-        userOekaki[data.token][tokenID[socket.id]] = [];
-      }
-      userOekaki[data.token][tokenID[socket.id]][userOekaki[data.token][tokenID[socket.id]].length] = userRedoStock[data.token][tokenID[socket.id]].pop();
-
-      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-        user[tokenID[socket.id]].sleep = false;
-        io.to(user[tokenID[socket.id]].room).emit("sleep", {
-          token: tokenID[socket.id],
-          sleep: user[tokenID[socket.id]].sleep,
-        });
-      }
-      user[tokenID[socket.id]].sleepTimeNum = 0;
-    }
-  });
-
-
-  // ---- multi room ----
-
-
-  // function emitMessageBroadcast(type, message) {
-  //   // ----- multi room ----
-  //   if (user[tokenID[socket.id]].room) {
-  //     //console.log('===== message broadcast to room -->' + roomname);
-  //     socket.broadcast.to(user[tokenID[socket.id]].room).emit(type, message);
-  //   }
-  //   // else {//部屋名を取得できなかったら
-  //   //   console.log('===== message broadcast all');
-  //   //   socket.broadcast.emit(type, message);
-  //   // }
-  // }
-
+  // ---- 配信関連 ----
   // When a user send a SDP message
   // broadcast to all users in the room
-  socket.on('message', function (message) {
+  socket.on("mediaButton", data => {
     if (!checkUser()) return;
-    message.from = tokenID[socket.id];
+    data.from = token;
 
-    // get send target
-    if (message.sendto) {//sendtoの送り先
-      let sendID;
-      Object.keys(tokenID).forEach(function (key) {
-        if (tokenID[key] === message.sendto) {
-          sendID = key;
-        }
-      });
-      socket.to(sendID).emit('message', message);
-      return;
-    }
-
-    // broadcast in room
-    // emitMessageBroadcast('message', message);//自分以外に
-
-    if (user[tokenID[socket.id]].room) {
-      //console.log('===== message broadcast to room -->' + roomname);
-      socket.broadcast.to(user[tokenID[socket.id]].room).emit('message', message);
+    if (user[token].room) {
+      socket.broadcast.to(user[token].room).emit("mediaButton", data);
     }
   });
 
 
-  socket.on("stream", function (data) {//お絵描き戻したのを戻す
+  socket.on("webRtcSignal", data => {
     if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
+    data.from = token;
+
+    // get send target
+    if (data.sendto) {//sendtoの送り先
+      const sendID = socketID[data.sendto];
+      socket.to(sendID).emit("webRtcSignal", data);
+    }
+  });
+
+
+  socket.on("stream", data => {
+    if (!checkUser()) return;
+    console.log(data); // ここでundefinedならサーバー送信ミス
+    if (user[token].room !== "loginRoom") {
       let format = "";
       if (data.format === "videoStart") {
-        user[tokenID[socket.id]].video = true;
+        user[token].video = true;
         format = "が動画配信を始めました";
       } else if (data.format === "videoStop") {
-        user[tokenID[socket.id]].video = false;
+        user[token].video = false;
         format = "が動画配信を終わりました";
       } else if (data.format === "audioStart") {
-        user[tokenID[socket.id]].audio = true;
+        user[token].audio = true;
         format = "が音声配信を始めました";
       } else if (data.format === "audioStop") {
         format = "が音声配信を終わりました";
-        user[tokenID[socket.id]].audio = false;
+        user[token].audio = false;
       }
-      io.to(user[tokenID[socket.id]].room).emit("stream", {
-        msg: user[tokenID[socket.id]].userName + format + time(),
-        token: tokenID[socket.id],
+      io.to(user[token].room).emit("stream", {
+        msg: user[token].userName + format + time(),
+        token: token,
       });
-
-
-
-      if (user[tokenID[socket.id]].sleepTimeNum >= 30 * 60 && user[tokenID[socket.id]].selfSleep == false) {
-        user[tokenID[socket.id]].sleep = false;
-        io.to(user[tokenID[socket.id]].room).emit("sleep", {
-          token: tokenID[socket.id],
-          sleep: user[tokenID[socket.id]].sleep,
-        });
-      }
-      user[tokenID[socket.id]].sleepTimeNum = 0;
+      sleepTime();
     }
-
   });
 
 
   // 退出時
-  socket.on("disconnect", function () {
+  socket.on("disconnect", () => {
     if (!checkUser()) return;
-    if (user[tokenID[socket.id]].room !== "loginBack") {
-      users[user[tokenID[socket.id]].room]--;
+    if (user[token].room !== "loginRoom") {
+      rooms[user[token].room].usersToken.delete(token);//部屋のユーザーリストから削除
 
-      io.to(user[tokenID[socket.id]].room).emit("logout", {
-        token: tokenID[socket.id],
-        msg: user[tokenID[socket.id]].userName + "が退出しました。" + time(),
-        room: user[tokenID[socket.id]].room,
-        users: users[user[tokenID[socket.id]].room],
-        random: volumeRandom(user[tokenID[socket.id]].room, "logout"),
+      io.to(user[token].room).emit("logout", {
+        token: token,
+        msg: user[token].userName + "が退出しました。" + time(),
+        room: user[token].room,
+        random: volumeRandom(user[token].room, "logout"),
       });
     }
 
-    //お絵描き関連のメモリ解放
-    for (let i = 0; i < roomString.length; i++) {
-      if (redoStock[roomString[i]][tokenID[socket.id]]) {
-        delete redoStock[roomString[i]][tokenID[socket.id]]
-      }
-      if (clearStock[roomString[i]][tokenID[socket.id]]) {
-        delete clearStock[roomString[i]][tokenID[socket.id]];
-      }
-      if (oekaki[roomString[i]][tokenID[socket.id]]) {
-        if (!oekaki[roomString[i]][tokenID[socket.id]]) {
-          delete oekaki[roomString[i]][tokenID[socket.id]];
-        }
-      }
-    }
-
-    if (userOekaki[tokenID[socket.id]]) {
-      delete userOekaki[tokenID[socket.id]];
-    }
-
-    if (userClearStock[tokenID[socket.id]]) {
-      delete userClearStock[tokenID[socket.id]];
-    }
-    if (userRedoStock[tokenID[socket.id]]) {
-      delete userRedoStock[tokenID[socket.id]];
-    }
-
-
-
-    delete user[tokenID[socket.id]];
+    //メモリ解放
+    delete user[token];
+    delete socketID[token];
 
     // close user connection
     console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
 
     // --- emit ----//ユーザー全体に退出を伝えるための関数だが、部屋をまたがる通知を実装してないのでつかってない。
-    // emitMessageBroadcast('user disconnected', { id: tokenID[socket.id]});
+    // emitMessageBroadcast('user disconnected', { id: token});
 
     //  socket.roomname という変数があれば、その部屋からユーザーを強制的に退出させるためのコード
     // --- leave room --socket.roomname = roomname;

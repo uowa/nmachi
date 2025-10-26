@@ -34,21 +34,21 @@ html::-webkit-scrollbar-thumb {
 
 /* その他のスクロールの幅の指定 */
 
-#chatLog::-webkit-scrollbar, #kousinrireki::-webkit-scrollbar {
+#mainLog::-webkit-scrollbar, #kousinrireki::-webkit-scrollbar {
     width: 20px;
     height: 0px;
 }
 
 /* その他のスクロールの背景の設定 */
 
-#chatLog-webkit-scrollbar-track, #kousinrireki::-webkit-scrollbar-track {
+#mainLog-webkit-scrollbar-track, #kousinrireki::-webkit-scrollbar-track {
     border-radius: 5px;
     box-shadow: 0 0 4px #aaa inset;
 }
 
 /* その他のスクロールのつまみ部分の設定 */
 
-#chatLog::-webkit-scrollbar-thumb, #kousinrireki::-webkit-scrollbar-thumb {
+#mainLog::-webkit-scrollbar-thumb, #kousinrireki::-webkit-scrollbar-thumb {
     border-radius: 5px;
     background: rgba(207, 199, 255, 0.315);
 }
@@ -66,10 +66,10 @@ html::-webkit-scrollbar-thumb {
     display: none;
 }
 
-#PmainLeft {
-    /* position: absolute; */
-    /* overflow: hidden; */
-}
+/* #PmainLeft {
+    position: absolute;
+    overflow: hidden;
+} */
 
 /* #PmainLeftFrame {
     overflow: hidden;
@@ -260,20 +260,20 @@ li>a {
 /* height: 480px;
 /* } */
 
-#Pmain {
-    /* 画面サイズ大き過ぎたから80%にするための処理 */
-    /* -webkit-transform: scale(0.8);
+/* #Pmain { */
+    /* 画面サイズ大き過ぎたから80%にするための処理
+    -webkit-transform: scale(0.8);
     -moz-transform: scale(0.8);
     -ms-transform: scale(0.8);
     -o-transform: scale(0.8);
-    transform: scale(0.8);  */
-    /* width: 528px; */
-    /* -moz-transform-origin: 0px 0px;
+    transform: scale(0.8); 
+    width: 528px;
+    -moz-transform-origin: 0px 0px;
     -webkit-transform-origin: 0px 0px;
     -o-transform-origin: 0px 0px;
     -ms-transform-origin: 0px 0px;
     transform-origin: 0px 0px; */
-}
+/* } */
 
 #form {
     background-color: #b6a3a3;
@@ -326,7 +326,7 @@ li>a {
 
 /* 
 input,//リセットCSS
-button,
+,
 select,
 textarea {
   -webkit-appearance: none;
@@ -391,9 +391,9 @@ select::-ms-expand {
     background-color: #b6a3a3;
 }
 
-#footer {
-    /* padding: 60px 0 0 0; */
-}
+/* #footer {
+    padding: 60px 0 0 0;
+} */
 
 #mediaContainer {
     position: relative;
@@ -401,8 +401,11 @@ select::-ms-expand {
     /* background-color: #b6a3a3; */
 }
 
-#chatLog {
-    /* position:relative; */
+
+
+
+#mainLog {
+    position:relative;
     font-family: "教科書体", "MS ゴシック", "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
     background-color: rgb(76, 76, 82);
     color: #999;
@@ -412,7 +415,17 @@ select::-ms-expand {
     padding: 0px;
 }
 
-#chatLog ul {
+#mainLogResizeBar {
+  width: 100%;
+  height: 8px;
+  background: #ccc;
+  cursor: ns-resize;
+  position: relative; 
+  bottom: 0;
+  /* z-index: 10; */
+}
+
+#mainLog ul {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -421,7 +434,9 @@ select::-ms-expand {
     background-size: 100% auto;
 }
 
-#chatLog li {
+
+
+#mainLog li {
     color: black;
 }
 
@@ -803,9 +818,9 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     width: 70%;
 }
 
-.bottomLine {
-    /* border-bottom: 4px solid rgba(0, 0, 0, 0.3); */
-}
+/* .bottomLine {
+    border-bottom: 4px solid rgba(0, 0, 0, 0.3);
+} */
 
 .smartphone {
     display: none;
@@ -825,12 +840,12 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     #form {
         order: -1;
     }
-    #userName {
-        /* width: 50%; */
-    }
-    #msg {
-        /* width: 50%; */
-    }
+    /* #userName {
+        width: 50%;
+    } */
+    /* #msg {
+        width: 50%;
+    } */
     #sizeSelecterFrame {
         display: none;
     }
@@ -861,7 +876,7 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
 
 /* 右クリックメニュー */
 
-#contextmenu {
+#contextMenu {
     display: none;
     position: fixed;
     z-index: 1;
@@ -873,20 +888,20 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     list-style: none;
 }
 
-#contextmenu li {
+#contextMenu li {
     cursor: pointer;
 }
 
-#contextmenu>ul {
+#contextMenu>ul {
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-#abon {
+#abonMenu {
     display: none;
 }
-#userOekaki{
+#avatarOekakiMenu{
     display: none;
 }
 
@@ -1008,18 +1023,5 @@ select {
     font-size: 100px;
     content:"tes!!!";
     
-}
-
-.gomanecoHead {
-    width: 17px; 
-    height: 17px;  
-    background-size: cover;
-    background-image: url(../img/gomanecoHead2.png);
-}
-.necosukeHead {
-    width: 17px; 
-    height: 17px;  
-    background-size: cover;
-    background-image: url(../img/necosukeHead2.png);
 }
 
