@@ -52,7 +52,7 @@
     "eslint": "^6.3.0",
     "@typescript-eslint/eslint-plugin": "^2.1.0",
     "@typescript-eslint/parser": "^2.1.0",
-    "floss": "^3.0.0",
+    "floss": "^5.0.1",
     "chai": "~3.5.0",
     "sinon": "^7.3.2",
     "sinon-chai": "^3.3.0",
