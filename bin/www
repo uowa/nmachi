@@ -3,51 +3,51 @@
 /**
  * モジュールの読み込み
  */
-const appModule = require('../app');               // Expressアプリ本佁E
+const appModule = require('../app');               // Expressアプリ本体
 const app = appModule;
-const debug = require('debug')('pmachi6:server'); // チE��チE��用
+const debug = require('debug')('pmachi6:server'); // デバッグ用
 const fs = require('fs');                          // ファイル操作用
-const http = require('http');                      // HTTPサーバ�E用
-const https = require('https');                    // HTTPSサーバ�E用
+const http = require('http');                      // HTTPサーバー用
+const https = require('https');                    // HTTPSサーバー用
 
 /**
- * ポ�Eト番号を正規化する関数
+ * ポート番号を正規化する関数
  * - 数字ならそのまま返す
- * - named pipe なら文字�Eを返す
- * - 無効なめEfalse を返す
+ * - named pipe なら文字列を返す
+ * - 無効なら false を返す
  */
 function normalizePort(val) {
   const port = parseInt(val, 10);
   if (isNaN(port)) {
-    // 数字に変換できなければ named pipe とみなぁE
+    // 数字に変換できなければ named pipe とみなす
     return val;
   }
   if (port >= 0) {
-    // 正の数字なら�Eート番号として返す
+    // 正の数字ならポート番号として返す
     return port;
   }
-  return false; // 無効なポ�EチE
+  return false; // 無効なポート
 }
 
 
 
-//サーバ�Eエラー時�E処琁E
+//サーバーエラー時の処理
 function onError(error) {
   if (error.syscall !== 'listen') {
-    throw error; // listen 系のエラーでなければ投げめE
+    throw error; // listen 系のエラーでなければ投げる
   }
 
   const bind = typeof port === 'string'
-    ? 'Pipe ' + port  // named pipe の場吁E
-    : 'Port ' + port; // ポ�Eト番号の場吁E
+    ? 'Pipe ' + port  // named pipe の場合
+    : 'Port ' + port; // ポート番号の場合
 
-  // 特定�Eエラーに対してわかりやすいメチE��ージ
+  // 特定のエラーに対してわかりやすいメッセージ
   switch (error.code) {
     case 'EACCES':
-      console.error(bind + ' は管琁E��E��限が忁E��でぁE);
+      console.error(bind + ' は管理者権限が必要です');
       process.exit(1);
     case 'EADDRINUSE':
-      console.error(bind + ' は既に使用中でぁE);
+      console.error(bind + ' は既に使用中です');
       process.exit(1);
     default:
       throw error;
@@ -55,23 +55,23 @@ function onError(error) {
 }
 
 
-// サーバ�Eが起動したとき�E処琁E
+// サーバーが起動したときの処理
 function onListening() {
   const addr = server.address();
   const bind = typeof addr === 'string'
-    ? 'pipe ' + addr      // named pipe の場吁E
-    : 'port ' + addr.port; // ポ�Eト番号の場吁E
-  debug('Listening on ' + bind); // チE��チE��用出劁E
+    ? 'pipe ' + addr      // named pipe の場合
+    : 'port ' + addr.port; // ポート番号の場合
+  debug('Listening on ' + bind); // デバッグ用出力
 }
 
 
-// 環墁E��数めE��フォルト値からポ�Eト番号を取得して Express に設宁E
+// 環境変数やデフォルト値からポート番号を取得して Express に設定
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
 
 /**
- * サーバ�E作�E
- * - SSL キーファイルがあれ�E HTTPS
+ * サーバー作成
+ * - SSL キーファイルがあれば HTTPS
  * - なければ HTTP
  */
 let server;
@@ -82,35 +82,42 @@ try {
   const nmachi_crt = '../../../../usr/local/nginx/nmachi20220126.crt';
   const nmachi_chain = '../../../../usr/local/nginx/nmachi20220126.pem';
 
-  // SSL オプション作�E
+  // SSL オプション作成
   const options = {
     key: fs.readFileSync(nmachi_key),
     cert: fs.readFileSync(nmachi_crt),
     ca: fs.readFileSync(nmachi_chain)
   };
 
-  // HTTPS サーバ�E作�E
+  // HTTPS サーバー作成
   server = https.createServer(options, app);
-  console.log('HTTPS サーバ�Eを作�Eしました');
+  console.log('HTTPS サーバーを作成しました');
 } catch (err) {
   // ファイルが見つからなければ HTTP にフォールバック
-  console.warn('SSL ファイルが見つかりません、ETTP サーバ�Eに刁E��替えまぁE);
+  console.warn('SSL ファイルが見つかりません。HTTP サーバーに切り替えます');
   server = http.createServer(app);
 }
 
-// Socket.IO のセチE��アチE�E - クライアントとリアルタイム通信するためのライブラリ
+// Socket.IO のセットアップ - クライアントとリアルタイム通信するためのライブラリ
 const io = require('socket.io')(server);
 
 
-// 環墁E��応じてサーバ�Eのバインド�Eを決宁E
-// NODE_ENV ぁE'production' の場吁EↁE本番環墁E��みなぁElocalhost にバインチE
-// Codespaces 上�E場吁EↁEprocess.env.CODESPACE が設定されてぁE��ので 0.0.0.0 にバインド（外部アクセス可能�E�E
-// それ以外（通常ローカル開発など�E�EↁElocalhost にバインチE
+// 環境に応じてサーバーのバインド先を決定
+// NODE_ENV が 'production' の場合 → 本番環境とみなし localhost にバインド
+// Codespaces 上の場合 → process.env.CODESPACE が設定されているので 0.0.0.0 にバインド（外部アクセス可能）
+// それ以外（通常ローカル開発など） → localhost にバインド
+const isCodespaces = !!process.env.CODESPACES || !!process.env.CODESPACE_NAME;
+const host = process.env.NODE_ENV === 'production' ? 'localhost'
+  : isCodespaces ? '0.0.0.0'
+    : 'localhost';
 
-// 部屋アトラスの生�Eを征E��てからサーバ�E起勁E
+
+
+
+// 部屋アトラスの生成を待ってからサーバー起動
 (appModule.atlasReady || Promise.resolve()).then(() => {
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Server running at port ${port}/`);
+  server.listen(port, host, () => {
+    console.log(`Server running at http://${host}:${port}/`);
   });
 });
 server.on('error', onError);
@@ -124,7 +131,7 @@ let socketID = {};
 let tokenNum = 0;
 
 let rooms = {};
-let roomNameList = ["エントランス", "草原", "ぁE��めE�E", "昁E",];
+let roomNameList = ["エントランス", "草原", "うちゅー", "星1",];
 for (let i = 0; i < roomNameList.length; i++) {
   rooms[roomNameList[i]] = {
     drawHistory: [],
@@ -137,7 +144,7 @@ const crypto = require("crypto");
 
 function tripCreate(isTrip) {
   let tripkey = isTrip;
-  // ソルト生成！E斁E��以上になるよぁE�� 'H.' を追加し、E斁E��目と3斁E��目を�Eり�Eし！E
+  // ソルト生成（2文字以上になるように 'H.' を追加し、2文字目と3文字目を切り出し）
   let salt = (tripkey + "H.").slice(1, 3);
   salt = salt.replace(/[^.-z]/g, ".");
   salt = salt.replace(/:/g, "A");
@@ -154,20 +161,20 @@ function tripCreate(isTrip) {
   salt = salt.replace(/_/g, "e");
   salt = salt.replace(/`/g, "f");
 
-  // AES用のキーとIVを生成！E6バイトずつ、saltを埋めて残りは0埋め�E�E
-  const key = Buffer.alloc(32, 0); // AES-256なので32バイチE
+  // AES用のキーとIVを生成（16バイトずつ、saltを埋めて残りは0埋め）
+  const key = Buffer.alloc(32, 0); // AES-256なので32バイト
   key.write(salt, 0, "utf-8");
-  const iv = Buffer.alloc(16, 0);  // IVは16バイチE
+  const iv = Buffer.alloc(16, 0);  // IVは16バイト
   iv.write(salt, 0, "utf-8");
 
-  // 暗号匁E
+  // 暗号化
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(tripkey, "utf-8", "base64");
   encrypted += cipher.final("base64");
 
-  // トリチE�Eとして末尾10斁E��！Eは除去�E�E
+  // トリップとして末尾10文字（=は除去）
   let trip = encrypted.substr(-10).replace(/=/g, "");
-  trip = "◁E + trip;
+  trip = "◆" + trip;
   return trip;
 }
 
@@ -189,12 +196,12 @@ function time() {
 }
 
 
-// 部屋名→SEキーのマッピング。新しい部屋を追加するとき�Eここに追訁E
+// 部屋名→SEキーのマッピング。新しい部屋を追加するときはここに追記
 const ROOM_SE_KEY = {
   "エントランス": "other",
   "草原":         "other",
-  "ぁE��めE�E":    "outerSpace",
-  "昁E":         "outerSpace",
+  "うちゅー":    "outerSpace",
+  "星1":         "outerSpace",
 };
 
 let random;
@@ -204,26 +211,26 @@ function volumeRandom(roomName, move) {
   return random;
 }
 
-//昁Eの星�E色用ランダムカラー配�E作�E
+//星1の星の色用ランダムカラー配列作成
 const starColors = [];
 setStarRandomColor();
 
 function setStarRandomColor() {
   starColors.length = 0;
   for (let i = 0; i < 1000; i++) {
-    // 0x000000�E�ExFFFFFFのランダムカラー
+    // 0x000000～0xFFFFFFのランダムカラー
     starColors.push(Math.floor(Math.random() * 0xFFFFFF));
   }
 }
 
 
-// クライアントがサーバ�Eに接続したとき�E処琁E
+// クライアントがサーバーに接続したときの処理
 io.on('connection', socket => {
-  // ユーザーごとに一意なト�Eクンを発衁E
+  // ユーザーごとに一意なトークンを発行
   const token = crypto.randomUUID();
   socketID[token] = socket.id;
 
-  // サーバ�E再起動時にクライアントへ再読み込みを俁E��メチE��ージを送る関数
+  // サーバー再起動時にクライアントへ再読み込みを促すメッセージを送る関数
   function checkUser() {
     if (!user[token]) {
       io.to(socket.id).emit("emitSaikiMsg", {
@@ -235,9 +242,9 @@ io.on('connection', socket => {
   }
 
   /**
- * ユーザーが寝てたら起こす関数、E
- * sleepTimeNumぁE0刁E��上かつselfSleepがfalseの場合、ユーザーのsleep状態をfalseに設定し、E
- * 対応するルームにsleepイベントを送信します。その後、sleepTimeNumをリセチE��します、E
+ * ユーザーが寝てたら起こす関数。
+ * sleepTimeNumが30分以上かつselfSleepがfalseの場合、ユーザーのsleep状態をfalseに設定し、
+ * 対応するルームにsleepイベントを送信します。その後、sleepTimeNumをリセットします。
  */
   function sleepTime() {
     if (user[token].sleepTimeNum >= 30 * 60 && user[token].selfSleep == false) {
@@ -252,30 +259,30 @@ io.on('connection', socket => {
 
 
 
-  // ユーザー惁E��を取得するイベンチE
+  // ユーザー情報を取得するイベント
   socket.on("getMyUser", () => {
-    // ユーザー惁E��を�E期化して保孁E
+    // ユーザー情報を初期化して保存
     user[token] = {
-      userName: "名もなき名無ぁE, // チE��ォルト名
+      userName: "名もなき名無し", // デフォルト名
       token: token,
-      AX: 457, // 初期X座樁E
-      AY: 80,  // 初期Y座樁E
+      AX: 457, // 初期X座標
+      AY: 80,  // 初期Y座標
       DIR: "S", // 初期向き
       msg: "",
-      tarAspect: "gomaneco", // チE��ォルトアバター
-      room: "loginRoom",   // 初期部屁E
+      tarAspect: "gomaneco", // デフォルトアバター
+      room: "loginRoom",   // 初期部屋
       video: false,
       audio: false,
       timeShade: new Date().getHours(),
-      avatarAlpha: 1.0,//アバターの透�E度
+      avatarAlpha: 1.0,//アバターの透明度
       sleep: false,
       sit: false,
-      selfSleep: false,//ユーザー自身で設定した眠り状慁E
+      selfSleep: false,//ユーザー自身で設定した眠り状態
       sleepTimeNum: 0,
       drawHistory: [],
       allowOthersOekaki: true,
-      carryOver: false,//ログ残し状態かどぁE��
-      // ⭁E乗車状況�E初期匁E
+      carryOver: false,//ログ残し状態かどうか
+      // ⭐ 乗車状況の初期化
       ridingObject: null,
       ridingOffsetX: 0,
       ridingOffsetY: 0,
@@ -285,7 +292,7 @@ io.on('connection', socket => {
         let setTimeoutSleep;
         if (user[token]) {
           user[token].sleepTimeNum++;
-          // 30刁E��E800秒）経過でスリーチE
+          // 30分（1800秒）経過でスリープ
           if (user[token].sleepTimeNum == 30 * 60) {
             user[token].sleep = true;
             io.to(user[token].room).emit("sleep", {
@@ -293,9 +300,9 @@ io.on('connection', socket => {
               sleep: user[token].sleep,
             });
           }
-          setTimeoutSleep = setTimeout(user[token].countSleep, 1000); // 1秒ごとにカウンチE
+          setTimeoutSleep = setTimeout(user[token].countSleep, 1000); // 1秒ごとにカウント
         } else {
-          clearTimeout(setTimeoutSleep); // ユーザーがいなければタイマ�E解除
+          clearTimeout(setTimeoutSleep); // ユーザーがいなければタイマー解除
         }
       },
     }
@@ -309,10 +316,10 @@ io.on('connection', socket => {
   });
 
 
-  socket.on("joineRoom", data => {//部屋移勁E
+  socket.on("joineRoom", data => {//部屋移動
     if (!checkUser()) return;
 
-    // 再接続時�E�指定部屋が現存しなければ失敗を通知
+    // 再接続時：指定部屋が現存しなければ失敗を通知
     if (data.isReconnect && !roomNameList.includes(data.toRoom)) {
       io.to(socket.id).emit("reconnectFailed");
       return;
@@ -321,19 +328,19 @@ io.on('connection', socket => {
     let announce;
     let fromRoom = user[token].room;
     user[token].room = data.toRoom;
-    rooms[data.toRoom].usersToken.add(token);//部屋�Eユーザーリストに追加
+    rooms[data.toRoom].usersToken.add(token);//部屋のユーザーリストに追加
     user[token].carryOver = false;
 
     if (user[token].ridingObject) {
-      // 乗車情報をリセチE��
+      // 乗車情報をリセット
       user[token].ridingObject = null;
       user[token].ridingOffsetX = 0;
       user[token].ridingOffsetY = 0;
     }
 
 
-    if (fromRoom === "loginRoom" && data.userName.length < 28) {//ログインの時かつ、名前が28未満の晁E
-      //トリチE�Eを作る
+    if (fromRoom === "loginRoom" && data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
+      //トリップを作る
       if (!ip[socket.handshake.address]) {
         ip[socket.handshake.address] = { name: [data.userName], ip: socket.handshake.address };
       } else {
@@ -341,28 +348,28 @@ io.on('connection', socket => {
           ip[socket.handshake.address].name.push(data.userName);
         }
       }
-      data.userName = data.userName.replace(/◁Eg, '□');
+      data.userName = data.userName.replace(/◆/g, '□');
       if (data.userName.match(/#/)) {
         let index = data.userName.indexOf("#");
         let tripStr = data.userName.slice(index + 1);
         let tripName = data.userName.slice(0, index);
         data.userName = tripName + tripCreate(tripStr);
       }
-      if (data.userName.match(/�E�E)) {
-        let index = data.userName.indexOf("�E�E);
+      if (data.userName.match(/＃/)) {
+        let index = data.userName.indexOf("＃");
         let tripStr = data.userName.slice(index + 1);
         let tripName = data.userName.slice(0, index);
         data.userName = tripName + tripCreate(tripStr);
       }
-      user[token].userName = data.userName;//名前をサバに保孁E
-      user[token].avatarAspect = data.avatarAspect;//アバターを設宁E
-      user[token].avatarColor = data.avatarColor;//アバターの色を設宁E
-      user[token].avatarAlpha = data.avatarAlpha;//アバターの透�E度を設宁E
+      user[token].userName = data.userName;//名前をサバに保存
+      user[token].avatarAspect = data.avatarAspect;//アバターを設定
+      user[token].avatarColor = data.avatarColor;//アバターの色を設定
+      user[token].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
       user[token].bubbleOffsetX = data.bubbleOffsetX || 0;
       user[token].bubbleOffsetY = data.bubbleOffsetY || 0;
       user[token].DIR = "S";
 
-      //soundNumの決宁E
+      //soundNumの決定
       user[token].soundNum = data.userName.length;
       if (data.avatar == "necosuke" || data.avatar == "necosukeMono") {
         user[token].soundNum++;
@@ -375,32 +382,32 @@ io.on('connection', socket => {
       //アバターお絵描き
       user[token].drawHistory = data.drawHistory;
 
-      // 再接続時は保存座標を復允E
+      // 再接続時は保存座標を復元
       if (data.reconnectAX !== undefined) {
         user[token].AX = data.reconnectAX;
         user[token].AY = data.reconnectAY;
       }
 
       if (data.reconnectAX !== undefined) {
-        announce = user[token].userName + "ぁE + data.toRoom + "に再�E室しました、E + time();
+        announce = user[token].userName + "が" + data.toRoom + "に再入室しました。" + time();
       } else {
-        announce = user[token].userName + "ぁE + data.toRoom + "に入室しました、E + time();
+        announce = user[token].userName + "が" + data.toRoom + "に入室しました。" + time();
       }
-    } else {//loginRoomから以外�E晁E
-      //退室処琁E
-      rooms[fromRoom].usersToken.delete(token);//允E�E部屋�Eユーザーリストから削除
+    } else {//loginRoomから以外の時
+      //退室処理
+      rooms[fromRoom].usersToken.delete(token);//元の部屋のユーザーリストから削除
 
       if (data.train) {
-        announce = user[token].userName + "が電車に乗り込みました、ゆんやー�E�E + time();
+        announce = user[token].userName + "が電車に乗り込みました、ゆんやー！" + time();
       } else {
-        announce = user[token].userName + "ぁE + data.toRoom + "に移動しました、E + time();
+        announce = user[token].userName + "が" + data.toRoom + "に移動しました。" + time();
       }
 
-      if (fromRoom === "昁E") {
+      if (fromRoom === "星1") {
         setStarRandomColor();
       }
 
-      socket.broadcast.to(fromRoom).emit("otherLeft", {//自刁E��外が部屋を出た場吁E
+      socket.broadcast.to(fromRoom).emit("otherLeft", {//自分以外が部屋を出た場合
         token: token,
         random: volumeRandom(fromRoom, "out"),
         announce: announce,
@@ -408,7 +415,7 @@ io.on('connection', socket => {
       });
     }
 
-    //入室スポット座標（ログイン・部屋移動どちらでも適用�E�E
+    //入室スポット座標（ログイン・部屋移動どちらでも適用）
     switch (data.toSpot) {
       case "entranceCloud1":
         user[token].AX = 500;
@@ -416,18 +423,18 @@ io.on('connection', socket => {
         user[token].DIR = "S";
         user[token].is2F = false;
         break;
-      case "grassFromEntrance": // エントランスから草原へ�E�左下に出現�E�⭁E座標要調整
+      case "grassFromEntrance": // エントランスから草原へ（左下に出現）⭐ 座標要調整
         user[token].AX = 100;
         user[token].AY = 430;
         user[token].DIR = "NE";
         break;
-      case "entranceMainSpot": // エントランス�E�ログイン用�E�E
+      case "entranceMainSpot": // エントランス（ログイン用）
         user[token].AX = 415;
         user[token].AY = 315;
         user[token].DIR = "S";
         user[token].is2F = false;
         break;
-      case "entranceTrainSpot": // エントランス�E��E車用�E�E
+      case "entranceTrainSpot": // エントランス（列車用）
         user[token].AX = 550;
         user[token].AY = 125;
         user[token].DIR = "S";
@@ -455,9 +462,9 @@ io.on('connection', socket => {
       user[token].msg = "";
 
       if (data.train) {
-        announce = user[token].userName + "が電車に乗ってきました、E + time();
+        announce = user[token].userName + "が電車に乗ってきました。" + time();
       } else {
-        announce = user[token].userName + "ぁE + fromRoom + "から移動してきました、E + time();
+        announce = user[token].userName + "が" + fromRoom + "から移動してきました。" + time();
       }
       random = volumeRandom(data.toRoom, "in");
     }
@@ -468,7 +475,7 @@ io.on('connection', socket => {
       socket.join(data.toRoom);
     }
 
-    // 期限刁E��の看板を除去してから送信
+    // 期限切れの看板を除去してから送信
     const now = Date.now();
     rooms[data.toRoom].signs = rooms[data.toRoom].signs.filter(s => !s.endTime || s.endTime > now);
 
@@ -521,7 +528,7 @@ io.on('connection', socket => {
 
 
 
-  //sleep惁E��を受け取ったら自刁E��外�E部屋�E人にスリープ情報を送る
+  //sleep情報を受け取ったら自分以外の部屋の人にスリープ情報を送る
   socket.on("sleep", () => {
     if (!checkUser()) return;
     if (user[token].sleep) {//寝てた時
@@ -544,18 +551,18 @@ io.on('connection', socket => {
     if (!checkUser()) return;
     let abonMsg;
     if (user[data.token] == null) {
-      abonMsg = "そ�E住民�E退出済みでぁE;
+      abonMsg = "その住民は退出済みです";
       io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
       });
     } else if (!data.setAbon) {
-      abonMsg = user[data.token].userName + "をアボンしました、E;
+      abonMsg = user[data.token].userName + "をアボンしました。";
       io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
         token: data.token,
       });
     } else {
-      abonMsg = user[data.token].userName + "のあぼんをめE��ました";
+      abonMsg = user[data.token].userName + "のあぼんをやめました";
       io.to(socket.id).emit("abonSetting", {
         msg: abonMsg,
         token: data.token,
@@ -572,7 +579,7 @@ io.on('connection', socket => {
   });
 
 
-  //tapイベンチE
+  //tapイベント
   socket.on('tapMap', data => {
     if (!checkUser()) return;
 
@@ -582,20 +589,20 @@ io.on('connection', socket => {
     user[token].DIR = data.DIR;
     user[token].sit = data.sit !== undefined ? data.sit : user[token].sit;
 
-    // ⭁E乗車状態�E更新
+    // ⭐ 乗車状態の更新
     if (data.moveType === "relative") {
-      // 相対移動�E場合：乗車情報を保孁E
+      // 相対移動の場合：乗車情報を保存
       user[token].ridingObject = data.targetObject;
       user[token].ridingOffsetX = data.relativeX;
       user[token].ridingOffsetY = data.relativeY;
     } else {
-      // 絶対移動�E場合：乗車情報をクリア
+      // 絶対移動の場合：乗車情報をクリア
       user[token].ridingObject = null;
       user[token].ridingOffsetX = 0;
       user[token].ridingOffsetY = 0;
     }
 
-    // 他�Eクライアントに送信
+    // 他のクライアントに送信
     socket.broadcast.to(user[token].room).emit("tapMap", {
       token: token,
       DIR: user[token].DIR,
@@ -610,11 +617,11 @@ io.on('connection', socket => {
   });
 
 
-  // 自刁E�E物琁E��態（位置・乗車）をサーバ�Eに通知 ↁE他クライアントへ配信
+  // 自分の物理状態（位置・乗車）をサーバーに通知 → 他クライアントへ配信
   socket.on('transformData', data => {
     if (!checkUser()) return;
 
-    // 墁E��制陁E
+    // 境界制限
     const AX = data.fromCloud ? data.AX : Math.max(0, Math.min(660, data.AX));
     const AY = data.fromCloud ? data.AY : Math.max(0, Math.min(460, data.AY));
 
@@ -649,14 +656,14 @@ io.on('connection', socket => {
     });
   });
 
-  // transformDataFromOther は廁E���E�他クライアントによる他人の位置報告�E使わなぁE��E
+  // transformDataFromOther は廃止（他クライアントによる他人の位置報告は使わない）
   socket.on('transformDataFromOther', () => {});
 
 
-  socket.on("sitChange", data => {//座る�E立つ
+  socket.on("sitChange", data => {//座る・立つ
     if (!checkUser()) return;
     user[token].DIR = data.DIR;
-    user[token].sit = data.sit;//座る�E立つの状態を設宁E
+    user[token].sit = data.sit;//座る・立つの状態を設定
     socket.broadcast.to(user[token].room).emit("sitChange", {
       token: token,
       DIR: data.DIR,
@@ -667,9 +674,9 @@ io.on('connection', socket => {
     sleepTime();
   });
 
-  socket.on("alphaChange", data => {//透�Eにする
+  socket.on("alphaChange", data => {//透明にする
     if (!checkUser()) return;
-    user[token].avatarAlpha = data.alpha;//アバターの透�E度を設宁E
+    user[token].avatarAlpha = data.alpha;//アバターの透明度を設定
     if (user[token].room !== "loginRoom") {
       socket.broadcast.to(user[token].room).emit("alphaChange", {
         token: token,
@@ -681,34 +688,34 @@ io.on('connection', socket => {
 
 
 
-  //クライアントからメチE��ージを受けとったら送信
+  //クライアントからメッセージを受けとったら送信
   socket.on("emit_msg", data => {
     if (!checkUser()) return;
 
     let fontColor = "black";
-    if (data.msg == "スシ" || data.msg == "�E��E�" || data.msg == "すし" || data.msg == "🍣" || data.msg == "寿司" || data.msg == "鮨" || data.msg == "susi") {
+    if (data.msg == "スシ" || data.msg == "ｽｼ" || data.msg == "すし" || data.msg == "🍣" || data.msg == "寿司" || data.msg == "鮨" || data.msg == "susi") {
       data.msg += "(" + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + ")";
       fontColor = "white";
     }
     if (data.msg == "もみころ") {
-      data.msg += "(もみじゆるさん�E略)";
+      data.msg += "(もみじゆるさんの略)";
     }
     if (data.carryOver) {
       user[token].msg = data.msg;
       user[token].carryOver = true;
 
-      //最後に発言したcarryOverメチE��ージをuserの最後に入れなおす
+      //最後に発言したcarryOverメッセージをuserの最後に入れなおす
       let value = user[token];
       delete user[token];
       user[token] = value;
 
-    } else {//carryOverじゃなぁE��ら、userのメチE��ージ惁E��は消しとぁE
+    } else {//carryOverじゃないなら、userのメッセージ情報は消しとく
       user[token].msg = "";
       user[token].carryOver = false;
     }
 
 
-    if (data.msg == "#list" || data.msg == "#�E�ｽ�E�E || data.msg == "#リスチE) {
+    if (data.msg == "#list" || data.msg == "#ﾘｽﾄ" || data.msg == "#リスト") {
       let listName = [];
       let listToken = [];
       let n = 0;
@@ -725,7 +732,7 @@ io.on('connection', socket => {
       });
 
 
-    } else if (data.msg == "#train" || data.msg == "#�E�E��ｲ�E�E || data.msg == "#トレイン" || data.msg == "#rula" || data.msg == "#�E�ｰ�E�E || data.msg == "#ルーラ" || data.msg == "#電軁E) {
+    } else if (data.msg == "#train" || data.msg == "#ﾄﾚｲﾝ" || data.msg == "#トレイン" || data.msg == "#rula" || data.msg == "#ﾙｰﾗ" || data.msg == "#ルーラ" || data.msg == "#電車") {
 
       let trainList = [];
       for (let i = 0; i < roomNameList.length; i++) {
@@ -805,7 +812,7 @@ io.on('connection', socket => {
     });
   });
 
-  socket.on("undo", data => {//お絵描きを戻ぁE
+  socket.on("undo", data => {//お絵描きを戻す
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
       const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
@@ -840,7 +847,7 @@ io.on('connection', socket => {
     data.from = token;
 
     // get send target
-    if (data.sendto) {//sendtoの送り允E
+    if (data.sendto) {//sendtoの送り先
       const sendID = socketID[data.sendto];
       socket.to(sendID).emit("webRtcSignal", data);
     }
@@ -849,7 +856,7 @@ io.on('connection', socket => {
 
   socket.on("stream", data => {
     if (!checkUser()) return;
-    console.log(data); // ここでundefinedならサーバ�E送信ミス
+    console.log(data); // ここでundefinedならサーバー送信ミス
     if (user[token].room !== "loginRoom") {
       let format = "";
       if (data.format === "videoStart") {
@@ -874,7 +881,7 @@ io.on('connection', socket => {
   });
 
 
-  // 退出晁E
+  // 退出時
   socket.on("createSign", data => {
     if (!checkUser()) return;
     const roomName = user[token].room;
@@ -883,16 +890,16 @@ io.on('connection', socket => {
       id: signId,
       x: data.x,
       y: data.y,
-      cloudRelX: data.cloudRelX ?? null, // 雲の上�E場合�E雲相対X
+      cloudRelX: data.cloudRelX ?? null, // 雲の上の場合は雲相対X
       boardText: data.boardText,
       clickText: data.clickText,
       durationMs: data.durationMs,
       endTime: data.durationMs > 0 ? Date.now() + data.durationMs : 0,
     };
     rooms[roomName].signs.push(signData);
-    // 自刁E��含む部屋�E員に送信
+    // 自分を含む部屋全員に送信
     io.to(roomName).emit("createSign", signData);
-    // タイマ�Eで自動削除
+    // タイマーで自動削除
     if (data.durationMs > 0) {
       setTimeout(() => {
         rooms[roomName].signs = rooms[roomName].signs.filter(s => s.id !== signId);
@@ -922,10 +929,10 @@ io.on('connection', socket => {
   socket.on("disconnect", () => {
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
-      rooms[user[token].room].usersToken.delete(token);//部屋�Eユーザーリストから削除
+      rooms[user[token].room].usersToken.delete(token);//部屋のユーザーリストから削除
       io.to(user[token].room).emit("logout", {
         token: token,
-        msg: user[token].userName + "が退出しました、E + time(),
+        msg: user[token].userName + "が退出しました。" + time(),
         room: user[token].room,
         random: volumeRandom(user[token].room, "logout"),
       });
@@ -939,5 +946,3 @@ io.on('connection', socket => {
     console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
   });
 });
-
-
