@@ -16,7 +16,7 @@ const hitAreaDir = 'public/img/hitArea';
     concaveman = (await import('concaveman')).default;
   }
   try {
-    const files = fs.readdirSync(hitAreaDir).filter(f => f.endsWith('.png'));
+    const files = fs.readdirSync(hitAreaDir).filter(f => /\.(png|jpe?g)$/i.test(f));
     for (const file of files) {
       const path = `${hitAreaDir}/${file}`;
       const polygons = await extractPolygonsFromSVG(path, 50);

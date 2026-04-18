@@ -79,7 +79,67 @@
           <li id="sleepMenu">寝る</li>
           <li id="abonMenu">アボン</li>
           <li id="avatarOekakiMenu">ラクガキする</li>
+          <li id="signMenu">立て看板を立てる</li>
         </ul>
+      </div>
+
+      <!-- 立て看板モーダル -->
+      <div id="signModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:300px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 4px; font-size:12px; color:#aac;">看板の文字</p>
+          <input type="text" id="signBoardText" maxlength="20" placeholder="看板の文字（省略可）" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">メッセージ</p>
+          <input type="text" id="signClickText" maxlength="100" placeholder="クリックメッセージ（省略可）" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">表示時間</p>
+          <select id="signDuration" style="background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; border-radius:4px; width:100%;">
+            <option value="300000">5分</option>
+            <option value="900000">15分</option>
+            <option value="1800000">30分</option>
+            <option value="3600000">1時間</option>
+            <option value="10800000">3時間</option>
+            <option value="86400000">1日</option>
+            <option value="259200000">3日</option>
+            <option value="604800000">1週間</option>
+            <option value="0">部屋移動まで</option>
+          </select>
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">削除パスワード（省略可）</p>
+          <input type="password" id="signPassword" maxlength="50" placeholder="パスワードなしは誰でも削除可" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+            <button id="signCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signConfirm" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">立てる</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看板右クリックメニュー -->
+      <div id="signContextMenu" oncontextmenu="return false" style="display:none; position:fixed; z-index:9998; background:#1a1a2e; border:1px solid #4a90d9; border-radius:4px; padding:4px 0; font-family:monospace;">
+        <ul style="list-style:none; margin:0; padding:0;">
+          <li id="signDeleteMenu" style="padding:8px 20px; cursor:pointer; color:#fff; white-space:nowrap;">看板を消す</li>
+        </ul>
+      </div>
+
+      <!-- 看板削除確認モーダル -->
+      <div id="signDeleteConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 16px;">看板を消しますか？</p>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button id="signDeleteConfirmNo" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signDeleteConfirmYes" style="background:#7a1a1a; border:1px solid #d94a4a; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">消す</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看板削除パスワードモーダル -->
+      <div id="signDeleteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 8px;">削除パスワードを入力してください</p>
+          <input type="password" id="signDeletePassword" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #d94a4a; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p id="signDeleteError" style="color:#f66; font-size:12px; margin:4px 0 0; display:none;">パスワードが違います</p>
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+            <button id="signDeleteCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signDeleteConfirm" style="background:#7a1a1a; border:1px solid #d94a4a; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">削除</button>
+          </div>
+        </div>
       </div>
       <div id="Pmachi" class="flexContainerColumn">
         <div id="Pmain" class="flexContainer">
@@ -96,17 +156,17 @@
                     <input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須じゃなぃよ">
                   </form>
                   <form name="msgForm" id="msgForm" class="flexCenter">
-                    <input type="text" name="msg" id="msg" maxlength='10000' placeholder="メッセージはこちらへ"
-                      autocomplete="off">
+                    <textarea name="msg" id="msg" maxlength='10000' placeholder="メッセージはこちらへ"
+                      autocomplete="off" rows="1"></textarea>
                   </form>
                 </div>
 
                 <!-- スイッチ類 -->
                 <div id="switchBar">
-                  <!-- <span class="PC">shift+Enterでログ残し</span> -->
+                  <!-- <span class="PC">shift+Enterで改行、alt+Enterでログ残し</span> -->
                   <div class="flexContainerColumn">
                     <div class="flexspaceBetween">
-                      <span class="PC">shift+Enterでログ残し</span>
+                      <span class="PC">shift+Enterで改行、alt+Enterでログ残し</span>
                       <button id="train" type="button" onclick="trainClick();">&nbsp;電車&nbsp;&nbsp;&nbsp;</button>
                     </div>
                     <div class="flexspaceBetween">
@@ -118,15 +178,15 @@
                         <button id="checkAllListen" type="button" onclick="checkAllListenFunk();">自動受信</button>
                       </div>
                       <div class="flexContainer">
-                        <button type="button" id="mainLogButton" class="smartphone" class="defaultRed">下ログ表示</button>
-                        <button type="button" id="useOverlayChatButton" class="smartphone"
-                          class="right">画面チャット表示</button>
+                        <button type="button" id="mainLogButton" class="smartphone defaultRed">下ログ表示</button>
+                        <button type="button" id="useOverlayChatButton" class="smartphone right">画面チャット表示</button>
                       </div>
                       <div class="flexContainer">
                         <button type="button" class="right" id="wa_i">wa-i!</button>
                         <button type="button" class="right" id="clear">clear</button>
                         <button type="button" id="undo">↶↩↫↺</button>
                         <button type="button" id="redo">↷↪↬↻</button>
+
                       </div>
                       <button type="button" id="logNoiseButton">SE📢✖</button>
                       <button type="button" id="settingButton" onclick="settingClick();">⚙🔩🔧</button>
@@ -185,6 +245,29 @@
                     onchange="changeVideoInverseAndReverseOther()"><label
                     for="selectVideoInverseAndReverseOther">受信した動画の上下左右反転映像を表示する</label>
                 </div>
+              </div>
+              <br>
+              <div>
+                <input type="checkbox" id="showJoinLeaveMsg" onchange="changeShowJoinLeaveMsg()"><label for="showJoinLeaveMsg">入退出メッセージを表示する</label>
+              </div>
+              <div id="logHighlightWrap">
+                <input type="checkbox" id="useLogHighlight" onchange="changeLogHighlight()"><label for="useLogHighlight">ログのハイライト</label><span id="logHighlightSubs">（<span id="avatarHighlightSpan"><input type="checkbox" id="useAvatarHighlight" onchange="changeLogHighlight()"><label for="useAvatarHighlight">アバタークリック</label></span>、<span id="logItemHighlightSpan"><input type="checkbox" id="useLogItemHighlight" onchange="changeLogHighlight()"><label for="useLogItemHighlight">ログクリック</label></span>）</span>
+              </div>
+              <div>
+                <input type="checkbox" id="allowOthersOekaki" onchange="changeAllowOthersOekaki()"><label for="allowOthersOekaki">他の人からのアバター落書きを受け付ける</label>
+              </div>
+              <div>
+                <input type="checkbox" id="oekakiPerStateMode" onchange="changeOekakiPerStateMode()"><label for="oekakiPerStateMode">ラクガキをアニメーションごとに切り替える</label>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
+                <select id="ttsMode" onchange="changeTTSSetting()">
+                  <option value="ikebo">低音</option>
+                  <option value="normal">高音</option>
+                  <option value="pitch">超高音</option>
+                  <option value="soundfont">どうぶつの森風</option>
+                </select>
+                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
               </div>
             </div>
 
@@ -339,6 +422,11 @@
               <div class="flexEnd">
                 <p style="color: rgb(212, 4, 4);">デバックモード<input id="debugCheck" type="checkbox" name="debug"
                     value="true"></p>
+              </div>
+              <hr style="border-color: #4a90d9; margin: 8px 0;">
+              <div>
+                <p style="color: #4a90d9; font-size: 12px; margin: 4px 0;">― 編集用 ―</p>
+                <button type="button" id="floorPolyBtn">床Poly</button>
               </div>
             </div>
           </div>

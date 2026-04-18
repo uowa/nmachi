@@ -3,7 +3,8 @@
 /**
  * モジュールの読み込み
  */
-const app = require('../app');                     // Expressアプリ本体
+const appModule = require('../app');               // Expressアプリ本体
+const app = appModule;
 const debug = require('debug')('pmachi6:server'); // デバッグ用
 const fs = require('fs');                          // ファイル操作用
 const http = require('http');                      // HTTPサーバー用
@@ -45,11 +46,9 @@ function onError(error) {
     case 'EACCES':
       console.error(bind + ' は管理者権限が必要です');
       process.exit(1);
-      break;
     case 'EADDRINUSE':
       console.error(bind + ' は既に使用中です');
       process.exit(1);
-      break;
     default:
       throw error;
   }
@@ -115,9 +114,11 @@ const host = process.env.NODE_ENV === 'production' ? 'localhost'
 
 
 
-// サーバー起動
-server.listen(port, host, () => {
-  console.log(`Server running at http://${host}:${port}/`);
+// 部屋アトラスの生成を待ってからサーバー起動
+(appModule.atlasReady || Promise.resolve()).then(() => {
+  server.listen(port, host, () => {
+    console.log(`Server running at http://${host}:${port}/`);
+  });
 });
 server.on('error', onError);
 server.on('listening', onListening);
@@ -130,15 +131,14 @@ let socketID = {};
 let tokenNum = 0;
 
 let rooms = {};
-let roomNameList = ["エントランス", "うちゅー", "星1",];
+let roomNameList = ["エントランス", "草原", "うちゅー", "星1",];
 for (let i = 0; i < roomNameList.length; i++) {
   rooms[roomNameList[i]] = {
     drawHistory: [],
     usersToken: new Set(),
+    signs: [],
   };
 }
-
-const { setInterval } = require('timers');
 
 const crypto = require("crypto");
 
@@ -196,15 +196,18 @@ function time() {
 }
 
 
+// 部屋名→SEキーのマッピング。新しい部屋を追加するときはここに追記
+const ROOM_SE_KEY = {
+  "エントランス": "other",
+  "草原":         "other",
+  "うちゅー":    "outerSpace",
+  "星1":         "outerSpace",
+};
+
 let random;
 function volumeRandom(roomName, move) {
-  if (roomName === "エントランス") {//※部屋数が増えたら||で継ぎ足す
-    random = Math.floor(Math.random() * msgSE.other[move].length);
-  } else if (roomName === "うちゅー" || roomName === "星1") {
-    random = Math.floor(Math.random() * msgSE.outerSpace[move].length);
-  } else {
-    random = Math.floor(Math.random() * msgSE[roomName][move].length);
-  }
+  const key = ROOM_SE_KEY[roomName] || roomName;
+  random = Math.floor(Math.random() * msgSE[key][move].length);
   return random;
 }
 
@@ -277,7 +280,12 @@ io.on('connection', socket => {
       selfSleep: false,//ユーザー自身で設定した眠り状態
       sleepTimeNum: 0,
       drawHistory: [],
+      allowOthersOekaki: true,
       carryOver: false,//ログ残し状態かどうか
+      // ⭐ 乗車状況の初期化
+      ridingObject: null,
+      ridingOffsetX: 0,
+      ridingOffsetY: 0,
 
       // 一定時間操作がなければ自動でスリープ状態にする関数
       countSleep: () => {
@@ -310,19 +318,25 @@ io.on('connection', socket => {
 
   socket.on("joineRoom", data => {//部屋移動
     if (!checkUser()) return;
-    // IP取得方法の検証用
-    // console.log("userIP");
-    // console.log(socket.handshake.address);
-    // console.log(socket.handshake.address.address);
-    // console.log(socket.handshake.address.port);
-    // console.log(socket.handshake.headers['x-forwarded-for']);
-    // console.log(socket.request.headers['x-forwarded-for']);
-    // console.log(socket.request.connection.remoteAddress);
+
+    // 再接続時：指定部屋が現存しなければ失敗を通知
+    if (data.isReconnect && !roomNameList.includes(data.toRoom)) {
+      io.to(socket.id).emit("reconnectFailed");
+      return;
+    }
+
     let announce;
     let fromRoom = user[token].room;
     user[token].room = data.toRoom;
     rooms[data.toRoom].usersToken.add(token);//部屋のユーザーリストに追加
     user[token].carryOver = false;
+
+    if (user[token].ridingObject) {
+      // 乗車情報をリセット
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
 
 
     if (fromRoom === "loginRoom" && data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
@@ -351,6 +365,9 @@ io.on('connection', socket => {
       user[token].avatarAspect = data.avatarAspect;//アバターを設定
       user[token].avatarColor = data.avatarColor;//アバターの色を設定
       user[token].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
+      user[token].bubbleOffsetX = data.bubbleOffsetX || 0;
+      user[token].bubbleOffsetY = data.bubbleOffsetY || 0;
+      user[token].DIR = "S";
 
       //soundNumの決定
       user[token].soundNum = data.userName.length;
@@ -365,7 +382,17 @@ io.on('connection', socket => {
       //アバターお絵描き
       user[token].drawHistory = data.drawHistory;
 
-      announce = user[token].userName + "が" + data.toRoom + "に入室しました。" + time();
+      // 再接続時は保存座標を復元
+      if (data.reconnectAX !== undefined) {
+        user[token].AX = data.reconnectAX;
+        user[token].AY = data.reconnectAY;
+      }
+
+      if (data.reconnectAX !== undefined) {
+        announce = user[token].userName + "が" + data.toRoom + "に再入室しました。" + time();
+      } else {
+        announce = user[token].userName + "が" + data.toRoom + "に入室しました。" + time();
+      }
     } else {//loginRoomから以外の時
       //退室処理
       rooms[fromRoom].usersToken.delete(token);//元の部屋のユーザーリストから削除
@@ -386,27 +413,52 @@ io.on('connection', socket => {
         announce: announce,
         starColors: starColors,
       });
+    }
 
+    //入室スポット座標（ログイン・部屋移動どちらでも適用）
+    switch (data.toSpot) {
+      case "entranceCloud1":
+        user[token].AX = 500;
+        user[token].AY = 80;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "grassFromEntrance": // エントランスから草原へ（左下に出現）⭐ 座標要調整
+        user[token].AX = 100;
+        user[token].AY = 430;
+        user[token].DIR = "NE";
+        break;
+      case "entranceMainSpot": // エントランス（ログイン用）
+        user[token].AX = 415;
+        user[token].AY = 315;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "entranceTrainSpot": // エントランス（列車用）
+        user[token].AX = 550;
+        user[token].AY = 125;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "entranceFromMeadow":
+        user[token].AX = 650;
+        user[token].AY = 315;
+        user[token].DIR = "NW";
+        user[token].is2F = true;
+        break;
+      case "outerSpaceMainSpot":
+        user[token].AX = 200;
+        user[token].AY = 300;
+        user[token].DIR = "S";
+        break;
+      case "star1EntrySpot":
+        user[token].AX = 334;
+        user[token].AY = 450;
+        user[token].DIR = "N";
+        break;
+    }
 
-
-      //入室処理
-      switch (data.toSpot) {
-        case "entranceCloud1":
-          user[token].AX = 150;
-          user[token].AY = 130;
-          user[token].DIR = "S";
-          break;
-        case "outerSpaceMainSpot":
-          user[token].AX = 200;
-          user[token].AY = 300;
-          user[token].DIR = "S";
-          break;
-        case "star1EntrySpot":
-          user[token].AX = 334;
-          user[token].AY = 450;
-          user[token].DIR = "N";
-          break;
-      }
+    if (fromRoom !== "loginRoom") {
       user[token].msg = "";
 
       if (data.train) {
@@ -423,6 +475,10 @@ io.on('connection', socket => {
       socket.join(data.toRoom);
     }
 
+    // 期限切れの看板を除去してから送信
+    const now = Date.now();
+    rooms[data.toRoom].signs = rooms[data.toRoom].signs.filter(s => !s.endTime || s.endTime > now);
+
     io.to(socket.id).emit("joineRoom", {
       user: user,
       announce: announce,
@@ -431,6 +487,7 @@ io.on('connection', socket => {
       drawHistory: rooms[data.toRoom].drawHistory,
       random: random,
       starColors: starColors,
+      signs: rooms[data.toRoom].signs,
     });
 
     socket.broadcast.to(data.toRoom).emit("otherJoined", {
@@ -450,8 +507,20 @@ io.on('connection', socket => {
 
       fromRoom: fromRoom,
       toRoom: data.toRoom,
-      random: random
+      random: random,
+
+      ridingObject: user[token].ridingObject,
+      ridingOffsetX: user[token].ridingOffsetX,
+      ridingOffsetY: user[token].ridingOffsetY,
+
+      is2F: user[token].is2F ?? false,
+
+      bubbleOffsetX: user[token].bubbleOffsetX || 0,
+      bubbleOffsetY: user[token].bubbleOffsetY || 0,
+
+      allowOthersOekaki: user[token].allowOthersOekaki,
     });
+
     sleepTime();
   });
 
@@ -513,28 +582,96 @@ io.on('connection', socket => {
   //tapイベント
   socket.on('tapMap', data => {
     if (!checkUser()) return;
-    user[token].DIR = data.DIR;
-    user[token].AX = data.AX;
-    user[token].AY = data.AY;
-    user[token].sit = data.sit;
 
+    // 座標更新
+    user[token].AX = data.AX || user[token].AX;
+    user[token].AY = data.AY || user[token].AY;
+    user[token].DIR = data.DIR;
+    user[token].sit = data.sit !== undefined ? data.sit : user[token].sit;
+
+    // ⭐ 乗車状態の更新
+    if (data.moveType === "relative") {
+      // 相対移動の場合：乗車情報を保存
+      user[token].ridingObject = data.targetObject;
+      user[token].ridingOffsetX = data.relativeX;
+      user[token].ridingOffsetY = data.relativeY;
+    } else {
+      // 絶対移動の場合：乗車情報をクリア
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
+
+    // 他のクライアントに送信
     socket.broadcast.to(user[token].room).emit("tapMap", {
-      DIR: data.DIR,
       token: token,
-      AX: data.AX,
-      AY: data.AY,
-      sit: data.sit,
+      DIR: user[token].DIR,
+      AX: user[token].AX,
+      AY: user[token].AY,
+      sit: user[token].sit,
+      moveType: data.moveType || "absolute",
+      targetObject: data.targetObject,
+      relativeX: data.relativeX,
+      relativeY: data.relativeY
     });
-    sleepTime();
   });
 
 
-  //空から落ちた時の位置情報是正用
+  // 自分の物理状態（位置・乗車）をサーバーに通知 → 他クライアントへ配信
   socket.on('transformData', data => {
     if (!checkUser()) return;
+
+    // 境界制限
+    const AX = data.fromCloud ? data.AX : Math.max(0, Math.min(660, data.AX));
+    const AY = data.fromCloud ? data.AY : Math.max(0, Math.min(460, data.AY));
+
+    user[token].AX = AX;
+    user[token].AY = AY;
     user[token].DIR = data.DIR;
-    user[token].AX = data.AX;
-    user[token].AY = data.AY;
+    user[token].is2F = data.is2F ?? user[token].is2F ?? false;
+
+    if (data.ridingData) {
+      user[token].ridingObject = data.ridingData.objectName;
+      user[token].ridingOffsetX = data.ridingData.offsetX;
+      user[token].ridingOffsetY = data.ridingData.offsetY;
+    } else {
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
+
+    socket.broadcast.to(user[token].room).emit("transformOtherAvatarData", {
+      token,
+      AX,
+      AY,
+      DIR: data.DIR,
+      reason: data.reason,
+      isFalling: data.isFalling,
+      is2F: user[token].is2F ?? false,
+      ridingData: user[token].ridingObject ? {
+        objectName: user[token].ridingObject,
+        offsetX: user[token].ridingOffsetX,
+        offsetY: user[token].ridingOffsetY,
+      } : null,
+    });
+  });
+
+  // transformDataFromOther は廃止（他クライアントによる他人の位置報告は使わない）
+  socket.on('transformDataFromOther', () => {});
+
+
+  socket.on("sitChange", data => {//座る・立つ
+    if (!checkUser()) return;
+    user[token].DIR = data.DIR;
+    user[token].sit = data.sit;//座る・立つの状態を設定
+    socket.broadcast.to(user[token].room).emit("sitChange", {
+      token: token,
+      DIR: data.DIR,
+      sit: data.sit,
+      AX: data.AX,
+      AY: data.AY,
+    });
+    sleepTime();
   });
 
   socket.on("alphaChange", data => {//透明にする
@@ -637,6 +774,7 @@ io.on('connection', socket => {
   socket.on("oekaki", data => {
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
+      if (data.avatarOekakiToken && user[data.avatarOekakiToken]?.allowOthersOekaki === false) return;
       const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
 
       target.drawHistory.push(data.line);
@@ -653,6 +791,7 @@ io.on('connection', socket => {
   socket.on("oekakiClear", data => {
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
+      if (data.avatarOekakiToken && user[data.avatarOekakiToken]?.allowOthersOekaki === false) return;
       const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
       target.drawHistory = data.history;
       socket.broadcast.to(user[token].room).emit("oekakiClear", {
@@ -662,6 +801,15 @@ io.on('connection', socket => {
       });
       sleepTime();
     }
+  });
+
+  socket.on("setAllowOthersOekaki", data => {
+    if (!checkUser()) return;
+    user[token].allowOthersOekaki = !!data.allow;
+    socket.broadcast.to(user[token].room).emit("setAllowOthersOekaki", {
+      token: token,
+      allow: user[token].allowOthersOekaki,
+    });
   });
 
   socket.on("undo", data => {//お絵描きを戻す
@@ -734,11 +882,54 @@ io.on('connection', socket => {
 
 
   // 退出時
+  socket.on("createSign", data => {
+    if (!checkUser()) return;
+    const roomName = user[token].room;
+    const signId = token + "_" + Date.now();
+    const signData = {
+      id: signId,
+      x: data.x,
+      y: data.y,
+      cloudRelX: data.cloudRelX ?? null, // 雲の上の場合は雲相対X
+      boardText: data.boardText,
+      clickText: data.clickText,
+      durationMs: data.durationMs,
+      endTime: data.durationMs > 0 ? Date.now() + data.durationMs : 0,
+    };
+    rooms[roomName].signs.push(signData);
+    // 自分を含む部屋全員に送信
+    io.to(roomName).emit("createSign", signData);
+    // タイマーで自動削除
+    if (data.durationMs > 0) {
+      setTimeout(() => {
+        rooms[roomName].signs = rooms[roomName].signs.filter(s => s.id !== signId);
+        io.to(roomName).emit("removeSign", { id: signId });
+      }, data.durationMs);
+    }
+  });
+
+  socket.on("removeSign", data => {
+    if (!checkUser()) return;
+    const roomName = user[token].room;
+    rooms[roomName].signs = rooms[roomName].signs.filter(s => s.id !== data.id);
+    io.to(roomName).emit("removeSign", { id: data.id });
+  });
+
+  socket.on("bubbleOffset", data => {
+    if (!checkUser()) return;
+    user[token].bubbleOffsetX = data.offsetX;
+    user[token].bubbleOffsetY = data.offsetY;
+    socket.broadcast.to(user[token].room).emit("bubbleOffset", {
+      token: token,
+      offsetX: data.offsetX,
+      offsetY: data.offsetY,
+    });
+  });
+
   socket.on("disconnect", () => {
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
       rooms[user[token].room].usersToken.delete(token);//部屋のユーザーリストから削除
-
       io.to(user[token].room).emit("logout", {
         token: token,
         msg: user[token].userName + "が退出しました。" + time(),
@@ -753,14 +944,5 @@ io.on('connection', socket => {
 
     // close user connection
     console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
-
-    // --- emit ----//ユーザー全体に退出を伝えるための関数だが、部屋をまたがる通知を実装してないのでつかってない。
-    // emitMessageBroadcast('user disconnected', { id: token});
-
-    //  socket.roomname という変数があれば、その部屋からユーザーを強制的に退出させるためのコード
-    // --- leave room --socket.roomname = roomname;
-    // if (socket.roomname) {
-    //   socket.leave(socket.roomname);
-    // }
   });
 });
