@@ -107,9 +107,8 @@ const io = require('socket.io')(server);
 // Codespaces 上の場合 → process.env.CODESPACE が設定されているので 0.0.0.0 にバインド（外部アクセス可能）
 // それ以外（通常ローカル開発など） → localhost にバインド
 const isCodespaces = !!process.env.CODESPACES || !!process.env.CODESPACE_NAME;
-const host = process.env.NODE_ENV === 'production' ? 'localhost'
-  : isCodespaces ? '0.0.0.0'
-    : 'localhost';
+const isRender = !!process.env.RENDER;
+const host = (isRender || isCodespaces) ? '0.0.0.0' : 'localhost';
 
 
 
