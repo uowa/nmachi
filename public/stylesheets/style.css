@@ -317,6 +317,9 @@ li>a {
     -ms-transform-origin: 3px 0px;
     transform-origin: 3px 0px;
     line-height: 20px;
+    resize: none;
+    overflow: hidden;
+    box-sizing: border-box;
     /* IE11対策 */
 }
 
@@ -438,6 +441,13 @@ select::-ms-expand {
 
 #mainLog li {
     color: black;
+    overflow-wrap: break-word;
+}
+
+
+.msgPrefix {
+    display: inline;
+    white-space: nowrap;
 }
 
 li>pre {
@@ -488,7 +498,7 @@ li>a {
     font-size: 11px;
     color: rgb(114, 108, 153);
     width: 655px;
-    height: 200px;
+    min-height: 200px;
     background-color: rgba(221, 220, 228, 0.904);
     border: 2px solid black;
     border-top: transparent; /* 上辺が透明になる */

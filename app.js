@@ -3,16 +3,34 @@ var express = require('express');//expressモジュールを読みこむ
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var https = require('https');
 
 var indexRouter = require('./routes/index');//index.jsモジュールを読みこむ
 var pagesRouter = require("./routes/pages");//そのほかのページのモジュール用
 var polygonRouter = require('./routes/polygon'); //polygonモジュール
+var { roomRouter, objectRouter, atlasReady } = require('./routes/roomAtlas'); //部屋・オブジェクトアトラス生成
 
 var app = express();//expressモジュールを実体化
 
 
+// Google TTS プロキシ
+app.get('/tts', (req, res) => {
+  const text = req.query.q;
+  const slow = req.query.slow === '1' ? '1' : '0';
+  if (!text) return res.status(400).end();
+  const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&slow=' + slow + '&q=' + encodeURIComponent(text);
+  https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (gttsRes) => {
+    res.setHeader('Content-Type', 'audio/mpeg');
+    gttsRes.pipe(res);
+  }).on('error', () => res.status(500).end());
+});
+
 //polygon生成用
 app.use('/polygon', polygonRouter);
+//部屋背景アトラス（レイアウトJSON）
+app.use('/roomAtlas', roomRouter);
+//オブジェクトアトラス（レイアウトJSON）
+app.use('/objectAtlas', objectRouter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -64,6 +82,7 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+module.exports.atlasReady = atlasReady;
 
 
 
