@@ -1,0 +1,14 @@
+{
+    "git.path": "P:\\git-portable\\bin\\git.exe",
+    "terminal.integrated.profiles.windows": {
+        "Portable Git Bash": {
+            "path": "P:\\git-portable\\bin\\bash.exe",
+            "icon": "terminal-bash"
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "Portable Git Bash",
+    "terminal.integrated.env.windows": {
+        "CLAUDE_CODE_GIT_BASH_PATH": "P:\\git-portable\\bin\\bash.exe",
+        "PATH": "P:\\git-portable\\bin;P:\\vscode\\data\\extensions\\anthropic.claude-code-2.1.128-win32-x64\\resources\\native-binary;${env:PATH}"
+    }
+}

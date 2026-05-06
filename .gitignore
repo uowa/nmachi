@@ -1,0 +1,7 @@
+node_modules/
+public/zip/
+.vs/
+Microsoft/
+.claude/
+.git_pack_backup/
+db_broken

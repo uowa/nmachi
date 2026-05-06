@@ -1,0 +1,37 @@
+body {
+    font-family: "kosugiMaru", "游ゴシック", "Yu Gothic", "MS ゴシック", 'メイリオ', 'Meiryo', "monospace";
+    color: rgb(255, 255, 255);
+    /* font-size: 14px; */
+    font-family: "ＭＳ ゴシック";
+    margin: 0 0 0 2px;
+    background-color: rgb(10, 10, 12);
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
+    /* overflow: hidden; */
+}
+
+
+h1 {
+    font-size: 17px;
+}
+
+
+p {
+    font-size: 11px;
+}
+
+.yellow{
+    color: yellow;
+}
+
+.border{
+    border: solid 1px;
+}
+hr{
+    width: 100%;
+}
+img{
+    margin: 10px;
+    width: 800px;
+}
