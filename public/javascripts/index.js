@@ -79,6 +79,7 @@ let mugenRoom;
 let gateTex;
 let mugenGateRooms = [null, null, null, null];
 let mugenGateSprites = [];
+let _mugenGateBeingEntered = -1;
 let objMap = {};
 
 const gomaneco = {};
@@ -333,6 +334,7 @@ let warpZoneGfx = null;
 // DB部屋画像関連
 let dbRoomImages = [];
 const dbImageSprites = [];
+let _dbImageZIndexTicker = null;
 
 // カスタムコード sandbox関連
 let customCodeFrame = null;
@@ -342,6 +344,19 @@ let warpPlaceStart = null;
 let warpPlacePreview = null;
 let warpEditPassword = '';
 let warpEditRoomId = '';
+let _warpPlaceShape = 'rect';
+let _warpDragMode = false;
+const _warpEditOverlays = [];
+let _warpDragging = null;
+let _prevRoomSpot = '';
+const _hiddenWarpIds = new Set();
+let dbScaleZones = [];
+let _scaleZoneGfx = null;
+let _roomAvatarScale = 1.0;
+let _scaleZonePlaceMode = false;
+let _scaleZonePlaceStart = null;
+let _scaleZonePlacePreview = null;
+let _scaleZoneEditRoomId = '';
 
 // ポリゴン内判定（Ray casting法）
 // polygon は [[x0,y0],[x1,y1],...] の配列
@@ -400,7 +415,6 @@ function checkObjectWarpPoints(avatar) {
 
   // DBワープゾーンの判定
   for (const wz of dbWarpZones) {
-    if (!wz.target_room_id) continue;
     const avaPos = avatar.container.getGlobalPosition();
     let isInWz = false;
     if (wz.shape === 'circle' || wz.shape === 'ellipse') {
@@ -418,8 +432,30 @@ function checkObjectWarpPoints(avatar) {
       );
     }
     if (isInWz) {
-      const sysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
-      goSelfToRoomSpot(sysSpot[wz.target_room_id] || ('userRoom:' + wz.target_room_id));
+      if (wz.warp_type === 'back') {
+        goSelfToRoomSpot(_prevRoomSpot || 'entranceMainSpot');
+        return true;
+      }
+      if (wz.target_room_id) {
+        const sysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
+        _prevRoomSpot = _roomToSpot(room.name);
+        goSelfToRoomSpot(sysSpot[wz.target_room_id] || ('userRoom:' + wz.target_room_id));
+        return true;
+      }
+      // 未接続のnormalワープ → 新しい部屋を作る
+      _warpPortalCreateRoom();
+      return true;
+    }
+  }
+
+  // 画像ワープの判定
+  for (const img of dbRoomImages) {
+    if (!img.is_warp) continue;
+    const avaPos = avatar.container.getGlobalPosition();
+    const ix = img.x ?? 0, iy = img.y ?? 0;
+    const iw = img.width ?? 0, ih = img.height ?? iw;
+    if (avaPos.x >= ix && avaPos.x <= ix + iw && avaPos.y >= iy && avaPos.y <= iy + ih) {
+      _warpPortalCreateRoom();
       return true;
     }
   }
@@ -446,6 +482,7 @@ function drawWarpZones() {
   warpZoneGfx.clear();
   if (room && room.container) room.container.addChild(warpZoneGfx);
   dbWarpZones.forEach(wz => {
+    if (_hiddenWarpIds.has(wz.id)) return;
     // back=黄緑、接続済み=青白、未接続=オレンジ
     const color = wz.warp_type === 'back' ? 0x88ff44 : (wz.target_room_id ? 0x00ccff : 0xff8800);
     warpZoneGfx.lineStyle(2, color, 0.8);
@@ -467,6 +504,111 @@ function clearWarpZones() {
     warpZoneGfx.clear();
   }
   dbWarpZones = [];
+  _hiddenWarpIds.clear();
+}
+
+async function loadDbScaleZones(roomId) {
+  clearScaleZones();
+  try {
+    const [zonesRes, roomRes] = await Promise.all([
+      fetch('/api/rooms/' + encodeURIComponent(roomId) + '/scale-zones'),
+      fetch('/api/rooms/' + encodeURIComponent(roomId)),
+    ]);
+    if (zonesRes.ok) dbScaleZones = await zonesRes.json();
+    if (roomRes.ok) {
+      const rd = await roomRes.json();
+      _roomAvatarScale = (rd.avatar_scale != null) ? rd.avatar_scale : 1.0;
+    }
+    drawScaleZones();
+  } catch (_e) {}
+}
+
+function drawScaleZones() {
+  const wasVisible = _scaleZoneGfx ? _scaleZoneGfx.visible : false;
+  if (!_scaleZoneGfx) {
+    _scaleZoneGfx = new PIXI.Graphics();
+    _scaleZoneGfx.zIndex = 998;
+  }
+  _scaleZoneGfx.visible = wasVisible;
+  _scaleZoneGfx.clear();
+  if (room && room.container) room.container.addChild(_scaleZoneGfx);
+  dbScaleZones.forEach(z => {
+    _scaleZoneGfx.lineStyle(1, 0xbb44ff, 0.6);
+    _scaleZoneGfx.beginFill(0xbb44ff, 0.08);
+    _scaleZoneGfx.drawRect(z.x, z.y, z.width, z.height);
+    _scaleZoneGfx.endFill();
+  });
+}
+
+function clearScaleZones() {
+  if (_scaleZoneGfx) {
+    if (_scaleZoneGfx.parent) _scaleZoneGfx.parent.removeChild(_scaleZoneGfx);
+    _scaleZoneGfx.clear();
+  }
+  dbScaleZones = [];
+  _roomAvatarScale = 1.0;
+}
+
+function updateScaleZoneList() {
+  const list = document.getElementById('scaleZoneList');
+  if (!list) return;
+  list.innerHTML = '';
+  dbScaleZones.forEach(z => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:4px;align-items:center;margin:3px 0;font-size:11px;padding:3px;border:1px solid #442266;border-radius:3px;';
+
+    const info = document.createElement('span');
+    info.style.cssText = 'color:#cc88ff;white-space:nowrap;';
+    info.textContent = `#${z.id} (${Math.round(z.x)},${Math.round(z.y)}) ${Math.round(z.width)}×${Math.round(z.height)}`;
+    row.appendChild(info);
+
+    const scaleSlider = document.createElement('input');
+    scaleSlider.type = 'range';
+    scaleSlider.min = '0.1'; scaleSlider.max = '3'; scaleSlider.step = '0.05';
+    scaleSlider.value = z.scale;
+    scaleSlider.style.cssText = 'flex:1;min-width:60px;';
+
+    const scaleNum = document.createElement('input');
+    scaleNum.type = 'number';
+    scaleNum.min = '0.01'; scaleNum.max = '10'; scaleNum.step = '0.05';
+    scaleNum.value = z.scale;
+    scaleNum.style.cssText = 'width:46px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;font-size:10px;padding:1px 3px;';
+
+    const syncScale = (s) => {
+      z.scale = s;
+      scaleSlider.value = s;
+      scaleNum.value = s;
+    };
+    const saveScale = async () => {
+      const s = Math.max(0.01, Math.min(10, parseFloat(scaleNum.value) || 1));
+      syncScale(s);
+      await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId) + '/scale-zones/' + z.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+        body: JSON.stringify({ scale: s }),
+      });
+    };
+    scaleSlider.addEventListener('input', () => { syncScale(parseFloat(scaleSlider.value)); });
+    scaleSlider.addEventListener('change', saveScale);
+    scaleNum.addEventListener('change', saveScale);
+    row.appendChild(scaleSlider);
+    row.appendChild(scaleNum);
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '×';
+    delBtn.style.cssText = 'color:#fff;border:none;cursor:pointer;padding:1px 5px;font-size:11px;background:#600;';
+    delBtn.addEventListener('click', async () => {
+      await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId) + '/scale-zones/' + z.id, {
+        method: 'DELETE',
+        headers: { 'X-Edit-Password': warpEditPassword },
+      });
+      await loadDbScaleZones(_scaleZoneEditRoomId);
+      updateScaleZoneList();
+    });
+    row.appendChild(delBtn);
+
+    list.appendChild(row);
+  });
 }
 
 // むげんのGATE
@@ -492,27 +634,33 @@ function updateMugenGateTints() {
 }
 
 function onMugenGateClick(gateIndex) {
+  if (gateIndex === 0) {
+    outputChatMsg('この部屋の編集には特別な権限が必要です。', 'blue');
+    return;
+  }
   if (mugenGateRooms[gateIndex]) {
+    _mugenGateBeingEntered = gateIndex;
     goSelfToRoomSpot('userRoom:' + mugenGateRooms[gateIndex]);
   } else {
     showGateCreateDialog(gateIndex);
   }
 }
 
-async function showGateCreateDialog(gateIndex) {
+async function showGateCreateDialog(gateIndex, prevRoom) {
   _newRoomGateIndex = gateIndex;
-  _prevRoomName = room ? room.name : 'むげん';
+  _prevRoomName = prevRoom !== undefined ? prevRoom : (room ? room.name : 'むげん');
   try {
     const res = await fetch('/api/mugen/gates/' + gateIndex, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: '新しい部屋', creatorToken: myToken })
+      body: JSON.stringify({ name: '', creatorToken: myToken })
     });
     const data = await res.json();
     if (!res.ok) {
       if (res.status === 409) {
         mugenGateRooms[gateIndex] = data.room_id;
         updateMugenGateTints();
+        _mugenGateBeingEntered = gateIndex;
         goSelfToRoomSpot('userRoom:' + data.room_id);
       } else {
         alert(data.error || '部屋の作成に失敗しました');
@@ -521,9 +669,36 @@ async function showGateCreateDialog(gateIndex) {
     }
     _isNewRoomMode = true;
     _pendingOpenEditPanel = true;
-    _pendingRoomName = data.name;
+    _pendingRoomName = '';
     mugenGateRooms[gateIndex] = data.id;
     updateMugenGateTints();
+    goSelfToRoomSpot('userRoom:' + data.id);
+  } catch (_e) {
+    alert('通信エラーが発生しました');
+  }
+}
+
+function _roomToSpot(roomName) {
+  const m = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
+  return m[roomName] || ('userRoom:' + roomName);
+}
+
+async function _warpPortalCreateRoom() {
+  if (document.getElementById('roomEditPanel').style.display !== 'none') return;
+  const name = prompt('部屋名を入力してください', '新しい部屋');
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), creatorToken: myToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || '部屋の作成に失敗しました'); return; }
+    _isNewRoomMode = true;
+    _pendingOpenEditPanel = true;
+    _pendingRoomName = data.name;
+    _prevRoomSpot = _roomToSpot(room.name);
     goSelfToRoomSpot('userRoom:' + data.id);
   } catch (_e) {
     alert('通信エラーが発生しました');
@@ -550,13 +725,30 @@ function drawDbImages() {
     if (img.y != null) sprite.y = img.y;
     if (img.width != null) sprite.width = img.width;
     if (img.height != null) sprite.height = img.height;
-    sprite.zIndex = img.type === 'background' ? -100 : (img.type === 'object' ? (img.y || 0) : 0);
+    if (img.type === 'background') {
+      sprite.zIndex = -100;
+    } else if (img.type === 'object') {
+      sprite.zIndex = sprite.y + sprite.height;
+    } else {
+      sprite.zIndex = 0;
+    }
     room.container.addChild(sprite);
     dbImageSprites.push(sprite);
   });
+
+  if (_dbImageZIndexTicker) { app.ticker.remove(_dbImageZIndexTicker); }
+  _dbImageZIndexTicker = () => {
+    for (let i = 0; i < dbImageSprites.length; i++) {
+      if (dbRoomImages[i]?.type === 'object') {
+        dbImageSprites[i].zIndex = dbImageSprites[i].y + dbImageSprites[i].height;
+      }
+    }
+  };
+  app.ticker.add(_dbImageZIndexTicker);
 }
 
 function clearDbImages() {
+  if (_dbImageZIndexTicker) { app.ticker.remove(_dbImageZIndexTicker); _dbImageZIndexTicker = null; }
   dbImageSprites.forEach(s => { if (s.parent) s.parent.removeChild(s); });
   dbImageSprites.length = 0;
   dbRoomImages = [];
@@ -606,6 +798,18 @@ window.addEventListener('message', e => {
 });
 
 // 配信機能
+const QUALITY_CONSTRAINTS = {
+  max:    { width: { ideal: 1280 }, height: { ideal: 720 },  frameRate: { ideal: 30 } },
+  high:   { width: { ideal: 640 },  height: { ideal: 480 },  frameRate: { ideal: 30 } },
+  normal: { width: { ideal: 320 },  height: { ideal: 240 },  frameRate: { ideal: 15 } },
+  low:    { width: { ideal: 160 },  height: { ideal: 120 },  frameRate: { ideal: 10 } },
+};
+const QUALITY_BITRATE = { max: undefined, high: 1000000, normal: 400000, low: 100000 };
+const QUALITY_ORDER = ['low', 'normal', 'high', 'max'];
+let streamQualityLevel = localStorage.getItem('streamQualityLevel') || 'max';
+const receiverQualitySelect = {};
+const senderQuality = {};
+
 let localStream = null;//自分のとこのメディア情報
 let localVideoTrack;//自分のとこのメディア情報
 let localAudioTrack;//自分のとこのメディア情報
@@ -1608,6 +1812,7 @@ class Avatar {
     this.sleep = false;
     this.roomIn++;//確認
     this.sprites = [];
+    this._avatarRoomScale = 1.0;
 
     //画像を追加
     this.avatarAspect = avatarAspect;//アバターを出力
@@ -2677,6 +2882,26 @@ class Avatar {
         this.lastScaleY = currentY;
       }
     }
+
+    if (!roomPhysics?.perspectiveScale) {
+      if (_roomAvatarScale !== 1.0 || dbScaleZones.length > 0) {
+        let tgt = _roomAvatarScale;
+        const ax = this.container.x, ay = this.container.y;
+        for (const z of dbScaleZones) {
+          if (ax >= z.x && ax <= z.x + z.width && ay >= z.y && ay <= z.y + z.height) {
+            tgt = z.scale; break;
+          }
+        }
+        const diff = tgt - this._avatarRoomScale;
+        if (Math.abs(diff) > 0.001) {
+          this._avatarRoomScale += diff * 0.15;
+          this.container.scale.set(this._avatarRoomScale);
+        }
+      } else if (this._avatarRoomScale !== 1.0) {
+        this._avatarRoomScale = 1.0;
+        this.container.scale.set(1.0);
+      }
+    }
   }
 }
 
@@ -3038,7 +3263,7 @@ class Room extends GameObject {
         }
         break;
 
-      default://loginRoom
+      case 'loginRoom': {
         const lg = new PIXI.Graphics();
         lg.beginFill(0x4C4C52);
         lg.drawRect(0, 0, 660, 480);
@@ -3193,6 +3418,7 @@ class Room extends GameObject {
         tickerListeners.push(loginButtonFlicker);
         app.ticker.add(loginButtonFlicker);
         break;
+      }
     }
     //部屋でのポインター処理
     this.container.on('pointerdown', e => {
@@ -3204,6 +3430,16 @@ class Room extends GameObject {
           warpPlacePreview = new PIXI.Graphics();
           warpPlacePreview.zIndex = 1000;
           this.container.addChild(warpPlacePreview);
+        }
+        return;
+      }
+      if (e.button === 0 && _scaleZonePlaceMode) {
+        const pos = e.data.getLocalPosition(this.container);
+        _scaleZonePlaceStart = { x: pos.x, y: pos.y };
+        if (!_scaleZonePlacePreview) {
+          _scaleZonePlacePreview = new PIXI.Graphics();
+          _scaleZonePlacePreview.zIndex = 1000;
+          this.container.addChild(_scaleZonePlacePreview);
         }
         return;
       }
@@ -3239,6 +3475,7 @@ class Room extends GameObject {
     this.container.on('pointerdown', e => {
       if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
       if (floorPolyMode) return;
+      if (_imgDoodleMode) return;
       if (isPointerDown && (isDownCtrl || clickedWa_iButtun)) {
         target = avatarOekakiToken ? avaP[avatarOekakiToken].container : this.container;
         target.addChild(this.drawingGraphics);
@@ -3293,10 +3530,30 @@ class Room extends GameObject {
         warpPlacePreview.beginFill(0x00ffcc, 0.2);
         const rx = Math.min(warpPlaceStart.x, pos.x);
         const ry = Math.min(warpPlaceStart.y, pos.y);
-        const rw = Math.abs(pos.x - warpPlaceStart.x);
-        const rh = Math.abs(pos.y - warpPlaceStart.y);
-        warpPlacePreview.drawRect(rx, ry, rw, rh);
+        const rw = Math.min(250, Math.abs(pos.x - warpPlaceStart.x));
+        const rh = Math.min(250, Math.abs(pos.y - warpPlaceStart.y));
+        if (_warpPlaceShape === 'circle') {
+          const r = Math.min(rw, rh) / 2;
+          warpPlacePreview.drawCircle(rx + r, ry + r, r);
+        } else if (_warpPlaceShape === 'ellipse') {
+          warpPlacePreview.drawEllipse(rx + rw / 2, ry + rh / 2, rw / 2, rh / 2);
+        } else {
+          warpPlacePreview.drawRect(rx, ry, rw, rh);
+        }
         warpPlacePreview.endFill();
+        return;
+      }
+      if (_scaleZonePlaceMode && _scaleZonePlaceStart && _scaleZonePlacePreview) {
+        const pos = e.data.getLocalPosition(this.container);
+        _scaleZonePlacePreview.clear();
+        _scaleZonePlacePreview.lineStyle(1, 0xbb44ff, 0.9);
+        _scaleZonePlacePreview.beginFill(0xbb44ff, 0.2);
+        const rx = Math.min(_scaleZonePlaceStart.x, pos.x);
+        const ry = Math.min(_scaleZonePlaceStart.y, pos.y);
+        const rw = Math.max(5, Math.abs(pos.x - _scaleZonePlaceStart.x));
+        const rh = Math.max(5, Math.abs(pos.y - _scaleZonePlaceStart.y));
+        _scaleZonePlacePreview.drawRect(rx, ry, rw, rh);
+        _scaleZonePlacePreview.endFill();
         return;
       }
       if (isPointerDown && (isDownCtrl || clickedWa_iButtun)) {
@@ -3326,7 +3583,25 @@ class Room extends GameObject {
         const h = Math.abs(pos.y - warpPlaceStart.y);
         warpPlaceStart = null;
         if (warpPlacePreview) { warpPlacePreview.clear(); }
-        if (w > 5 && h > 5) saveWarpZone(x, y, w, h);
+        if (w > 0 || h > 0) {
+          if (_warpPlaceShape === 'circle') {
+            const size = Math.min(250, Math.max(5, Math.min(w, h)));
+            saveWarpZone(x, y, size, size);
+          } else {
+            saveWarpZone(x, y, Math.min(250, Math.max(5, w)), Math.min(250, Math.max(5, h)));
+          }
+        }
+        return;
+      }
+      if (_scaleZonePlaceMode && _scaleZonePlaceStart) {
+        const pos = e.data.getLocalPosition(this.container);
+        const x = Math.min(_scaleZonePlaceStart.x, pos.x);
+        const y = Math.min(_scaleZonePlaceStart.y, pos.y);
+        const w = Math.max(5, Math.abs(pos.x - _scaleZonePlaceStart.x));
+        const h = Math.max(5, Math.abs(pos.y - _scaleZonePlaceStart.y));
+        _scaleZonePlaceStart = null;
+        if (_scaleZonePlacePreview) _scaleZonePlacePreview.clear();
+        saveScaleZone(x, y, w, h, 1.0);
         return;
       }
       isPointerDown = false;
@@ -4154,7 +4429,7 @@ function goSelfToRoomSpot(toSpot, train) {
         } else {
           if (!(objMap[targetRoomId] instanceof Room)) {
             const bg = new PIXI.Graphics();
-            bg.beginFill(0x111122);
+            bg.beginFill(parseColorCode(localStorage.getItem('colorCode')) || 0xffffff);
             bg.drawRect(0, 0, 660, 460);
             bg.endFill();
             const floorGfx = new PIXI.Graphics();
@@ -4204,6 +4479,126 @@ function stopWarpPlaceMode() {
   warpPlaceStart = null;
 }
 
+function _redrawWarpEditOverlay(ov) {
+  const wz = ov.warpData;
+  const hs = 12;
+  const h = wz.height ?? wz.width;
+  ov.hitGfx.clear();
+  ov.hitGfx.lineStyle(2, 0x00ffcc, 0.9);
+  ov.hitGfx.beginFill(0x00ffcc, 0.05);
+  if (wz.shape === 'circle' || wz.shape === 'ellipse') {
+    ov.hitGfx.drawEllipse(wz.x + wz.width / 2, wz.y + h / 2, wz.width / 2, h / 2);
+  } else {
+    ov.hitGfx.drawRect(wz.x, wz.y, wz.width, h);
+  }
+  ov.hitGfx.endFill();
+  ov.handleGfx.clear();
+  ov.handleGfx.beginFill(0x00ffcc);
+  ov.handleGfx.drawRect(wz.x + wz.width - hs, wz.y + h - hs, hs, hs);
+  ov.handleGfx.endFill();
+}
+
+function _enableWarpEditMode() {
+  if (!room) return;
+  _disableWarpEditMode();
+  _warpDragMode = true;
+  app.stage.eventMode = 'static';
+  dbWarpZones.forEach((wz, idx) => {
+    if (wz.warp_type === 'back') return;
+    const hitGfx = new PIXI.Graphics();
+    hitGfx.zIndex = 1002;
+    hitGfx.eventMode = 'static';
+    hitGfx.cursor = 'grab';
+    room.container.addChild(hitGfx);
+    const handleGfx = new PIXI.Graphics();
+    handleGfx.zIndex = 1003;
+    handleGfx.eventMode = 'static';
+    handleGfx.cursor = 'se-resize';
+    room.container.addChild(handleGfx);
+    const ov = { warpData: wz, hitGfx, handleGfx };
+    _warpEditOverlays.push(ov);
+    _redrawWarpEditOverlay(ov);
+    const ovIdx = _warpEditOverlays.length - 1;
+    hitGfx.on('pointerdown', e => {
+      if (!_warpDragMode || _warpDragging) return;
+      const p = room.container.toLocal(e.global);
+      const hs = 12;
+      const h = wz.height ?? wz.width;
+      if (p.x >= wz.x + wz.width - hs && p.y >= wz.y + h - hs) return;
+      e.stopPropagation();
+      _warpDragging = { idx: ovIdx, type: 'move', startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
+      hitGfx.cursor = 'grabbing';
+    });
+    handleGfx.on('pointerdown', e => {
+      if (!_warpDragMode || _warpDragging) return;
+      e.stopPropagation();
+      const p = room.container.toLocal(e.global);
+      const h = wz.height ?? wz.width;
+      _warpDragging = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
+    });
+  });
+  app.stage.on('pointermove', _onWarpDragMove);
+  app.stage.on('pointerup', _onWarpDragEnd);
+  app.stage.on('pointerupoutside', _onWarpDragEnd);
+}
+
+function _disableWarpEditMode() {
+  _warpDragMode = false;
+  _warpDragging = null;
+  if (typeof app !== 'undefined') {
+    app.stage.off('pointermove', _onWarpDragMove);
+    app.stage.off('pointerup', _onWarpDragEnd);
+    app.stage.off('pointerupoutside', _onWarpDragEnd);
+  }
+  _warpEditOverlays.forEach(ov => {
+    if (ov.hitGfx.parent) ov.hitGfx.parent.removeChild(ov.hitGfx);
+    if (ov.handleGfx.parent) ov.handleGfx.parent.removeChild(ov.handleGfx);
+    ov.hitGfx.destroy();
+    ov.handleGfx.destroy();
+  });
+  _warpEditOverlays.length = 0;
+}
+
+function _onWarpDragMove(e) {
+  if (!_warpDragging || !room) return;
+  const ov = _warpEditOverlays[_warpDragging.idx];
+  if (!ov) return;
+  const p = room.container.toLocal(e.global);
+  const dx = p.x - _warpDragging.startX, dy = p.y - _warpDragging.startY;
+  if (_warpDragging.type === 'move') {
+    ov.warpData.x = _warpDragging.origX + dx;
+    ov.warpData.y = _warpDragging.origY + dy;
+  } else {
+    ov.warpData.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
+    ov.warpData.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+  }
+  _redrawWarpEditOverlay(ov);
+  drawWarpZones();
+}
+
+async function _onWarpDragEnd() {
+  if (!_warpDragging) return;
+  const ov = _warpEditOverlays[_warpDragging.idx];
+  _warpDragging = null;
+  if (!ov) return;
+  ov.hitGfx.cursor = 'grab';
+  const wz = ov.warpData;
+  const x = Math.round(wz.x), y = Math.round(wz.y);
+  const w = Math.round(wz.width), h = Math.round(wz.height ?? wz.width);
+  wz.x = x; wz.y = y; wz.width = w; wz.height = h;
+  _redrawWarpEditOverlay(ov);
+  drawWarpZones();
+  const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+    body: JSON.stringify({ x, y, width: w, height: h }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || '保存失敗');
+  }
+}
+
 async function saveWarpZone(x, y, w, h) {
   if (!warpEditPassword || !warpEditRoomId) {
     alert('部屋IDとパスワードが必要です');
@@ -4212,7 +4607,7 @@ async function saveWarpZone(x, y, w, h) {
   const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
-    body: JSON.stringify({ x, y, width: Math.abs(w), height: Math.abs(h) }),
+    body: JSON.stringify({ x, y, width: Math.abs(w), height: Math.abs(h), shape: _warpPlaceShape }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -4221,6 +4616,32 @@ async function saveWarpZone(x, y, w, h) {
   }
   await loadDbWarpZones(warpEditRoomId);
   updateWarpList();
+  stopWarpPlaceMode();
+  document.getElementById('warpPlaceStopBtn').style.display = 'none';
+  document.getElementById('warpPlaceBtn').style.display = '';
+  // _enableWarpEditMode();
+}
+
+async function saveScaleZone(x, y, w, h, scale) {
+  if (!_scaleZoneEditRoomId) return;
+  const res = await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId) + '/scale-zones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+    body: JSON.stringify({ x, y, width: w, height: h, scale }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const errEl = document.getElementById('scaleZoneErr');
+    if (errEl) errEl.textContent = err.error || '保存失敗';
+    return;
+  }
+  _scaleZonePlaceMode = false;
+  _scaleZonePlaceStart = null;
+  if (_scaleZonePlacePreview) _scaleZonePlacePreview.clear();
+  document.getElementById('scaleZonePlaceStopBtn').style.display = 'none';
+  document.getElementById('scaleZonePlaceBtn').style.display = '';
+  await loadDbScaleZones(_scaleZoneEditRoomId);
+  updateScaleZoneList();
 }
 
 function updateWarpList() {
@@ -4234,11 +4655,6 @@ function updateWarpList() {
     const isBack = wz.warp_type === 'back';
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:4px;align-items:center;margin:3px 0;font-size:11px;flex-wrap:wrap;padding:3px;border:1px solid ' + (isBack ? '#88ff44' : '#223366') + ';border-radius:3px;';
-
-    const info = document.createElement('span');
-    info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:80px;';
-    info.textContent = (isBack ? '↩戻る ' : '') + `#${wz.id} (${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
-    row.appendChild(info);
 
     // 形状セレクタ
     const shapeSel = document.createElement('select');
@@ -4260,30 +4676,26 @@ function updateWarpList() {
     });
     row.appendChild(shapeSel);
 
-    // 接続先セレクタ（back ワープ以外）
-    if (!isBack) {
-      const sel = document.createElement('select');
-      sel.style.cssText = 'background:#0d0d1a;color:#fff;border:1px solid #4a90d9;font-size:10px;max-width:90px;';
-      const opt0 = document.createElement('option');
-      opt0.value = ''; opt0.textContent = '未接続';
-      sel.appendChild(opt0);
-      (window._allRooms || []).forEach(r => {
-        const o = document.createElement('option');
-        o.value = r.id; o.textContent = r.name;
-        if (r.id === wz.target_room_id) o.selected = true;
-        sel.appendChild(o);
-      });
-      sel.addEventListener('change', async () => {
-        await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
-          body: JSON.stringify({ target_room_id: sel.value || null }),
-        });
-        await loadDbWarpZones(warpEditRoomId);
-        updateWarpList();
-      });
-      row.appendChild(sel);
-    }
+    // 表示/非表示トグル
+    const visBtn = document.createElement('button');
+    const isHidden = _hiddenWarpIds.has(wz.id);
+    visBtn.textContent = isHidden ? '表示' : '非表示';
+    visBtn.style.cssText = 'font-size:10px;padding:1px 5px;cursor:pointer;background:' + (isHidden ? '#333' : '#0d0d1a') + ';color:' + (isHidden ? '#888' : '#fff') + ';border:1px solid #4a90d9;';
+    visBtn.addEventListener('click', () => {
+      if (_hiddenWarpIds.has(wz.id)) {
+        _hiddenWarpIds.delete(wz.id);
+        visBtn.textContent = '非表示';
+        visBtn.style.background = '#0d0d1a';
+        visBtn.style.color = '#fff';
+      } else {
+        _hiddenWarpIds.add(wz.id);
+        visBtn.textContent = '表示';
+        visBtn.style.background = '#333';
+        visBtn.style.color = '#888';
+      }
+      drawWarpZones();
+    });
+    row.appendChild(visBtn);
 
     // 削除ボタン（back ワープは無効）
     const delBtn = document.createElement('button');
@@ -4306,12 +4718,19 @@ function updateWarpList() {
       updateWarpList();
     });
     row.appendChild(delBtn);
+
+    const info = document.createElement('span');
+    info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:60px;';
+    info.textContent = (isBack ? '↩戻る ' : '') + `#${wz.id} (${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
+    row.appendChild(info);
+
     list.appendChild(row);
   });
 }
 
 //自分が入室時の処理
 socket.on("joineRoom", data => {
+  _mugenGateBeingEntered = -1;
   // 再接続成功
   if (isReconnecting) {
     isReconnecting = false;
@@ -4471,13 +4890,14 @@ socket.on("joineRoom", data => {
   if (data.toRoom !== "loginRoom") {
     loadDbWarpZones(data.toRoom);
     loadDbImages(data.toRoom);
+    loadDbScaleZones(data.toRoom);
     runCustomCode(data.toRoom);
     if (data.toRoom === "むげん") loadMugenGates();
   } else {
     clearCustomCode();
   }
 
-  if (_pendingOpenEditPanel) {
+  if (_pendingOpenEditPanel && data.toRoom !== 'loginRoom') {
     _pendingOpenEditPanel = false;
     setTimeout(() => _openRoomEditPanelDirect(data.toRoom, ''), 300);
   }
@@ -4672,6 +5092,20 @@ socket.on("reconnectFailed", () => {
   outputChatMsg("再接続に失敗しました。いた部屋がなくなったかサーバーが更新されました。ブラウザを更新してください。", "blue");
 });
 
+socket.on("roomNotFound", () => {
+  if (_mugenGateBeingEntered !== -1) {
+    const gateIdx = _mugenGateBeingEntered;
+    _mugenGateBeingEntered = -1;
+    mugenGateRooms[gateIdx] = null;
+    updateMugenGateTints();
+    goSelfToRoomSpot('mugenMainSpot');
+    showGateCreateDialog(gateIdx, 'むげん');
+    return;
+  }
+  outputChatMsg("その部屋は存在しません。エントランスに戻ります。", "blue");
+  goSelfToRoomSpot('entranceMainSpot');
+});
+
 //大黒柱の頂点を配置
 let daikokubasiraBlock = new PIXI.Graphics();//ブロックを置く宣言
 daikokubasiraBlock.beginFill(0xf0f8ff);
@@ -4775,6 +5209,7 @@ function stageMove(value) {
   value.on('pointerdown', e => {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (floorPolyMode) return;
+    if (_imgDoodleMode) return;
 
     const targetX = e.data.getLocalPosition(value).x;
     const targetY = e.data.getLocalPosition(value).y;
@@ -5575,6 +6010,15 @@ myCanvas.addEventListener('click', e => {
 // ===== 部屋編集パネル =====
 let imgEditRoomId = '';
 let imgEditPassword = '';
+let _imgDragMode = false;
+const _imgOverlays = []; // {imgData, sprite, borderGfx, handleGfx}
+let _imgDragging = null; // {idx, type:'move'|'resize', startX, startY, origX, origY, origW, origH}
+let _imgDoodleMode = false;
+let _imgDoodleGfx = null;
+let _imgDoodleDrawingGfx = null;
+const _imgDoodleHistory = [];
+const _imgDoodleRedoStack = [];
+let _imgDoodleCurrentLine = null;
 let codeEditRoomId = '';
 let codeEditPassword = '';
 let _roomEditLockToken = '';
@@ -5582,8 +6026,10 @@ let _roomEditLockHeartbeat = null;
 let _isNewRoomMode = false;
 let _newRoomGateIndex = -1;
 let _prevRoomName = '';
+let _originalRoomName = '';
 let _pendingOpenEditPanel = false;
 let _pendingRoomName = '';
+const _sessionRoomPasswords = new Map(); // ログアウトまでパスワード不要にするキャッシュ
 
 const CODE_RULES = `【猫街 カスタムコード ルール】
 - 実行環境: ブラウザ上の iframe (sandbox="allow-scripts allow-same-origin")
@@ -5642,8 +6088,15 @@ function _openRoomPanel() {
 function _closeRoomPanel() {
   document.getElementById('roomEditPanel').style.display = 'none';
   document.getElementById('mainLog').style.display = '';
+  _originalRoomName = '';
+  _updateRoomSaveBtnState();
+  socket.emit('endRoomEdit');
   _releaseRoomEditLock();
   stopWarpGlow();
+  // _disableWarpEditMode();
+  _stopImgDoodleMode();
+  _clearImgDoodle();
+  _disableImgEditMode();
 }
 
 async function _acquireRoomEditLock(roomId, pw) {
@@ -5696,13 +6149,19 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   document.getElementById('roomEditPw').value = pw;
   document.getElementById('roomEditErr').textContent = '編集パネルを読み込み中...';
   document.getElementById('roomEditMain').style.display = 'none';
+  document.getElementById('roomDeleteConfirm').style.display = 'none';
   document.getElementById('codeRulesBox').textContent = CODE_RULES;
+  // 認証前から部屋名を表示
+  const knownName = (window._allRooms || []).find(r => r.id === roomId);
+  document.getElementById('roomEditNameDisplay').textContent = knownName ? knownName.name : (_pendingRoomName || '');
 
   const lockResult = await _acquireRoomEditLock(roomId, pw);
   if (!lockResult.ok) {
     document.getElementById('roomEditErr').textContent = lockResult.error;
     return;
   }
+
+  socket.emit('startRoomEdit', { roomId });
 
   try {
     if (!window._allRooms) {
@@ -5717,10 +6176,14 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   imgEditPassword = pw;
   codeEditRoomId = roomId;
   codeEditPassword = pw;
+  _sessionRoomPasswords.set(roomId, pw);
 
-  const displayName = _pendingRoomName || roomId;
+  const displayName = _pendingRoomName || '';
   document.getElementById('roomEditNameDisplay').textContent = displayName;
+  _originalRoomName = displayName;
   document.getElementById('roomNameEditInput').value = displayName;
+  _updateRoomSaveBtnState();
+  if (_isNewRoomMode) setTimeout(() => document.getElementById('roomNameEditInput').focus(), 50);
 
   await loadDbWarpZones(roomId);
   updateWarpList();
@@ -5746,9 +6209,24 @@ function openRoomEditPanel() {
   document.getElementById('roomEditPwToggle').textContent = '表示';
   document.getElementById('roomEditMain').style.display = 'none';
   document.getElementById('roomEditErr').textContent = '';
-  document.getElementById('roomEditNameDisplay').textContent = '';
+  document.getElementById('roomDeleteConfirm').style.display = 'none';
   // コードルール初期表示
   document.getElementById('codeRulesBox').textContent = CODE_RULES;
+
+  // 認証前から部屋名を表示
+  const knownName = (window._allRooms || []).find(r => r.id === rId);
+  document.getElementById('roomEditNameDisplay').textContent = knownName ? knownName.name : '';
+  if (!knownName) {
+    fetch('/api/rooms/' + encodeURIComponent(rId)).then(r => r.ok ? r.json() : null).then(d => {
+      if (d && d.name) document.getElementById('roomEditNameDisplay').textContent = d.name;
+    }).catch(() => {});
+  }
+
+  const cachedPw = _sessionRoomPasswords.get(rId);
+  if (cachedPw !== undefined) {
+    document.getElementById('roomEditPw').value = cachedPw;
+    document.getElementById('roomEditAuthBtn').click();
+  }
 }
 
 document.getElementById('roomEditMenu').addEventListener('click', () => {
@@ -5756,10 +6234,7 @@ document.getElementById('roomEditMenu').addEventListener('click', () => {
   openRoomEditPanel();
 });
 
-document.getElementById('roomEditCloseBtn').addEventListener('click', () => {
-  _closeRoomPanel();
-  stopWarpPlaceMode();
-});
+
 
 document.getElementById('roomEditPwToggle').addEventListener('click', () => {
   const inp = document.getElementById('roomEditPw');
@@ -5813,9 +6288,12 @@ document.getElementById('roomEditAuthBtn').addEventListener('click', async () =>
   imgEditPassword = pw;
   codeEditRoomId = roomId;
   codeEditPassword = pw;
+  _sessionRoomPasswords.set(roomId, pw);
 
-  document.getElementById('roomEditNameDisplay').textContent = authData.name || roomId;
-  document.getElementById('roomNameEditInput').value = authData.name || '';
+  document.getElementById('roomEditNameDisplay').textContent = authData.name || '';
+  _originalRoomName = authData.name || '';
+  document.getElementById('roomNameEditInput').value = _originalRoomName;
+  _updateRoomSaveBtnState();
 
   await loadDbWarpZones(roomId);
   updateWarpList();
@@ -5828,6 +6306,9 @@ document.getElementById('roomEditAuthBtn').addEventListener('click', async () =>
   }
   document.getElementById('roomEditMain').style.display = 'block';
   errEl.textContent = '';
+  if (_isNewRoomMode) {
+    setTimeout(() => document.getElementById('roomNameEditInput').focus(), 50);
+  }
 });
 
 // パスワード欄でEnterキー → 読込
@@ -5835,10 +6316,23 @@ document.getElementById('roomEditPw').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); document.getElementById('roomEditAuthBtn').click(); }
 });
 
+function _updateRoomSaveBtnState() {}
+
+document.getElementById('roomNameEditInput').addEventListener('input', _updateRoomSaveBtnState);
+
 // 部屋名を保存する共通処理
 async function _saveRoomNameIfChanged() {
   const newName = document.getElementById('roomNameEditInput').value.trim();
-  if (!newName || !warpEditRoomId) return;
+  if (!warpEditRoomId) return false;
+  if (!newName) {
+    document.getElementById('roomEditErr').textContent = '部屋名を入力してください';
+    document.getElementById('roomNameEditInput').focus();
+    return false;
+  }
+  if (newName === _originalRoomName) {
+    document.getElementById('roomEditErr').textContent = '変更がありません';
+    return false;
+  }
   const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword, 'X-Lock-Token': _roomEditLockToken },
@@ -5846,18 +6340,34 @@ async function _saveRoomNameIfChanged() {
   });
   if (res.ok) {
     document.getElementById('roomEditNameDisplay').textContent = newName;
+    _originalRoomName = newName;
+    _updateRoomSaveBtnState();
     // むげんGATEの表示名も更新
     if (_isNewRoomMode && _newRoomGateIndex >= 0) {
       const mg = document.querySelector('#mugenGateBtn' + _newRoomGateIndex);
       if (mg) mg.textContent = newName;
     }
+    return true;
   } else {
     const d = await res.json().catch(() => ({}));
     alert(d.error || '保存失敗');
+    return false;
   }
 }
 
 // 保存せずに戻る
+document.getElementById('roomEditCloseBtn').addEventListener('click', async () => {
+  const mainVisible = document.getElementById('roomEditMain').style.display !== 'none';
+  if (mainVisible) {
+    const currentName = document.getElementById('roomNameEditInput').value.trim();
+    if (currentName !== _originalRoomName) {
+      document.getElementById('roomEditErr').textContent = '部屋の変更が保存されていません';
+      return;
+    }
+  }
+  document.getElementById('roomEditDiscardBtn').click();
+});
+
 document.getElementById('roomEditDiscardBtn').addEventListener('click', async () => {
   if (_isNewRoomMode && _newRoomGateIndex >= 0) {
     try {
@@ -5887,14 +6397,15 @@ document.getElementById('roomEditDiscardBtn').addEventListener('click', async ()
 // 保存（パネルは閉じない）
 document.getElementById('roomEditSaveBtn').addEventListener('click', async () => {
   if (document.getElementById('roomEditMain').style.display === 'none') return;
-  await _saveRoomNameIfChanged();
-  _isNewRoomMode = false;
+  const ok = await _saveRoomNameIfChanged();
+  if (ok) _isNewRoomMode = false;
 });
 
 // 完了（保存してパネルを閉じる）
 document.getElementById('roomEditCompleteBtn').addEventListener('click', async () => {
   if (document.getElementById('roomEditMain').style.display !== 'none') {
-    await _saveRoomNameIfChanged();
+    const ok = await _saveRoomNameIfChanged();
+    if (!ok) return;
   }
   _isNewRoomMode = false;
   _pendingRoomName = '';
@@ -5906,16 +6417,34 @@ document.getElementById('roomEditCompleteBtn').addEventListener('click', async (
 document.getElementById('roomNameSaveBtn').addEventListener('click', () => _saveRoomNameIfChanged());
 
 // タブ切り替え
-['Warp', 'Img', 'Code'].forEach(tab => {
+['Warp', 'Img', 'Code', 'Scale'].forEach(tab => {
   document.getElementById('roomEditTab' + tab).addEventListener('click', () => {
-    ['Warp', 'Img', 'Code'].forEach(t => {
+    ['Warp', 'Img', 'Code', 'Scale'].forEach(t => {
       const active = t === tab;
       document.getElementById('roomEditTab' + t).style.background = active ? '#1a3a6a' : '#0d0d1a';
       document.getElementById('roomEditTab' + t).style.color = active ? '#fff' : '#888';
       document.getElementById('roomEditContent' + t).style.display = active ? 'block' : 'none';
     });
-    if (tab === 'Warp') startWarpGlow();
-    else stopWarpGlow();
+    if (tab === 'Warp') { startWarpGlow(); /* _enableWarpEditMode(); */ }
+    else { stopWarpGlow(); /* _disableWarpEditMode(); */ }
+    if (tab === 'Img') _enableImgEditMode();
+    else _disableImgEditMode();
+    if (tab === 'Scale') {
+      _scaleZoneEditRoomId = warpEditRoomId;
+      updateScaleZoneList();
+      const slider = document.getElementById('roomScaleSlider');
+      const input = document.getElementById('roomScaleInput');
+      if (slider) slider.value = _roomAvatarScale;
+      if (input) input.value = _roomAvatarScale;
+      if (_scaleZoneGfx) _scaleZoneGfx.visible = true;
+    } else {
+      _scaleZonePlaceMode = false;
+      _scaleZonePlaceStart = null;
+      if (_scaleZonePlacePreview) _scaleZonePlacePreview.clear();
+      document.getElementById('scaleZonePlaceBtn').style.display = '';
+      document.getElementById('scaleZonePlaceStopBtn').style.display = 'none';
+      if (_scaleZoneGfx) _scaleZoneGfx.visible = false;
+    }
   });
 });
 
@@ -5936,7 +6465,24 @@ function stopWarpGlow() {
   if (warpZoneGfx) warpZoneGfx.alpha = 1;
 }
 
+['Rect', 'Circle', 'Ellipse'].forEach(s => {
+  document.getElementById('warpShape' + s).addEventListener('click', () => {
+    _warpPlaceShape = s.toLowerCase();
+    ['Rect', 'Circle', 'Ellipse'].forEach(t => {
+      const btn = document.getElementById('warpShape' + t);
+      const active = t === s;
+      btn.style.background = active ? '#1a3a6a' : '#0d0d1a';
+      btn.style.color = active ? '#fff' : '#888';
+    });
+    // _disableWarpEditMode();
+    startWarpPlaceMode();
+    document.getElementById('warpPlaceBtn').style.display = 'none';
+    document.getElementById('warpPlaceStopBtn').style.display = '';
+  });
+});
+
 document.getElementById('warpPlaceBtn').addEventListener('click', () => {
+  // _disableWarpEditMode();
   startWarpPlaceMode();
   document.getElementById('warpPlaceBtn').style.display = 'none';
   document.getElementById('warpPlaceStopBtn').style.display = '';
@@ -5946,6 +6492,87 @@ document.getElementById('warpPlaceStopBtn').addEventListener('click', () => {
   stopWarpPlaceMode();
   document.getElementById('warpPlaceStopBtn').style.display = 'none';
   document.getElementById('warpPlaceBtn').style.display = '';
+  // _enableWarpEditMode();
+});
+
+// ===== スケールタブ =====
+
+const _roomScaleSlider = document.getElementById('roomScaleSlider');
+const _roomScaleInput = document.getElementById('roomScaleInput');
+_roomScaleSlider.addEventListener('input', () => {
+  _roomScaleInput.value = _roomScaleSlider.value;
+  _roomAvatarScale = parseFloat(_roomScaleSlider.value) || 1;
+});
+_roomScaleInput.addEventListener('input', () => {
+  _roomScaleSlider.value = _roomScaleInput.value;
+  _roomAvatarScale = parseFloat(_roomScaleInput.value) || 1;
+});
+
+document.getElementById('roomScaleSaveBtn').addEventListener('click', async () => {
+  const s = Math.max(0.01, Math.min(10, parseFloat(_roomScaleInput.value) || 1));
+  _roomScaleInput.value = s;
+  _roomScaleSlider.value = s;
+  await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+    body: JSON.stringify({ avatar_scale: s }),
+  });
+  _roomAvatarScale = s;
+});
+
+document.getElementById('scaleZonePlaceBtn').addEventListener('click', () => {
+  _scaleZonePlaceMode = true;
+  document.getElementById('scaleZonePlaceBtn').style.display = 'none';
+  document.getElementById('scaleZonePlaceStopBtn').style.display = '';
+});
+
+document.getElementById('scaleZonePlaceStopBtn').addEventListener('click', () => {
+  _scaleZonePlaceMode = false;
+  _scaleZonePlaceStart = null;
+  if (_scaleZonePlacePreview) _scaleZonePlacePreview.clear();
+  document.getElementById('scaleZonePlaceStopBtn').style.display = 'none';
+  document.getElementById('scaleZonePlaceBtn').style.display = '';
+});
+
+// ===== 部屋削除 =====
+
+document.getElementById('roomDeleteBtn').addEventListener('click', () => {
+  const hasPass = !!warpEditPassword;
+  document.getElementById('roomDeletePassWrap').style.display = hasPass ? '' : 'none';
+  document.getElementById('roomDeletePassInput').value = '';
+  document.getElementById('roomDeleteErr').textContent = '';
+  document.getElementById('roomDeleteConfirm').style.display = '';
+});
+document.getElementById('roomDeleteCancelBtn').addEventListener('click', () => {
+  document.getElementById('roomDeleteConfirm').style.display = 'none';
+});
+document.getElementById('roomDeleteConfirmBtn').addEventListener('click', async () => {
+  const roomId = warpEditRoomId;
+  const hasPass = !!warpEditPassword;
+  const pw = hasPass ? document.getElementById('roomDeletePassInput').value : '';
+  if (hasPass && !pw) {
+    document.getElementById('roomDeleteErr').textContent = 'パスワードを入力してください';
+    return;
+  }
+  const res = await fetch('/api/rooms/' + encodeURIComponent(roomId), {
+    method: 'DELETE',
+    headers: { 'X-Edit-Password': pw },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    document.getElementById('roomDeleteErr').textContent = d.error || '削除失敗';
+    return;
+  }
+  socket.emit('roomDeleted', { roomId });
+  const gateIdx = mugenGateRooms.indexOf(roomId);
+  if (gateIdx !== -1) {
+    mugenGateRooms[gateIdx] = null;
+    updateMugenGateTints();
+  }
+  _isNewRoomMode = false;
+  _closeRoomPanel();
+  stopWarpPlaceMode();
+  goSelfToRoomSpot('entranceMainSpot');
 });
 
 // ===== 画像タブ =====
@@ -5971,7 +6598,9 @@ document.getElementById('imgFileInput').addEventListener('change', async () => {
       return;
     }
     await refreshImgList();
+    _disableImgEditMode();
     await loadDbImages(imgEditRoomId);
+    if (_imgTabIsActive()) _enableImgEditMode();
   };
   reader.readAsDataURL(file);
   fileInput.value = '';
@@ -6037,17 +6666,220 @@ let _doodleCount = 1;
   canvas.addEventListener('touchend', up);
 })();
 
+function _getDoodlePos(e) {
+  const rect = myCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (660 / rect.width),
+    y: (e.clientY - rect.top) * (460 / rect.height),
+  };
+}
+
+function _onDoodleDown(e) {
+  if (!_imgDoodleMode) return;
+  if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  const p = _getDoodlePos(e);
+  const color = parseInt(document.getElementById('doodleCustomColor').value.replace('#', ''), 16);
+  const width = parseInt(document.getElementById('doodleLineWidth').value, 10);
+  _imgDoodleCurrentLine = { color, width, points: [p] };
+  if (_imgDoodleDrawingGfx) _imgDoodleDrawingGfx.clear();
+}
+
+function _onDoodleMove(e) {
+  if (!_imgDoodleMode || !_imgDoodleCurrentLine) return;
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  const p = _getDoodlePos(e);
+  _imgDoodleCurrentLine.points.push(p);
+  if (_imgDoodleDrawingGfx) {
+    const pts = _imgDoodleCurrentLine.points;
+    _imgDoodleDrawingGfx.clear();
+    _imgDoodleDrawingGfx.lineStyle(_imgDoodleCurrentLine.width, _imgDoodleCurrentLine.color, 1);
+    _imgDoodleDrawingGfx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) _imgDoodleDrawingGfx.lineTo(pts[i].x, pts[i].y);
+  }
+}
+
+function _onDoodleUp(e) {
+  if (!_imgDoodleMode || !_imgDoodleCurrentLine) return;
+  e.stopImmediatePropagation();
+  const line = _imgDoodleCurrentLine;
+  _imgDoodleCurrentLine = null;
+  if (line.points.length < 2) return;
+  _imgDoodleHistory.push(line);
+  _imgDoodleRedoStack.length = 0;
+  if (_imgDoodleDrawingGfx) _imgDoodleDrawingGfx.clear();
+  _imgDoodleRedrawGfx();
+  _imgDoodleUpdateButtons();
+}
+
+function _imgDoodleRedrawGfx() {
+  if (!_imgDoodleGfx) return;
+  _imgDoodleGfx.clear();
+  for (const line of _imgDoodleHistory) {
+    if (line.points.length < 2) continue;
+    _imgDoodleGfx.lineStyle(line.width, line.color, 1);
+    _imgDoodleGfx.moveTo(line.points[0].x, line.points[0].y);
+    for (let i = 1; i < line.points.length; i++) _imgDoodleGfx.lineTo(line.points[i].x, line.points[i].y);
+  }
+}
+
+function _imgDoodleDoUndo() {
+  if (_imgDoodleHistory.length === 0) return;
+  _imgDoodleRedoStack.push(_imgDoodleHistory.pop());
+  _imgDoodleRedrawGfx();
+  _imgDoodleUpdateButtons();
+}
+
+function _imgDoodleDoRedo() {
+  if (_imgDoodleRedoStack.length === 0) return;
+  _imgDoodleHistory.push(_imgDoodleRedoStack.pop());
+  _imgDoodleRedrawGfx();
+  _imgDoodleUpdateButtons();
+}
+
+function _imgDoodleUpdateButtons() {
+  undo.style.backgroundColor = _imgDoodleHistory.length > 0 ? 'skyblue' : '#c4f1efff';
+  redo.style.backgroundColor = _imgDoodleRedoStack.length > 0 ? 'skyblue' : '#c4f1efff';
+}
+
+function _imgDoodleUndoCapture(e) {
+  if (!_imgDoodleMode) return;
+  e.stopImmediatePropagation();
+  _imgDoodleDoUndo();
+}
+
+function _imgDoodleRedoCapture(e) {
+  if (!_imgDoodleMode) return;
+  e.stopImmediatePropagation();
+  _imgDoodleDoRedo();
+}
+
+function _startImgDoodleMode() {
+  if (!room) return;
+  _stopImgDoodleMode();
+  _imgDoodleMode = true;
+  document.getElementById('doodleCanvas').style.display = 'none';
+  document.getElementById('doodleCanvasInstruction').style.display = 'block';
+
+  _imgDoodleGfx = new PIXI.Graphics();
+  _imgDoodleGfx.zIndex = 900;
+  _imgDoodleGfx.eventMode = 'none';
+  room.container.addChild(_imgDoodleGfx);
+
+  _imgDoodleDrawingGfx = new PIXI.Graphics();
+  _imgDoodleDrawingGfx.zIndex = 901;
+  _imgDoodleDrawingGfx.eventMode = 'none';
+  room.container.addChild(_imgDoodleDrawingGfx);
+
+  myCanvas.addEventListener('pointerdown', _onDoodleDown, { capture: true });
+  myCanvas.addEventListener('pointermove', _onDoodleMove, { capture: true });
+  myCanvas.addEventListener('pointerup', _onDoodleUp, { capture: true });
+  myCanvas.addEventListener('pointercancel', _onDoodleUp, { capture: true });
+
+  undo.addEventListener('pointerup', _imgDoodleUndoCapture, { capture: true });
+  redo.addEventListener('pointerup', _imgDoodleRedoCapture, { capture: true });
+
+  _imgDoodleUpdateButtons();
+}
+
+function _stopImgDoodleMode() {
+  if (!_imgDoodleMode) return;
+  _imgDoodleMode = false;
+  _imgDoodleCurrentLine = null;
+  document.getElementById('doodleCanvas').style.display = 'block';
+  document.getElementById('doodleCanvasInstruction').style.display = 'none';
+
+  myCanvas.removeEventListener('pointerdown', _onDoodleDown, { capture: true });
+  myCanvas.removeEventListener('pointermove', _onDoodleMove, { capture: true });
+  myCanvas.removeEventListener('pointerup', _onDoodleUp, { capture: true });
+  myCanvas.removeEventListener('pointercancel', _onDoodleUp, { capture: true });
+
+  undo.removeEventListener('pointerup', _imgDoodleUndoCapture, { capture: true });
+  redo.removeEventListener('pointerup', _imgDoodleRedoCapture, { capture: true });
+
+  if (_imgDoodleGfx) {
+    if (_imgDoodleGfx.parent) _imgDoodleGfx.parent.removeChild(_imgDoodleGfx);
+    _imgDoodleGfx.destroy();
+    _imgDoodleGfx = null;
+  }
+  if (_imgDoodleDrawingGfx) {
+    if (_imgDoodleDrawingGfx.parent) _imgDoodleDrawingGfx.parent.removeChild(_imgDoodleDrawingGfx);
+    _imgDoodleDrawingGfx.destroy();
+    _imgDoodleDrawingGfx = null;
+  }
+
+  switchDrawing(avatarOekakiToken);
+}
+
+function _clearImgDoodle() {
+  _imgDoodleHistory.length = 0;
+  _imgDoodleRedoStack.length = 0;
+  _imgDoodleCurrentLine = null;
+  if (_imgDoodleDrawingGfx) _imgDoodleDrawingGfx.clear();
+  _imgDoodleRedrawGfx();
+  if (_imgDoodleMode) _imgDoodleUpdateButtons();
+}
+
+async function _imgDoodleSave() {
+  if (_imgDoodleHistory.length === 0) {
+    alert('描いてから保存してください');
+    return;
+  }
+  const rt = PIXI.RenderTexture.create({ width: 660, height: 460 });
+  app.renderer.render(_imgDoodleGfx, { renderTexture: rt });
+  const exportCanvas = app.renderer.extract.canvas(rt);
+  rt.destroy(true);
+  const dataUrl = exportCanvas.toDataURL('image/png');
+  const name = document.getElementById('doodleNameInput').value || ('ラクガキ' + _doodleCount);
+  const res = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+    body: JSON.stringify({ type: document.getElementById('imgType').value, imageBase64: dataUrl, filename: name + '.png' }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || '保存失敗');
+    return;
+  }
+  _doodleCount++;
+  document.getElementById('doodleNameInput').value = 'ラクガキ' + _doodleCount;
+  _clearImgDoodle();
+  _stopImgDoodleMode();
+  document.getElementById('doodleArea').style.display = 'none';
+  await refreshImgList();
+  _disableImgEditMode();
+  await loadDbImages(imgEditRoomId);
+  if (_imgTabIsActive()) _enableImgEditMode();
+}
+
 document.getElementById('imgDoodleBtn').addEventListener('click', () => {
   const area = document.getElementById('doodleArea');
-  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    _startImgDoodleMode();
+  } else {
+    area.style.display = 'none';
+    _stopImgDoodleMode();
+    _clearImgDoodle();
+  }
 });
 
 document.getElementById('doodleClearBtn').addEventListener('click', () => {
+  if (_imgDoodleMode) {
+    _clearImgDoodle();
+    return;
+  }
   const canvas = document.getElementById('doodleCanvas');
   _doodleCtx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
 document.getElementById('doodleSaveBtn').addEventListener('click', async () => {
+  if (_imgDoodleMode) {
+    await _imgDoodleSave();
+    return;
+  }
   const canvas = document.getElementById('doodleCanvas');
   const name = document.getElementById('doodleNameInput').value || ('ラクガキ' + _doodleCount);
   const dataUrl = canvas.toDataURL('image/png');
@@ -6065,8 +6897,125 @@ document.getElementById('doodleSaveBtn').addEventListener('click', async () => {
   document.getElementById('doodleNameInput').value = 'ラクガキ' + _doodleCount;
   _doodleCtx.clearRect(0, 0, canvas.width, canvas.height);
   await refreshImgList();
+  _disableImgEditMode();
   await loadDbImages(imgEditRoomId);
+  if (_imgTabIsActive()) _enableImgEditMode();
 });
+
+function _imgTabIsActive() {
+  const el = document.getElementById('roomEditContentImg');
+  return el && el.style.display !== 'none';
+}
+
+function _redrawImgOverlay(ov) {
+  const s = ov.sprite, hs = 12;
+  ov.borderGfx.clear();
+  ov.borderGfx.lineStyle(2, 0x4a90d9, 0.9);
+  ov.borderGfx.drawRect(s.x, s.y, s.width, s.height);
+  ov.handleGfx.clear();
+  ov.handleGfx.beginFill(0x4a90d9);
+  ov.handleGfx.drawRect(s.x + s.width - hs, s.y + s.height - hs, hs, hs);
+  ov.handleGfx.endFill();
+}
+
+function _enableImgEditMode() {
+  if (!room) return;
+  _disableImgEditMode();
+  _imgDragMode = true;
+  app.stage.eventMode = 'static';
+  dbRoomImages.forEach((imgData, idx) => {
+    const sprite = dbImageSprites[idx];
+    if (!sprite) return;
+    if (!imgData.width) imgData.width = Math.round(sprite.width);
+    if (!imgData.height) imgData.height = Math.round(sprite.height);
+    sprite.width = imgData.width;
+    sprite.height = imgData.height;
+    const borderGfx = new PIXI.Graphics();
+    borderGfx.zIndex = 1000; borderGfx.eventMode = 'none';
+    room.container.addChild(borderGfx);
+    const handleGfx = new PIXI.Graphics();
+    handleGfx.zIndex = 1001; handleGfx.eventMode = 'static'; handleGfx.cursor = 'se-resize';
+    room.container.addChild(handleGfx);
+    const ov = { imgData, sprite, borderGfx, handleGfx };
+    _imgOverlays.push(ov);
+    _redrawImgOverlay(ov);
+    sprite.eventMode = 'static'; sprite.cursor = 'grab';
+    sprite.on('pointerdown', e => {
+      if (!_imgDragMode || _imgDragging) return;
+      const p = room.container.toLocal(e.global);
+      const hs = 12;
+      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
+      e.stopPropagation();
+      _imgDragging = { idx, type: 'move', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      sprite.cursor = 'grabbing';
+    });
+    handleGfx.on('pointerdown', e => {
+      if (!_imgDragMode || _imgDragging) return;
+      e.stopPropagation();
+      const p = room.container.toLocal(e.global);
+      _imgDragging = { idx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+    });
+  });
+  app.stage.on('pointermove', _onImgDragMove);
+  app.stage.on('pointerup', _onImgDragEnd);
+  app.stage.on('pointerupoutside', _onImgDragEnd);
+}
+
+function _disableImgEditMode() {
+  _imgDragMode = false; _imgDragging = null;
+  if (typeof app !== 'undefined') {
+    app.stage.off('pointermove', _onImgDragMove);
+    app.stage.off('pointerup', _onImgDragEnd);
+    app.stage.off('pointerupoutside', _onImgDragEnd);
+  }
+  _imgOverlays.forEach(ov => {
+    if (ov.borderGfx.parent) ov.borderGfx.parent.removeChild(ov.borderGfx);
+    if (ov.handleGfx.parent) ov.handleGfx.parent.removeChild(ov.handleGfx);
+    ov.borderGfx.destroy(); ov.handleGfx.destroy();
+    ov.sprite.removeAllListeners('pointerdown');
+    ov.sprite.eventMode = 'none'; ov.sprite.cursor = 'default';
+  });
+  _imgOverlays.length = 0;
+}
+
+function _onImgDragMove(e) {
+  if (!_imgDragging || !room) return;
+  const ov = _imgOverlays[_imgDragging.idx];
+  if (!ov) return;
+  const p = room.container.toLocal(e.global);
+  const dx = p.x - _imgDragging.startX, dy = p.y - _imgDragging.startY;
+  if (_imgDragging.type === 'move') {
+    ov.sprite.x = _imgDragging.origX + dx;
+    ov.sprite.y = _imgDragging.origY + dy;
+  } else {
+    ov.sprite.width = Math.max(20, _imgDragging.origW + dx);
+    ov.sprite.height = Math.max(20, _imgDragging.origH + dy);
+  }
+  _redrawImgOverlay(ov);
+}
+
+async function _onImgDragEnd() {
+  if (!_imgDragging) return;
+  const ov = _imgOverlays[_imgDragging.idx];
+  _imgDragging = null;
+  if (!ov) return;
+  ov.sprite.cursor = 'grab';
+  const x = Math.round(ov.sprite.x), y = Math.round(ov.sprite.y);
+  const w = Math.round(ov.sprite.width), h = Math.round(ov.sprite.height);
+  ov.imgData.x = x; ov.imgData.y = y; ov.imgData.width = w; ov.imgData.height = h;
+  if (ov.imgData.type === 'object') ov.sprite.zIndex = y;
+  _redrawImgOverlay(ov);
+  const row = document.querySelector('#imgList [data-img-id="' + ov.imgData.id + '"]');
+  if (row) row.querySelectorAll('input[data-field]').forEach(inp => {
+    const v = { x, y, width: w, height: h }[inp.dataset.field];
+    if (v !== undefined) inp.value = v;
+  });
+  await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + ov.imgData.id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+    body: JSON.stringify({ x, y, width: w, height: h }),
+  });
+}
 
 async function refreshImgList() {
   const res = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images');
@@ -6082,6 +7031,7 @@ async function refreshImgList() {
 
   images.forEach(img => {
     const row = document.createElement('div');
+    row.dataset.imgId = img.id;
     row.style.cssText = 'display:flex;align-items:center;gap:5px;padding:4px 6px;margin:3px 0;background:#111;border:1px solid #333;border-radius:3px;';
 
     const thumb = document.createElement('img');
@@ -6118,13 +7068,16 @@ async function refreshImgList() {
         headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
         body: JSON.stringify({ type: typeSel.value }),
       });
+      _disableImgEditMode();
       await loadDbImages(imgEditRoomId);
+      if (_imgTabIsActive()) _enableImgEditMode();
     });
     right.appendChild(typeSel);
 
     const mkNumInput = (placeholder, field, val) => {
       const inp = document.createElement('input');
-      inp.type = 'number'; inp.value = val || 0; inp.placeholder = placeholder;
+      inp.type = 'number'; inp.value = val ?? 0; inp.placeholder = placeholder;
+      inp.dataset.field = field;
       inp.style.cssText = 'width:38px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:1px 2px;font-size:10px;';
       inp.addEventListener('change', async () => {
         await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + img.id, {
@@ -6132,12 +7085,31 @@ async function refreshImgList() {
           headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
           body: JSON.stringify({ [field]: Number(inp.value) }),
         });
+        _disableImgEditMode();
         await loadDbImages(imgEditRoomId);
+        if (_imgTabIsActive()) _enableImgEditMode();
       });
       return inp;
     };
     right.appendChild(mkNumInput('X', 'x', img.x));
     right.appendChild(mkNumInput('Y', 'y', img.y));
+    right.appendChild(mkNumInput('W', 'width', img.width));
+    right.appendChild(mkNumInput('H', 'height', img.height));
+
+    const warpBtn = document.createElement('button');
+    warpBtn.textContent = img.is_warp ? 'ワープON' : 'ワープ';
+    warpBtn.title = 'この画像をワープとして使う';
+    warpBtn.style.cssText = `font-size:10px;padding:1px 4px;cursor:pointer;border:1px solid ${img.is_warp ? '#00ccff' : '#555'};background:${img.is_warp ? '#003344' : '#111'};color:${img.is_warp ? '#00ccff' : '#888'};`;
+    warpBtn.addEventListener('click', async () => {
+      const newVal = img.is_warp ? 0 : 1;
+      await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + img.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+        body: JSON.stringify({ is_warp: newVal }),
+      });
+      await refreshImgList();
+    });
+    right.appendChild(warpBtn);
 
     const delBtn = document.createElement('button');
     delBtn.textContent = '×';
@@ -6148,7 +7120,9 @@ async function refreshImgList() {
         headers: { 'X-Edit-Password': imgEditPassword },
       });
       await refreshImgList();
+      _disableImgEditMode();
       await loadDbImages(imgEditRoomId);
+      if (_imgTabIsActive()) _enableImgEditMode();
     });
     right.appendChild(delBtn);
     row.appendChild(right);
@@ -6520,6 +7494,7 @@ function oekakiSystem() {
 
 // お絵描きモード切り替え（アバター/部屋）＆ボタン状態更新
 function switchDrawing(avatarDraw) {
+  if (_imgDoodleMode) return;
   // 対象（アバター or 部屋）の履歴・リドゥスタック取得
   const target = avatarDraw ? avaP[avatarOekakiToken] : room;
   const hasLine = target.drawHistory.some(line => line.type === "line");
@@ -7316,6 +8291,8 @@ document.querySelector('svg').addEventListener('pointerdown', e => {
     PkunFlag = true;
   }
 }, { passive: true });
+
+document.getElementById('streamQualitySelect').value = streamQualityLevel;
 
 //ビデオサイズ
 if (localStorage.getItem("videoSize")) {
@@ -8188,7 +9165,7 @@ socket.on("mediaButton", data => {
   if (data.type === 'callMediaStatus') {
     // 動画配信中ならボタン作成通知
     if (videoStatus) {
-      socket.emit("mediaButton", { type: 'createVideoButton', });
+      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel });
     }
     // 音声配信中ならボタン作成通知
     if (audioStatus) {
@@ -8197,6 +9174,7 @@ socket.on("mediaButton", data => {
   }
   // 動画受信ボタンの作成要求
   else if (data.type === 'createVideoButton') {
+    senderQuality[fromToken] = data.quality || 'max';
     if (!videoButton[fromToken] || videoButton[fromToken].style.visibility === "hidden") {
       createVideoButton(fromToken);
     }
@@ -8206,6 +9184,11 @@ socket.on("mediaButton", data => {
     if (!audioButton[fromToken] || audioButton[fromToken].style.visibility === "hidden") {
       createAudioButton(fromToken);
     }
+  }
+  // 配信者の画質変更通知
+  else if (data.type === 'streamQuality') {
+    senderQuality[fromToken] = data.quality;
+    updateReceiverQualitySelect(fromToken);
   }
   // 動画ボタン削除要求
   else if (data.type === "remove video button") {
@@ -8325,6 +9308,8 @@ function removeMediaElementButton(fromToken) {
       detachAudio(fromToken);
     }
   }
+  delete receiverQualitySelect[fromToken];
+  delete senderQuality[fromToken];
 }
 
 // 接続を切断する関数（id指定）
@@ -8472,9 +9457,8 @@ function startVideo() {
   }
 
   videoStatus = {
-    facingMode: camera,//カメラの種類を設定
-    // width: { max: 320 },
-    // height: { max: 180 }
+    facingMode: camera,
+    ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({
     video: videoStatus,
@@ -8506,7 +9490,7 @@ function startVideo() {
       if (selectVideoInverseAndReverse.checked) {//自分の上下左右反転にチェックが入ってたら
         attachVideo(myToken + "IR", stream);
       }
-      socket.emit("mediaButton", { type: 'createVideoButton', });
+      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel });
       socket.emit("stream", { format: "videoStart", });
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
@@ -8806,6 +9790,19 @@ function createVideoButton(fromToken) {
       mediaConnect(fromToken, "call video");
     }
   }
+  if (!receiverQualitySelect[fromToken]) {
+    const sel = document.createElement('select');
+    [['max','最高'],['high','高'],['normal','標準'],['low','低']].forEach(([v, t]) => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = t;
+      sel.appendChild(opt);
+    });
+    sel.value = 'max';
+    sel.onchange = function() { requestReceiverQuality(fromToken, sel.value); };
+    receiverQualitySelect[fromToken] = sel;
+    mediaElement[fromToken].appendChild(sel);
+  }
+  updateReceiverQualitySelect(fromToken);
 }
 
 function createAudioButton(fromToken) {
@@ -9162,7 +10159,7 @@ function setupDataChannelEventHandler(rtcPeerConnection) {
               if (value.get("oldAudio")) {
                 if (value.get("idOldAudio") === sender.track.id) {
                   value.get("rtc").removeTrack(sender);
-                  // removeTrack()の結果として、通信相手に、streamの「removetrack」イベントが発生する                    
+                  // removeTrack()の結果として、通信相手に、streamの「removetrack」イベントが発生する
                 }
               }
             }
@@ -9172,6 +10169,25 @@ function setupDataChannelEventHandler(rtcPeerConnection) {
             value.delete("oldAudio");
             value.delete("idOldAudio");
           }
+        }
+      });
+    }
+    else if ("setReceiverQuality" === objData.type) {
+      mapPeer.forEach(function (value) {
+        if (value.get("rtc") === rtcPeerConnection) {
+          value.get("rtc").getSenders().forEach(function (sender) {
+            if (sender.track && sender.track.kind === 'video') {
+              const params = sender.getParameters();
+              if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+              const bitrate = QUALITY_BITRATE[objData.quality];
+              if (bitrate !== undefined) {
+                params.encodings[0].maxBitrate = bitrate;
+              } else {
+                delete params.encodings[0].maxBitrate;
+              }
+              sender.setParameters(params).catch(e => console.warn('setParameters:', e));
+            }
+          });
         }
       });
     }
@@ -9363,6 +10379,36 @@ function mediaConnect(fromToken, type) {
         socket.emit("webRtcSignal", { sendto: fromToken, type: type, });
       }
     }
+  }
+}
+
+function changeStreamQuality(level) {
+  streamQualityLevel = level;
+  localStorage.setItem('streamQualityLevel', level);
+  if (videoStatus && localStream) {
+    const track = localStream.getVideoTracks()[0];
+    if (track) track.applyConstraints(QUALITY_CONSTRAINTS[level]).catch(e => console.warn('applyConstraints:', e));
+  }
+  if (videoStatus) socket.emit("mediaButton", { type: 'streamQuality', quality: level });
+}
+
+function updateReceiverQualitySelect(fromToken) {
+  const sel = receiverQualitySelect[fromToken];
+  if (!sel) return;
+  const senderIdx = QUALITY_ORDER.indexOf(senderQuality[fromToken] || 'max');
+  Array.from(sel.options).forEach(opt => {
+    opt.disabled = QUALITY_ORDER.indexOf(opt.value) > senderIdx;
+  });
+  if (QUALITY_ORDER.indexOf(sel.value) > senderIdx) {
+    sel.value = QUALITY_ORDER[senderIdx];
+    requestReceiverQuality(fromToken, sel.value);
+  }
+}
+
+function requestReceiverQuality(fromToken, quality) {
+  const peer = mapPeer.get(fromToken);
+  if (peer && isDataChannelOpen(peer.get('rtc'))) {
+    peer.get('rtc').datachannel.send(JSON.stringify({ type: 'setReceiverQuality', quality }));
   }
 }
 

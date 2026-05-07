@@ -45,30 +45,17 @@ function authRoom(req, res, next) {
 }
 
 // 部屋のワープゾーンが削除できるか検証（削除前に呼ぶ）
-function canDeleteWarp(warpId, roomId) {
+function canDeleteWarp(warpId) {
     const warp = db.get('SELECT warp_type FROM warp_zones WHERE id = ?', warpId);
     if (!warp) return { ok: false, error: 'ワープゾーンが見つかりません' };
     if (warp.warp_type === 'back') return { ok: false, error: '前の部屋に戻るワープは削除できません' };
-
-    // 未接続ワープが3つ以上残るか確認（削除後に2つ以上残すため削除前は3以上必要）
-    const unused = db.get(
-        "SELECT COUNT(*) as cnt FROM warp_zones WHERE room_id = ? AND id != ? AND target_room_id IS NULL AND warp_type != 'back'",
-        [roomId, warpId]
-    );
-    if (unused && unused.cnt < 2) {
-        return { ok: false, error: '未接続のワープゾーンが2つ以上残る場合のみ削除できます' };
-    }
     return { ok: true };
 }
 
-// ワープサイズ検証
+// ワープ合計面積チェック
 function validateWarpSize(w, h, roomId, excludeId) {
     const ww = Math.abs(w);
     const wh = Math.abs(h ?? w);
-    if (ww > WARP_MAX || wh > WARP_MAX) {
-        return { ok: false, error: `ワープゾーンのサイズは縦横${WARP_MAX}px以内です` };
-    }
-    // 既存ワープの合計面積チェック
     const where = excludeId ? 'id != ?' : '1=1';
     const params = excludeId ? [roomId, excludeId] : [roomId];
     const warps = db.all(`SELECT width, height, shape FROM warp_zones WHERE room_id = ? AND ${where}`, params);
@@ -88,6 +75,13 @@ function validateWarpSize(w, h, roomId, excludeId) {
 router.get('/', (_req, res) => {
     const rooms = db.all('SELECT id, name, is_system_room FROM rooms ORDER BY is_system_room DESC, name');
     res.json(rooms || []);
+});
+
+// GET /api/rooms/:id - 部屋の公開情報
+router.get('/:id', (req, res) => {
+    const room = db.get('SELECT id, name, is_system_room, avatar_scale FROM rooms WHERE id = ?', req.params.id);
+    if (!room) return res.status(404).json({ error: '部屋が見つかりません' });
+    res.json(room);
 });
 
 // POST /api/rooms - 部屋作成（4コーナーにワープ自動生成）
@@ -207,7 +201,7 @@ router.get('/:id', (req, res) => {
 
 // PUT /api/rooms/:id - 部屋情報更新
 router.put('/:id', authRoom, (req, res) => {
-    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode } = req.body || {};
+    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale } = req.body || {};
     const sets = [];
     const vals = [];
 
@@ -217,6 +211,7 @@ router.put('/:id', authRoom, (req, res) => {
     if (allowVideo !== undefined) { sets.push('allow_video = ?'); vals.push(allowVideo ? 1 : 0); }
     if (allowAudio !== undefined) { sets.push('allow_audio = ?'); vals.push(allowAudio ? 1 : 0); }
     if (customCode !== undefined) { sets.push('custom_code = ?'); vals.push(customCode); }
+    if (avatar_scale !== undefined) { sets.push('avatar_scale = ?'); vals.push(avatar_scale === null ? null : parseFloat(avatar_scale)); }
 
     if (sets.length === 0) return res.status(400).json({ error: '更新フィールドがありません' });
 
@@ -277,7 +272,7 @@ router.put('/:id/warps/:warpId', authRoom, (req, res) => {
 
 // DELETE /api/rooms/:id/warps/:warpId - ワープゾーン削除
 router.delete('/:id/warps/:warpId', authRoom, (req, res) => {
-    const check = canDeleteWarp(req.params.warpId, req.params.id);
+    const check = canDeleteWarp(req.params.warpId);
     if (!check.ok) return res.status(400).json({ error: check.error });
     db.run('DELETE FROM warp_zones WHERE id = ? AND room_id = ?', [req.params.warpId, req.params.id]);
     res.json({ ok: true });
@@ -340,13 +335,14 @@ router.post('/:id/images', authRoom, async (req, res) => {
 
 // PUT /api/rooms/:id/images/:imageId - 画像位置・サイズ・種別更新
 router.put('/:id/images/:imageId', authRoom, (req, res) => {
-    const { x, y, width, height, z_index, type } = req.body || {};
+    const { x, y, width, height, z_index, type, is_warp } = req.body || {};
     const sets = [], vals = [];
     if (x !== undefined) { sets.push('x = ?'); vals.push(x); }
     if (y !== undefined) { sets.push('y = ?'); vals.push(y); }
     if (width !== undefined) { sets.push('width = ?'); vals.push(width); }
     if (height !== undefined) { sets.push('height = ?'); vals.push(height); }
     if (z_index !== undefined) { sets.push('z_index = ?'); vals.push(z_index); }
+    if (is_warp !== undefined) { sets.push('is_warp = ?'); vals.push(is_warp ? 1 : 0); }
     if (type !== undefined) {
         if (!['background', 'platform', 'object'].includes(type)) return res.status(400).json({ error: '種別が不正です' });
         sets.push('type = ?'); vals.push(type);
@@ -363,6 +359,48 @@ router.delete('/:id/images/:imageId', authRoom, (req, res) => {
         try { fs.unlinkSync(path.join(UPLOADS_DIR, req.params.id, img.filename)); } catch (_e) {}
     }
     db.run('DELETE FROM room_images WHERE id = ? AND room_id = ?', [req.params.imageId, req.params.id]);
+    res.json({ ok: true });
+});
+
+// DELETE /api/rooms/:id - 部屋削除
+router.delete('/:id', authRoom, (req, res) => {
+    try { fs.rmSync(path.join(UPLOADS_DIR, req.params.id), { recursive: true, force: true }); } catch (_e) {}
+    db.run('UPDATE warp_zones SET target_room_id = NULL WHERE target_room_id = ?', [req.params.id]);
+    db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [req.params.id]);
+    db.run('DELETE FROM rooms WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+});
+
+// GET /api/rooms/:id/scale-zones
+router.get('/:id/scale-zones', (req, res) => {
+    const zones = db.all('SELECT * FROM scale_zones WHERE room_id = ? ORDER BY id', [req.params.id]);
+    res.json(zones || []);
+});
+
+// POST /api/rooms/:id/scale-zones
+router.post('/:id/scale-zones', authRoom, (req, res) => {
+    const { x, y, width, height, scale = 1.0 } = req.body || {};
+    if (x == null || y == null || width == null || height == null) return res.status(400).json({ error: 'x/y/width/height が必要です' });
+    const s = Math.max(0.01, Math.min(10, parseFloat(scale)));
+    const result = db.run(
+        'INSERT INTO scale_zones (room_id, x, y, width, height, scale) VALUES (?, ?, ?, ?, ?, ?)',
+        [req.params.id, x, y, width, height, s]
+    );
+    res.json({ ok: true, id: result.lastInsertRowid });
+});
+
+// PUT /api/rooms/:id/scale-zones/:zoneId - スケール値更新
+router.put('/:id/scale-zones/:zoneId', authRoom, (req, res) => {
+    const { scale } = req.body || {};
+    if (scale == null) return res.status(400).json({ error: 'scale が必要です' });
+    const s = Math.max(0.01, Math.min(10, parseFloat(scale)));
+    db.run('UPDATE scale_zones SET scale = ? WHERE id = ? AND room_id = ?', [s, req.params.zoneId, req.params.id]);
+    res.json({ ok: true });
+});
+
+// DELETE /api/rooms/:id/scale-zones/:zoneId
+router.delete('/:id/scale-zones/:zoneId', authRoom, (req, res) => {
+    db.run('DELETE FROM scale_zones WHERE id = ? AND room_id = ?', [req.params.zoneId, req.params.id]);
     res.json({ ok: true });
 });
 

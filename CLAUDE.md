@@ -109,6 +109,15 @@ Pmachi6/
 
 ## 既知の注意点
 
+- **git コマンドの実行方法（Bash ツール内）**: `git` を直接呼ぶと `fatal: not a git repository: 'P:\git-portable'` エラーになる。必ず以下の形式で実行すること：
+  ```
+  GIT_DIR=/p/Pmachi6/.git GIT_WORK_TREE=/p/Pmachi6 /i/git-portable/mingw64/bin/git.exe -C /p/Pmachi6 [コマンド]
+  ```
+- **git オブジェクト大規模破損（2026-05-06 修復済み）**: Google Drive 同期が `.git/objects/` を破損。`.git` を作り直し、現在のファイル全てを1コミットとして入れ直した。`git log` は1コミットのみ（過去履歴は消失）。旧 packfile は `.git_pack_backup/` に保存。
+- **`.gitignore` 追加済みパターン（2026-05-06）**: `.vs/`、`Microsoft/`、`.claude/`（認証情報含む）、`.git_pack_backup/`、`db_broken`
+- **VSCode settings.json（`P:\vscode\data\user-data\User\settings.json`）**: `git.path` は `P:\git-portable\mingw64\bin\git.exe`、`CLAUDE_CODE_GIT_BASH_PATH` は `P:\git-portable\bin\bash.exe` に設定済み。code.bat 経由で起動すれば P: が固定されるため全PC共通で動く。
+- **Claude Code 会話履歴**: `P:\vscode\.claude\projects\p--Pmachi6\` に集約済み（旧 d--/e-- ドライブ時代の履歴もコピー済み、破損ファイルは `.corrupted` にリネーム）。**必ず `code.bat` 経由で VSCode を起動すること**。普通に起動すると `C:\Users\user\.claude\` が参照され、履歴が見えなくなる。
+- **`C:\Users\user\.claude` はジャンクション（2026-05-06 設定済み）**: VSCode の extension host が `USERPROFILE` 環境変数を引き継がず、Node.js が `C:\Users\user\.claude` を参照してしまう問題を解決するため、`C:\Users\user\.claude` → `P:\vscode\.claude` のディレクトリジャンクションを作成済み。これにより code.bat 経由でも普通に開いても同じ履歴を参照する。ネカフェ等の別PCで新しいWindowsユーザーになった場合は同じ手順（`mklink /J C:\Users\<ユーザー名>\.claude P:\vscode\.claude`）で再作成すること。
 - `npm install` が EBADF エラーで壊れている。原因はプロジェクトが Google Drive 上にあるため、`node_modules` 内の大量ファイル書き込みを Google Drive の同期処理が妨害するから。新パッケージを追加するときは要注意（Node.js組み込みモジュールか既存パッケージで代替を検討）。**自宅でも必ず Google Drive 同期を一時停止してから `npm install` を実行すること**
 - **ネカフェ（ポータブル）運用**: P: ドライブに Node.js・Git・プロジェクト一式が入っているため、別のネカフェでも `npm install` 不要でそのまま起動できる。`node_modules/` も P: ドライブに含まれている
 - **ネカフェでPowerShell実行ポリシーエラーが出る場合**: `npm start` が "スクリプトの実行が無効" エラーになる。回避策は `node bin/www` で直接起動する（ポリシー変更不要）。または `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process` を先に実行する
@@ -134,4 +143,4 @@ Pmachi6/
 - **`rooms[fromRoom]` は undefined になりうる**: ユーザー投稿部屋など `rooms` オブジェクトに存在しない部屋名が `fromRoom` に来るケースがある。`rooms[fromRoom].usersToken` 等へのアクセス前に `if (rooms[fromRoom])` ガードが必要。2026-05-05 修正済み。
 - **`data.userName` は joineRoom で undefined になりうる**: 部屋間移動時は `userName` を送らないため、`fromRoom === "loginRoom"` の条件だけでは不十分。`data.userName && data.userName.length` のように undefined チェックを入れること。2026-05-05 修正済み。
 - **新システム部屋追加時の必要箇所**: `index.js`（グローバル変数・setUp初期化・warpPoints・sysSpot・ROOM_PHYSICS・Room constructor case・goSelfToRoomSpot・sysRoomSprites・電車 switch）、`bin/www`（roomNameList・ROOM_SE_KEY・joineRoom switch の出現座標）、`db/init.js`（insertRoom.run）。
-- localStorage のキー一覧: `userName`, `avatarAspect`, `avatarUserName`, `colorCode`, `myOekaki`, `sit`, `fontSize`, `mainLogHeight`, `volume`, `PMsize`, `useTTS`, `ttsMode`, `ttsVolume`, `useLogChime`, `showJoinLeaveMsg`, `oekakiPerStateMode`, `useLogHighlight`, `useAvatarHighlight`, `useLogItemHighlight`, `videoSize`, `videoWidth`, `videoHeight`, `videoReverse`, `videoInverse`, `videoInverseAndReverse`, `videoReverseOther`, `videoInverseOther`, `videoInverseAndReverseOther`, `bubbleOffsetX`, `bubbleOffsetY`
+- localStorage のキー一覧: `userName`, `avatarAspect`, `avatarUserName`, `colorCode`, `myOekaki`, `sit`, `fontSize`, `mainLogHeight`, `volume`, `PMsize`, `useTTS`, `ttsMode`, `ttsVolume`, `useLogChime`, `showJoinLeaveMsg`, `oekakiPerStateMode`, `useLogHighlight`, `useAvatarHighlight`, `useLogItemHighlight`, `videoSize`, `videoWidth`, `videoHeight`, `videoReverse`, `videoInverse`, `videoInverseAndReverse`, `videoReverseOther`, `videoInverseOther`, `videoInverseAndReverseOther`, `bubbleOffsetX`, `bubbleOffsetY`, `streamQualityLevel`

@@ -55,6 +55,16 @@ db.exec(`
     room_id TEXT,
     room_name TEXT
   );
+  CREATE TABLE IF NOT EXISTS scale_zones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id TEXT NOT NULL,
+    x REAL NOT NULL,
+    y REAL NOT NULL,
+    width REAL NOT NULL,
+    height REAL NOT NULL,
+    scale REAL NOT NULL DEFAULT 1.0,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+  );
 `);
 
 const insertRoom = db.prepare(
@@ -72,9 +82,11 @@ insertRoom.finalize();
 const alterCmds = [
   "ALTER TABLE rooms ADD COLUMN lock_token TEXT DEFAULT NULL",
   "ALTER TABLE rooms ADD COLUMN locked_at DATETIME DEFAULT NULL",
-  "ALTER TABLE rooms ADD COLUMN last_activity DATETIME DEFAULT CURRENT_TIMESTAMP",
+  "ALTER TABLE rooms ADD COLUMN last_activity DATETIME DEFAULT NULL",
   "ALTER TABLE rooms ADD COLUMN gate_index INTEGER DEFAULT NULL",
   "ALTER TABLE warp_zones ADD COLUMN warp_type TEXT DEFAULT 'normal'",
+  "ALTER TABLE room_images ADD COLUMN is_warp INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE rooms ADD COLUMN avatar_scale REAL DEFAULT NULL",
 ];
 for (const cmd of alterCmds) {
   try { db.exec(cmd); } catch (_e) {}

@@ -128,7 +128,7 @@ server.on('listening', onListening);
 setInterval(() => {
   try {
     const staleRooms = db.all(
-      "SELECT id FROM rooms WHERE is_system_room = 0 AND last_activity < datetime('now', '-24 hours')"
+      "SELECT id FROM rooms WHERE is_system_room = 0 AND COALESCE(last_activity, created_at) < datetime('now', '-24 hours')"
     );
     for (const r of (staleRooms || [])) {
       // メモリ上で空でない部屋は削除しない
@@ -347,8 +347,15 @@ io.on('connection', socket => {
       return;
     }
 
-    // ユーザー投稿部屋：動的に rooms エントリを作成
-    if (!rooms[data.toRoom]) {
+    // ユーザー投稿部屋：DBに存在しない場合は弾く
+    if (!rooms[data.toRoom] && !roomNameList.includes(data.toRoom)) {
+      const exists = db.get('SELECT id FROM rooms WHERE id = ?', data.toRoom);
+      if (!exists) {
+        io.to(socket.id).emit("roomNotFound");
+        return;
+      }
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [] };
+    } else if (!rooms[data.toRoom]) {
       rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [] };
     }
     // last_activity 更新（ユーザー投稿部屋のみ）
@@ -790,15 +797,15 @@ io.on('connection', socket => {
       const allRoomTypes = roomNameList.map(() => 'system');
       const allRoomNames = [...roomNameList];
 
-      // ユーザー部屋でアクティブなものをメモリから探す
-      for (const [roomId, roomData] of Object.entries(rooms)) {
-        if (roomNameList.includes(roomId)) continue; // システム部屋はスキップ
-        if (roomData.usersToken.size === 0) continue;  // 空部屋はスキップ
-        // DB から部屋名を取得
-        let dbRoom;
-        try { dbRoom = db.get('SELECT name FROM rooms WHERE id = ?', roomId); } catch (_e) {}
-        if (!dbRoom) continue;
-        allRoomIds.push(roomId);
+      // ユーザー部屋をDBから全件取得（last_activity降順、最大30件）
+      let dbUserRooms = [];
+      try {
+        dbUserRooms = db.all(
+          "SELECT id, name FROM rooms WHERE is_system_room = 0 ORDER BY COALESCE(last_activity, created_at) DESC LIMIT 30"
+        ) || [];
+      } catch (_e) {}
+      for (const dbRoom of dbUserRooms) {
+        allRoomIds.push(dbRoom.id);
         allRoomNames.push(dbRoom.name);
         allRoomTypes.push('user');
       }
@@ -996,7 +1003,28 @@ io.on('connection', socket => {
     });
   });
 
+  socket.on("roomDeleted", (data) => {
+    if (data && data.roomId) delete rooms[data.roomId];
+  });
+
+  socket.on("startRoomEdit", (data) => {
+    if (data && data.roomId) socket._editingRoomId = data.roomId;
+  });
+
+  socket.on("endRoomEdit", () => {
+    socket._editingRoomId = null;
+  });
+
   socket.on("disconnect", () => {
+    if (socket._editingRoomId) {
+      const r = db.get('SELECT name FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);
+      if (r && r.name === '') {
+        db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [socket._editingRoomId]);
+        db.run('DELETE FROM rooms WHERE id = ?', [socket._editingRoomId]);
+      }
+      socket._editingRoomId = null;
+    }
+
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
       rooms[user[token].room].usersToken.delete(token);//部屋のユーザーリストから削除

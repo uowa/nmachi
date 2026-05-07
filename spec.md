@@ -329,6 +329,23 @@ CREATE TABLE editing_sessions (
    - [x] パスワード未入力=誰でも編集可
    - [x] 部屋は24時間アクティビティなしで自動削除
 
+   #### Phase 6 追加実装（2026-05-07）
+   - **PIXI画面への直接落書き**: 編集中に猫街の画面に直接描画→「画像として追加」ボタンで画像化。既存のUNDO/REDOボタンをそのまま使用。DOM captureフェーズで PIXI のポインターイベントをブロック（`stopImmediatePropagation()`）。変数: `_imgDoodleMode`, `_imgDoodleGfx`, `_imgDoodleHistory[]`, `_imgDoodleRedoStack[]`
+   - **ワープ仕様変更**:
+     - 形状を矩形/円/楕円の3択で最初から選ぶ（形状ボタンクリックと同時に配置モード開始）
+     - 最大サイズ250px（縦横各）にハードクランプ（アラートなし）
+     - ワープ先指定を廃止 → ワープを踏んだユーザーが新しい部屋を作る（`_warpPortalCreateRoom()`）
+     - 戻りワープ（`warp_type='back'`）: `_prevRoomSpot` に入室前の部屋を記録し、踏むと戻る
+     - **画像ワープ**: 画像一覧の行に「ワープ」トグルボタン追加。`is_warp=1` の画像を踏むと新部屋作成
+     - ドラッグ移動・リサイズ機能: コードは残してあるが呼び出しをコメントアウト中（後で復活予定）
+   - **編集パネルUX**: パスワード未入力状態では保存/完了/保存せずに戻るボタンを非表示。部屋名はパスワード前から表示（`_allRooms` キャッシュ or `GET /api/rooms/:id` で取得）
+   - **電車（#train）修正**: DBから全ユーザー部屋を取得して表示（以前はメモリ上のアクティブ部屋のみ）。ユーザー部屋はネイビーボタンで色分け。
+
+   #### 電車 `last_activity` バグ修正（2026-05-07）
+   - **原因**: `db/init.js` の `alterCmds` に `"ALTER TABLE rooms ADD COLUMN last_activity DATETIME DEFAULT CURRENT_TIMESTAMP"` があったが、node-sqlite3-wasm は `ALTER TABLE ADD COLUMN` で関数ベースのデフォルト値（`CURRENT_TIMESTAMP` 等）を受け付けない（"Cannot add a column with non-constant default"）。例外は `catch (_e) {}` でサイレント飲みされ、カラムが追加されないまま運用されていた
+   - **修正**: `DEFAULT CURRENT_TIMESTAMP` → `DEFAULT NULL` に変更。クエリ側は `ORDER BY COALESCE(last_activity, created_at) DESC` に変更
+   - **教訓**: `alterCmds` で DATETIME カラムを追加する場合は必ず `DEFAULT NULL` にする
+
 ---
 
 ### 無限部屋（むげん）✅ 2026-05-05 実装完了
@@ -345,9 +362,20 @@ CREATE TABLE editing_sessions (
 - アバタースケール 0.82、出現位置 AX:330 AY:255 DIR:S
 - 電車からも両部屋に移動可能
 
+**GATEリンク機能** ✅ 2026-05-08 実装完了
+- 各 GATE をクリック → 未接続なら新規部屋を即時作成して入室＋編集パネルが開く
+- 接続済みなら対応する部屋へ移動
+- **上GATE（インデックス0）は現在ロック中**：クリックしても「この部屋の編集には特別な権限が必要です。」とチャットに表示するのみ（権限仕様は未確定・後日実装）
+- 部屋名は空のままで作成開始、編集パネルで入力する
+- 編集中に切断 → 部屋名が空のまま残った場合はサーバーが自動削除し `mugen_gates` もクリア
+- 部屋削除時は `mugen_gates.room_id` を NULL に戻す（`routes/rooms.js` DELETE・切断クリーンアップ両方）
+- DB に古い room_id が残っていても POST 409 ハンドラが自動クリアして新規作成に進む（`routes/mugen.js`）
+- `roomNotFound` 受信時にむげんゲート入室試行中だった場合はゲートを空扱いにして作成フローを再開（ループ防止）
+
 **関連ファイル**
-- `index.js`: グローバル変数 `mugenIriguchi` / `mugenRoom` / `gateTex`、Room constructor case "むげんのいりぐち" / "むげん"、goSelfToRoomSpot "mugenEntrySpot" / "mugenMainSpot"、ROOM_PHYSICS エントリ
-- `bin/www`: roomNameList・ROOM_SE_KEY・joineRoom switch に両部屋追加
+- `index.js`: グローバル変数 `mugenIriguchi` / `mugenRoom` / `gateTex` / `mugenGateRooms` / `_mugenGateBeingEntered`、Room constructor case "むげんのいりぐち" / "むげん"、goSelfToRoomSpot "mugenEntrySpot" / "mugenMainSpot"、ROOM_PHYSICS エントリ、`onMugenGateClick` / `showGateCreateDialog` / `loadMugenGates` / `updateMugenGateTints`
+- `routes/mugen.js`: GET/POST/DELETE `/api/mugen/gates`
+- `bin/www`: roomNameList・ROOM_SE_KEY・joineRoom switch に両部屋追加、切断クリーンアップで空名前部屋削除＋mugen_gates クリア
 - `db/init.js`: is_system_room=1 で両部屋を登録
 
 ---
@@ -439,6 +467,12 @@ CREATE TABLE editing_sessions (
 **Stream quality selector**
 - 最高・高・標準・低 の4段階 / 4 levels: max / high / normal / low
 - 設定から変更 / Changed via settings
+
+#### 現状（2026-05-08 実装完了）
+- 送信側: 設定パネル「配信画質」セレクト（720p/480p/240p/120p）→ getUserMedia constraints + applyConstraints + 全視聴者へ streamQuality イベント通知
+- 受信側: mediaElement 内に画質セレクト追加 → DataChannel で配信者に setReceiverQuality 送信 → 配信者が setParameters(maxBitrate) で制限
+- 上限制約: senderQuality より高い選択肢は disabled、超えていたら自動で下げる
+- localStorage: `streamQualityLevel`
 
 ---
 

@@ -24,11 +24,15 @@ router.post('/gates/:index', (req, res) => {
 
     const existing = db.get('SELECT room_id, room_name FROM mugen_gates WHERE gate_index = ?', [gateIndex]);
     if (existing && existing.room_id) {
-        return res.status(409).json({ error: 'このGATEにはすでに部屋があります', room_id: existing.room_id, room_name: existing.room_name });
+        const roomExists = db.get('SELECT id FROM rooms WHERE id = ?', [existing.room_id]);
+        if (roomExists) {
+            return res.status(409).json({ error: 'このGATEにはすでに部屋があります', room_id: existing.room_id, room_name: existing.room_name });
+        }
+        db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE gate_index = ?', [gateIndex]);
     }
 
     const { name, creatorToken } = req.body;
-    const roomName = (name && name.trim()) || '新しい部屋';
+    const roomName = (name || '').trim();
 
     const id = crypto.randomUUID();
 

@@ -229,12 +229,17 @@
                         <button id="roomEditTabWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">ワープ</button>
                         <button id="roomEditTabImg" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">画像</button>
                         <button id="roomEditTabCode" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">コード</button>
+                        <button id="roomEditTabScale" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">スケール</button>
                       </div>
                       <!-- ワープタブ -->
                       <div id="roomEditContentWarp" style="padding-top:6px;">
                         <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">
-                          <button type="button" id="warpPlaceBtn" style="font-size:11px;">矩形配置</button>
-                          <button type="button" id="warpPlaceStopBtn" style="font-size:11px;display:none;">配置終了</button>
+                          <span style="font-size:11px;color:#aaa;">形状:</span>
+                          <button type="button" id="warpShapeRect" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 6px;">矩形</button>
+                          <button type="button" id="warpShapeCircle" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">円</button>
+                          <button type="button" id="warpShapeEllipse" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">楕円</button>
+                          <button type="button" id="warpPlaceBtn" style="font-size:11px;margin-left:4px;">配置</button>
+                          <button type="button" id="warpPlaceStopBtn" style="font-size:11px;display:none;">終了</button>
                         </div>
                         <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
                         <div id="warpList" style="max-height:400px;overflow-y:auto;margin-top:2px;"></div>
@@ -264,6 +269,7 @@
                             <button id="doodleClearBtn" style="font-size:11px;">消去</button>
                             <button id="doodleSaveBtn" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">画像として追加</button>
                           </div>
+                          <div id="doodleCanvasInstruction" style="display:none;padding:20px;text-align:center;color:#aaa;font-size:12px;background:#111;border-top:1px solid #333;">画面に直接描いてください。描き終えたら「画像として追加」を押してください。</div>
                           <canvas id="doodleCanvas" width="330" height="230" style="display:block;background:#fff;cursor:crosshair;touch-action:none;max-width:100%;"></canvas>
                         </div>
                         <div id="imgList" style="max-height:400px;overflow-y:auto;margin-top:4px;"></div>
@@ -284,13 +290,42 @@
                           <button type="button" id="codeRulesCopyBtn" style="font-size:11px;margin-top:4px;">ルールをコピー（AIに貼り付け用）</button>
                         </details>
                       </div>
-                      <div style="margin-top:12px;font-size:13px;color:#ff9900;font-weight:bold;border-top:1px solid #333;padding-top:8px;">⚠ 部屋は一日誰も出入りがなかったら消えます。</div>
-                    </div>
-                    <!-- 右下3ボタン（sticky） -->
-                    <div style="position:sticky;bottom:0;background:#0d0d1a;border-top:1px solid #444;padding:8px 4px 4px;display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
-                      <button id="roomEditDiscardBtn" style="font-size:12px;padding:5px 14px;background:#3a1010;border:1px solid #c04040;color:#ffaaaa;cursor:pointer;">保存せずに戻る</button>
-                      <button id="roomEditSaveBtn" style="font-size:12px;padding:5px 14px;background:#0a2a1a;border:1px solid #40a060;color:#aaffcc;cursor:pointer;">保存</button>
-                      <button id="roomEditCompleteBtn" style="font-size:12px;padding:5px 14px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">完了</button>
+                      <!-- スケールタブ -->
+                      <div id="roomEditContentScale" style="display:none;padding-top:6px;">
+                        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                          <span style="font-size:11px;color:#aaa;white-space:nowrap;">全体スケール:</span>
+                          <input type="range" id="roomScaleSlider" min="0.1" max="3" step="0.05" value="1" style="flex:1;min-width:80px;">
+                          <input type="number" id="roomScaleInput" min="0.1" max="10" step="0.05" value="1" style="width:52px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
+                          <button type="button" id="roomScaleSaveBtn" style="font-size:11px;">保存</button>
+                        </div>
+                        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
+                          <button type="button" id="scaleZonePlaceBtn" style="font-size:11px;">エリア追加</button>
+                          <button type="button" id="scaleZonePlaceStopBtn" style="font-size:11px;display:none;">終了</button>
+                        </div>
+                        <div id="scaleZoneErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
+                        <div id="scaleZoneList" style="max-height:300px;overflow-y:auto;margin-top:2px;"></div>
+                      </div>
+                      <div style="margin-top:12px;border-top:1px solid #333;padding-top:8px;">
+                        <button id="roomDeleteBtn" type="button" style="font-size:11px;background:#3a0a0a;border:1px solid #a03030;color:#ffaaaa;padding:3px 10px;cursor:pointer;">この部屋を削除</button>
+                        <div id="roomDeleteConfirm" style="display:none;margin-top:6px;background:#1a0000;border:1px solid #c04040;padding:8px;border-radius:3px;">
+                          <div style="font-size:12px;color:#ff8888;margin-bottom:6px;">本当に削除しますか？<br><span style="font-size:10px;color:#aaa;">元に戻せません。部屋・画像・ワープがすべて消えます。</span></div>
+                          <div id="roomDeletePassWrap" style="display:none;margin-bottom:6px;">
+                            <input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;">
+                          </div>
+                          <div id="roomDeleteErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
+                          <div style="display:flex;gap:6px;">
+                            <button id="roomDeleteConfirmBtn" type="button" style="font-size:11px;background:#800;border:1px solid #c04040;color:#fff;padding:3px 12px;cursor:pointer;">削除する</button>
+                            <button id="roomDeleteCancelBtn" type="button" style="font-size:11px;background:#222;border:1px solid #666;color:#aaa;padding:3px 12px;cursor:pointer;">キャンセル</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div style="margin-top:8px;font-size:13px;color:#ff9900;font-weight:bold;">⚠ 部屋は一日誰も出入りがなかったら消えます。</div>
+                      <!-- 右下3ボタン（sticky） -->
+                      <div style="position:sticky;bottom:0;background:#0d0d1a;border-top:1px solid #444;padding:8px 4px 4px;display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+                        <button id="roomEditDiscardBtn" style="font-size:12px;padding:5px 14px;background:#3a1010;border:1px solid #c04040;color:#ffaaaa;cursor:pointer;">保存せずに戻る</button>
+                        <button id="roomEditSaveBtn" style="font-size:12px;padding:5px 14px;background:#0a2a1a;border:1px solid #40a060;color:#aaffcc;cursor:pointer;">保存</button>
+                        <button id="roomEditCompleteBtn" style="font-size:12px;padding:5px 14px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">完了</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -298,6 +333,15 @@
               </div>
             </div>
             <div id="setting">
+              <div>
+                <label>配信画質：</label>
+                <select id="streamQualitySelect" onchange="changeStreamQuality(this.value)">
+                  <option value="max">最高 (720p 30fps)</option>
+                  <option value="high">高 (480p 30fps)</option>
+                  <option value="normal">標準 (240p 15fps)</option>
+                  <option value="low">低 (120p 10fps)</option>
+                </select>
+              </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">
                 <input type="radio" name="videoSize" value="setMax" checked id="selectVideoSize1"
