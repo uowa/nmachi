@@ -1,7 +1,9 @@
 node_modules/
 public/zip/
+public/uploads/
 .vs/
 Microsoft/
 .claude/
 .git_pack_backup/
 db_broken
+db/rooms.db

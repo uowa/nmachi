@@ -37,9 +37,27 @@ router.post('/gates/:index', (req, res) => {
     const id = crypto.randomUUID();
 
     db.run(
-        'INSERT INTO rooms (id, name, creator_token) VALUES (?, ?, ?)',
-        [id, roomName, creatorToken || null]
+        'INSERT INTO rooms (id, name, creator_token, gate_index) VALUES (?, ?, ?, ?)',
+        [id, roomName, creatorToken || null, gateIndex]
     );
+
+    const ROOM_W = 660, ROOM_H = 460, WARP_SZ = 30;
+    const corners = [
+        { x: 0,              y: 0,              type: 'normal' },
+        { x: ROOM_W - WARP_SZ, y: 0,              type: 'normal' },
+        { x: 0,              y: ROOM_H - WARP_SZ, type: 'normal' },
+        { x: ROOM_W - WARP_SZ, y: ROOM_H - WARP_SZ, type: 'back'   },
+    ];
+    const warpStmt = db.prepare(
+        'INSERT INTO warp_zones (room_id, warp_type, shape, x, y, width, height, visual_opacity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    try {
+        for (const c of corners) {
+            warpStmt.run([id, c.type, 'rect', c.x, c.y, WARP_SZ, WARP_SZ, 0.2]);
+        }
+    } finally {
+        warpStmt.finalize();
+    }
 
     db.run(
         'INSERT OR REPLACE INTO mugen_gates (gate_index, room_id, room_name) VALUES (?, ?, ?)',

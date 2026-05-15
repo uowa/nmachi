@@ -7,7 +7,11 @@
 - 新ファイル・関数・パターン追加時 → CLAUDE.md を更新
 - 新しい localStorage キー追加時 → CLAUDE.md のキー一覧を更新
 - 新しい注意点・バグ判明時 → CLAUDE.md の「既知の注意点」を更新
-- **ユーザーが「完了」と言ったら新スレッドへの移行合図** → その前に必ず spec.md / CLAUDE.md への必要な書き込みを済ませること
+- **ユーザーが「完了」と言ったら新スレッドへの移行合図** → その前に必ず以下を行うこと：
+  1. spec.md / CLAUDE.md への必要な書き込みを済ませる
+  2. 変更ファイルを全てステージング（`test_ol.js` 等の一時ファイルは除外）
+  3. このスレッドの作業内容を元に日本語でコミットメッセージを作成してコミット
+  4. `git push origin master` で GitHub に push
 
 ---
 
@@ -111,10 +115,11 @@ Pmachi6/
 
 - **git コマンドの実行方法（Bash ツール内）**: `git` を直接呼ぶと `fatal: not a git repository: 'P:\git-portable'` エラーになる。必ず以下の形式で実行すること：
   ```
-  GIT_DIR=/p/Pmachi6/.git GIT_WORK_TREE=/p/Pmachi6 /i/git-portable/mingw64/bin/git.exe -C /p/Pmachi6 [コマンド]
+  GIT_DIR=/p/Pmachi6/.git GIT_WORK_TREE=/p/Pmachi6 "P:/git-portable/mingw64/bin/git.exe" -C "P:/Pmachi6" [コマンド]
   ```
+- **GitHub SSH鍵（2026-05-08 設定済み）**: 鍵は `P:/.ssh/id_ed25519`。`git config core.sshCommand` に `ssh -i /p/.ssh/id_ed25519 -o StrictHostKeyChecking=no` を設定済みのため、push 時に `GIT_SSH_COMMAND` の指定は不要。リモートは `git@github.com:uowa/nmachi.git`（旧 Pmachi5 から移動済み）。別PCでも P: ドライブを使う限り鍵はそのまま使える。
 - **git オブジェクト大規模破損（2026-05-06 修復済み）**: Google Drive 同期が `.git/objects/` を破損。`.git` を作り直し、現在のファイル全てを1コミットとして入れ直した。`git log` は1コミットのみ（過去履歴は消失）。旧 packfile は `.git_pack_backup/` に保存。
-- **`.gitignore` 追加済みパターン（2026-05-06）**: `.vs/`、`Microsoft/`、`.claude/`（認証情報含む）、`.git_pack_backup/`、`db_broken`
+- **`.gitignore` 追加済みパターン**: `.vs/`、`Microsoft/`、`.claude/`（認証情報含む）、`.git_pack_backup/`、`db_broken`（2026-05-06）、`db/rooms.db`・`public/uploads/`（2026-05-15、VPS運用でデプロイ時に上書きされないよう）
 - **VSCode settings.json（`P:\vscode\data\user-data\User\settings.json`）**: `git.path` は `P:\git-portable\mingw64\bin\git.exe`、`CLAUDE_CODE_GIT_BASH_PATH` は `P:\git-portable\bin\bash.exe` に設定済み。code.bat 経由で起動すれば P: が固定されるため全PC共通で動く。
 - **Claude Code 会話履歴**: `P:\vscode\.claude\projects\p--Pmachi6\` に集約済み（旧 d--/e-- ドライブ時代の履歴もコピー済み、破損ファイルは `.corrupted` にリネーム）。**必ず `code.bat` 経由で VSCode を起動すること**。普通に起動すると `C:\Users\user\.claude\` が参照され、履歴が見えなくなる。
 - **`C:\Users\user\.claude` はジャンクション（2026-05-06 設定済み）**: VSCode の extension host が `USERPROFILE` 環境変数を引き継がず、Node.js が `C:\Users\user\.claude` を参照してしまう問題を解決するため、`C:\Users\user\.claude` → `P:\vscode\.claude` のディレクトリジャンクションを作成済み。これにより code.bat 経由でも普通に開いても同じ履歴を参照する。ネカフェ等の別PCで新しいWindowsユーザーになった場合は同じ手順（`mklink /J C:\Users\<ユーザー名>\.claude P:\vscode\.claude`）で再作成すること。

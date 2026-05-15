@@ -375,6 +375,7 @@ function pointInPolygon(px, py, polygon) {
 
 // 統合されたワープ判定関数
 function checkObjectWarpPoints(avatar) {
+  if (document.getElementById('roomEditPanel').style.display !== 'none') return false;
   for (const wp of warpPoints) {
     // 部屋が一致しない場合はスキップ
     if (wp.room !== room.name) continue;
@@ -723,8 +724,15 @@ function drawDbImages() {
     sprite.eventMode = 'none';
     if (img.x != null) sprite.x = img.x;
     if (img.y != null) sprite.y = img.y;
-    if (img.width != null) sprite.width = img.width;
-    if (img.height != null) sprite.height = img.height;
+    const _setSize = () => {
+      if (img.width) sprite.width = img.width;
+      if (img.height) sprite.height = img.height;
+    };
+    if (sprite.texture.baseTexture.valid) {
+      _setSize();
+    } else {
+      sprite.texture.baseTexture.once('loaded', _setSize);
+    }
     if (img.type === 'background') {
       sprite.zIndex = -100;
     } else if (img.type === 'object') {
@@ -6926,10 +6934,12 @@ function _enableImgEditMode() {
   dbRoomImages.forEach((imgData, idx) => {
     const sprite = dbImageSprites[idx];
     if (!sprite) return;
-    if (!imgData.width) imgData.width = Math.round(sprite.width);
-    if (!imgData.height) imgData.height = Math.round(sprite.height);
-    sprite.width = imgData.width;
-    sprite.height = imgData.height;
+    if (sprite.texture.baseTexture.valid) {
+      if (!imgData.width) imgData.width = Math.round(sprite.texture.width) || null;
+      if (!imgData.height) imgData.height = Math.round(sprite.texture.height) || null;
+      if (imgData.width) sprite.width = imgData.width;
+      if (imgData.height) sprite.height = imgData.height;
+    }
     const borderGfx = new PIXI.Graphics();
     borderGfx.zIndex = 1000; borderGfx.eventMode = 'none';
     room.container.addChild(borderGfx);
