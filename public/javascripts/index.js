@@ -4176,6 +4176,7 @@ socket.on("userInit", data => {//Tokenを受け取ったら
       avaP[myToken].setColor(0xFFFFFF);//(無色、白)
       oekakiColor = newOekakiColor;
       avaP[myToken].nameText.y = -avaP[myToken].avaC.height - 10 - avaP[myToken].nameText.height / 2;
+      avaP[myToken].nameTag.y = avaP[myToken].nameText.y;
     });
   }
 
