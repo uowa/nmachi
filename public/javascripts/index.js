@@ -686,19 +686,17 @@ function _roomToSpot(roomName) {
 
 async function _warpPortalCreateRoom() {
   if (document.getElementById('roomEditPanel').style.display !== 'none') return;
-  const name = prompt('部屋名を入力してください', '新しい部屋');
-  if (!name || !name.trim()) return;
   try {
     const res = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), creatorToken: myToken }),
+      body: JSON.stringify({ name: '', creatorToken: myToken }),
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || '部屋の作成に失敗しました'); return; }
     _isNewRoomMode = true;
     _pendingOpenEditPanel = true;
-    _pendingRoomName = data.name;
+    _pendingRoomName = '';
     _prevRoomSpot = _roomToSpot(room.name);
     goSelfToRoomSpot('userRoom:' + data.id);
   } catch (_e) {
@@ -4775,6 +4773,7 @@ socket.on("joineRoom", data => {
     avaP[myToken].nameText.text = data.user[myToken].userName;
 
     avaP[myToken].nameText.position.set(-avaP[myToken].nameText.width / 2, -avaP[myToken].avaC.height - 10 - avaP[myToken].nameText.height / 2);
+    avaP[myToken].nameTag.position.set(avaP[myToken].nameText.x, avaP[myToken].nameText.y);
     avaP[myToken].nameTag.beginFill(0x000000, 0.5);
     avaP[myToken].nameTag.drawRect(0, 0, avaP[myToken].nameText.width, avaP[myToken].nameText.height);
     avaP[myToken].nameTag.endFill();

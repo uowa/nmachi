@@ -88,7 +88,7 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
     const { name, editPassword, creatorToken, maxUsers = 0, maxStreamers = 0,
             allowVideo = 1, allowAudio = 1, gateIndex } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ error: '部屋名が必要です' });
+    const roomName = (name || '').trim();
 
     const id = crypto.randomUUID();
     const hash = editPassword ? hashPassword(editPassword) : null;
@@ -96,7 +96,7 @@ router.post('/', (req, res) => {
     db.run(
         `INSERT INTO rooms (id, name, creator_token, edit_password_hash, max_users, max_streamers, allow_video, allow_audio, gate_index)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name.trim(), creatorToken || null, hash, maxUsers, maxStreamers,
+        [id, roomName, creatorToken || null, hash, maxUsers, maxStreamers,
          allowVideo ? 1 : 0, allowAudio ? 1 : 0, gateIndex ?? null]
     );
 
@@ -118,7 +118,7 @@ router.post('/', (req, res) => {
         warpStmt.finalize();
     }
 
-    res.status(201).json({ id, name: name.trim() });
+    res.status(201).json({ id, name: roomName });
 });
 
 // POST /api/rooms/:id/auth - パスワード検証（UIの「読込」ボタン用）
