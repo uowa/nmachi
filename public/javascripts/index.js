@@ -5884,34 +5884,24 @@ function outputChatMsg(outputMessage, color, thisToken, announce, namePrefix) {/
   }
 
   //オーバーレイチャットの表示
-  // overlayChat.text = outputMessage + "\n" + overlayChat.text;
-  //既存のテキストを下にずらす
-  const offsetY = 18; // テキストを下にずらす量
-  overlayChat.children.forEach(child => {
-    child.y += offsetY; // TextもSpriteもまとめて下にずらす
-  });
+  const _oText = new PIXI.Text(outputMessage, overlayChatStyle);
+  _oText.y = 0;
+  const _oOffsetY = Math.max(_oText.height, 18);
+  overlayChat.children.forEach(child => { child.y += _oOffsetY; });
 
   if (thisToken) {
-    const iconSprite = new PIXI.Sprite(avaP[thisToken].icon); // TextureからSpriteを生成
-    iconSprite.width = 18; // アイコンサイズ調整
+    const iconSprite = new PIXI.Sprite(avaP[thisToken].icon);
+    iconSprite.width = 18;
     iconSprite.height = 18;
     iconSprite.x = 0;
     iconSprite.y = 0;
-    iconSprite.tint = avaP[thisToken].avatarColor || 0xffffff; // アバターの色を反映
-
+    iconSprite.tint = avaP[thisToken].avatarColor || 0xffffff;
     overlayChat.addChild(iconSprite);
-
-    // テキスト
-    const text = new PIXI.Text(outputMessage, overlayChatStyle);
-    text.x = iconSprite.width; // アイコンの右にテキスト
-    text.y = 0;
-    overlayChat.addChild(text);
+    _oText.x = 18;
+    overlayChat.addChild(_oText);
   } else {
-    // テキストのみ
-    const text = new PIXI.Text(outputMessage, overlayChatStyle);
-    text.x = 0;
-    text.y = 0;
-    overlayChat.addChild(text);
+    _oText.x = 0;
+    overlayChat.addChild(_oText);
   }
 }
 
