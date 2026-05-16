@@ -397,6 +397,9 @@
               <div>
                 <input type="checkbox" id="oekakiPerStateMode" onchange="changeOekakiPerStateMode()"><label for="oekakiPerStateMode">ラクガキをアニメーションごとに切り替える</label>
               </div>
+              <div id="contextMenuPosWrap">
+                タップメニュー位置：<select id="contextMenuPos" onchange="changeContextMenuPos(this.value)"><option value="left">左</option><option value="right">右</option></select>
+              </div>
               <div style="display:flex; align-items:center; gap:4px;">
                 <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
                 <select id="ttsMode" onchange="changeTTSSetting()">

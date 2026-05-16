@@ -140,6 +140,7 @@ let showJoinLeaveMsg = localStorage.getItem("showJoinLeaveMsg") !== "false"; // 
 let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // デフォルトtrue
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
 let useLogItemHighlight = localStorage.getItem("useLogItemHighlight") !== "false"; // デフォルトtrue
+let contextMenuPos = localStorage.getItem("contextMenuPos") || "left";
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -7647,6 +7648,7 @@ document.getElementById('useLogHighlight').checked = useLogHighlight;
 document.getElementById('useAvatarHighlight').checked = useAvatarHighlight;
 document.getElementById('useLogItemHighlight').checked = useLogItemHighlight;
 _updateLogHighlightUI();
+document.getElementById('contextMenuPos').value = contextMenuPos;
 if (document.getElementById('useTTS')) document.getElementById('useTTS').checked = useTTS;
 if (document.getElementById('ttsMode')) document.getElementById('ttsMode').value = ttsMode;
 if (document.getElementById('ttsVolumeSlider')) document.getElementById('ttsVolumeSlider').value = ttsVolume;
@@ -7948,34 +7950,18 @@ window.addEventListener('pointerdown', e => {
 
 // コンテキストメニューを表示する位置を計算して表示する関数
 function contextMenuPositionSet(e) {
-  // クリック位置を取得（roomオブジェクトのローカル座標）
   const pos = e.data.getLocalPosition(room.container);
   const winWidth = window.innerWidth;
+  const winHeight = window.innerHeight;
 
-  // メニューのtop位置のオフセットを計算
   let topOffset;
   if (winWidth > 870) {
-    // PC表示時はtitleBarの高さを取得
     topOffset = parseInt(window.getComputedStyle(titleBar).getPropertyValue('height'));
   } else {
-    // スマホ表示時はformの高さを取得
     topOffset = parseInt(window.getComputedStyle(form).getPropertyValue('height'));
   }
 
-  // PC表示 or スマホ左側 or スマホ右側で位置を調整
-  if (winWidth > 870) {
-    // PC表示：そのままの位置
-    contextMenu.style.left = pos.x + "px";
-    contextMenu.style.top = (pos.y + topOffset) + "px";
-  } else if (pos.x < 540) {
-    // スマホ左側：そのままの位置
-    contextMenu.style.left = pos.x + "px";
-    contextMenu.style.top = (pos.y + topOffset) + "px";
-  } else {
-    // スマホ右側：左にメニューの幅分ずらす
-    contextMenu.style.left = (pos.x - contextMenu.offsetWidth) + "px";
-    contextMenu.style.top = (pos.y + topOffset) + "px";
-  }
+  // まずメニュー項目の表示/非表示を更新してから高さを計測
   if (avaP[myToken].avatarAspect == "gomaneco" || avaP[myToken].avatarAspect == "gomanecoMono") {
     sleepMenu.style.display = "block";
   } else {
@@ -7995,7 +7981,39 @@ function contextMenuPositionSet(e) {
     contextMenuRoomPos = null;
     contextMenuCloudRelX = null;
   }
+
+  // visibility:hidden で一時表示してメニューサイズを計測
+  contextMenu.style.visibility = 'hidden';
+  contextMenu.style.display = 'block';
+  const menuW = contextMenu.offsetWidth;
+  const menuH = contextMenu.offsetHeight;
+  contextMenu.style.display = 'none';
+  contextMenu.style.visibility = '';
+
+  let left, top;
+  if (winWidth > 870) {
+    // PC：クリック位置に表示（画面端補正あり）
+    left = pos.x;
+    top = pos.y + topOffset;
+    if (left + menuW > winWidth) left = winWidth - menuW;
+    if (top + menuH > winHeight) top = winHeight - menuH;
+  } else {
+    // スマホ：設定に応じて左上または右上に固定表示
+    const margin = 4;
+    top = topOffset + margin;
+    left = contextMenuPos === "right" ? winWidth - menuW - margin : margin;
+    if (top + menuH > winHeight - margin) top = winHeight - menuH - margin;
+    if (top < topOffset) top = topOffset;
+  }
+
+  contextMenu.style.left = left + "px";
+  contextMenu.style.top = top + "px";
   contextMenu.style.display = "block";
+}
+
+function changeContextMenuPos(val) {
+  contextMenuPos = val;
+  localStorage.setItem("contextMenuPos", val);
 }
 
 // クリック位置が足場（standableタグのあるオブジェクト）の上かどうか判定

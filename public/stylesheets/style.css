@@ -939,6 +939,17 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     padding: 0;
 }
 
+@media (max-width: 870px) {
+  #contextMenu {
+    width: 200px;
+    font-size: 2em;
+  }
+  #contextMenu li {
+    padding: 6px 10px;
+  }
+}
+
+
 #abonMenu {
     display: none;
 }
