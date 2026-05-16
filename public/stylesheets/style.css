@@ -886,6 +886,9 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     #bagusyusei {
         width: 100%;
     }
+    #roomEditBtns {
+        position: static;
+    }
 }
 
 /* 右クリックメニュー */

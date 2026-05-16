@@ -1891,7 +1891,27 @@ class Avatar {
 
     this.container.on('pointerdown', e => {
       if (['touch', 'pen'].includes(e.pointerType)) {
-        let touchTimer = setTimeout(() => contextMenuPositionSet(e), 1000);//一秒長押しで、右クリックメニューを表示
+        let touchTimer = setTimeout(() => {//一秒長押しで、右クリックメニューを表示
+          if (avatarOekakiToken !== this.token) avatarOekakiToken = false;
+          contextMenu.dataset.token = this.token;
+          if (avatarOekakiToken === this.token) {
+            avatarOekakiMenu.textContent = "ラクガキをやめる";
+            avatarOekakiMenu.style.display = "block";
+          } else if (this.token === myToken || avaP[this.token]?.allowOthersOekaki !== false) {
+            avatarOekakiMenu.textContent = "ラクガキする";
+            avatarOekakiMenu.style.display = "block";
+          } else {
+            avatarOekakiMenu.style.display = "none";
+          }
+          if (this.token !== myToken) {
+            abonMenu.style.display = "block";
+            abonMenu.textContent = this.abon ? "アボン解除" : "アボン";
+          } else {
+            abonMenu.style.display = "none";
+          }
+          document.getElementById('roomEditMenu').style.display = 'none';
+          contextMenuPositionSet(e);
+        }, 1000);
         const clearTouchTimer = () => clearTimeout(touchTimer);
         document.getElementById("graphic").addEventListener("touchend", clearTouchTimer, { passive: true, once: true });
 
@@ -7892,6 +7912,7 @@ function contextMenuPositionSet(e) {
     contextMenuRoomPos = null;
     contextMenuCloudRelX = null;
   }
+  contextMenu.style.display = "block";
 }
 
 // クリック位置が足場（standableタグのあるオブジェクト）の上かどうか判定
