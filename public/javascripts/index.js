@@ -6003,6 +6003,23 @@ myCanvas.addEventListener('touchend', e => {
     if (child instanceof PIXI.Text) child.style.fill = _ocTextColors[_ocTextColorIdx];
   });
 }, { passive: true });
+myCanvas.addEventListener('wheel', e => {
+  if (!useOverlayChat) return;
+  e.preventDefault();
+  const isHoriz = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  if (isHoriz) {
+    const delta = e.shiftKey ? e.deltaY : e.deltaX;
+    if (Math.abs(delta) < 5) return;
+    _ocTextColorIdx = (_ocTextColorIdx + (delta > 0 ? 1 : -1) + _ocTextColors.length) % _ocTextColors.length;
+    overlayChatStyle.fill = _ocTextColors[_ocTextColorIdx];
+    overlayChat.children.forEach(child => {
+      if (child instanceof PIXI.Text) child.style.fill = _ocTextColors[_ocTextColorIdx];
+    });
+  } else {
+    const rect = myCanvas.getBoundingClientRect();
+    overlayChat.y = Math.min(0, overlayChat.y - e.deltaY * (460 / rect.height));
+  }
+}, { passive: false });
 
 wa_i.style.backgroundColor = "red";
 wa_i.addEventListener('pointerdown', e => {
