@@ -286,6 +286,11 @@ const warpPoints = [
     toSpot: "mugenMainSpot"
   },
   {
+    room: "むげんのいりぐち",
+    area: { x1: 580, x2: 660, y1: 400, y2: 480 },
+    toSpot: "outerSpaceMainSpot"
+  },
+  {
     room: "むげん",
     area: { x1: 580, x2: 660, y1: 400, y2: 480 },
     toSpot: "mugenEntrySpot"
@@ -3844,6 +3849,7 @@ class Room extends GameObject {
     if (roomConfig) {
       if (roomConfig.se) roomSE = roomConfig.se;
       if (roomConfig.overlayChatColor) {
+        overlayChatStyle.fill = roomConfig.overlayChatColor;
         overlayChat.children.forEach(child => {
           if (child instanceof PIXI.Text) child.style.fill = roomConfig.overlayChatColor;
         });
@@ -5899,13 +5905,15 @@ function outputChatMsg(outputMessage, color, thisToken, announce, namePrefix) {/
     li.classList.add('log-highlight');
     _applyHighlightStyle(li, thisToken, !!announce);
   }
+  const _wasAtBottom = mainLog.scrollHeight <= mainLog.clientHeight + mainLog.scrollTop + 1;
   mainLogUl.appendChild(li);
-  if (window.innerWidth > 660 && mainLog.scrollHeight <= mainLog.clientHeight + mainLog.scrollTop + 1) {
+  if (window.innerWidth > 660 && _wasAtBottom) {
     mainLog.scrollTop = mainLog.scrollHeight;
   }
 
   //オーバーレイチャットの表示
-  const _oText = new PIXI.Text(outputMessage, overlayChatStyle);
+  const _oDisplayMsg = namePrefix ? namePrefix + outputMessage : outputMessage;
+  const _oText = new PIXI.Text(_oDisplayMsg, overlayChatStyle);
   _oText.y = 0;
   const _oOffsetY = Math.max(_oText.height, 18);
   overlayChat.children.forEach(child => { child.y += _oOffsetY; });

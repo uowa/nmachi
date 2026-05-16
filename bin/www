@@ -211,7 +211,7 @@ msgSE.outerSpace.out = new Array(1);
 msgSE.outerSpace.logout = new Array(1);
 
 function time() {
-  return " -- " + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + "--";
+  return " -- " + new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) + "--";
 }
 
 
@@ -752,7 +752,7 @@ io.on('connection', socket => {
 
     let fontColor = "black";
     if (data.msg == "スシ" || data.msg == "ｽｼ" || data.msg == "すし" || data.msg == "🍣" || data.msg == "寿司" || data.msg == "鮨" || data.msg == "susi") {
-      data.msg += "(" + new Date().getHours().toLocaleString() + ":" + new Date().getMinutes().toLocaleString() + ")";
+      data.msg += "(" + new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) + ")";
       fontColor = "white";
     }
     if (data.msg == "もみころ") {

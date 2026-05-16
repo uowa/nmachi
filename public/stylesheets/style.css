@@ -873,6 +873,9 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     #switchBar {
         padding: 0;
     }
+    #train {
+        min-height: 3em;
+    }
     #mediaMenu>li {
         /* ボタンが押しにくいので */
         padding: 10px;
