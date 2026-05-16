@@ -5455,6 +5455,15 @@ function startKeyMoveTicker() {
     ava.container.x = AX;
     ava.container.y = AY;
 
+    // 乗り物（雲など）に乗っている場合、ridingOffsetを更新して位置を維持
+    if (ava.ridingObject) {
+      const objContainer = ava.ridingObject.container || ava.ridingObject;
+      const sx = objContainer.scale?.x ?? 1;
+      const sy = objContainer.scale?.y ?? 1;
+      ava.ridingOffset.x = (AX - (objContainer.x || 0)) / (sx || 1);
+      ava.ridingOffset.y = (AY - (objContainer.y || 0)) / (sy || 1);
+    }
+
     // 歩行アニメーションフレームの切り替え（0→1→2→0 の3フレームサイクル）
     keyWalkFrameTimer += delta;
     if (keyWalkFrameTimer >= KEY_WALK_FRAME_TICKS) {

@@ -430,6 +430,11 @@ CREATE TABLE editing_sessions (
 - Enter（Shiftなし）: 送信（`e.preventDefault()` + `dispatchEvent("submit")`）
 - Alt+Enter: ログ残し（`isDownedShift = e.altKey` で判定、`carryOver: true` で送信）
 - テキストエリアは入力に合わせて自動リサイズ（`autoResizeMsg()`）、送信後リセット
+
+#### 更新 (2026-05-16 スマホ用送信ボタン追加)
+- スマホ幅（870px以下）のみ ⏎ 送信ボタンを入力欄右に表示（`#sendBtn`）
+- ボタン高さは `align-items: stretch` で入力欄に追従
+- `msgForm` の表示は `display: flex`（JSで `block` にすると flex が崩れるため注意）
 - チャットログの改行表示: `\n` を `<br>` に変換し `li` の直接の子として挿入
   - 自動折り返し・明示改行ともに2行目以降は `li` 左端から始まる
   - `li.classList.add(thisToken)` で追加（`li.className =` で上書きしないこと）
@@ -463,7 +468,6 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 11. 画質切り替え
 **Stream quality selector**
 - 最高・高・標準・低 の4段階 / 4 levels: max / high / normal / low
 - 設定から変更 / Changed via settings
