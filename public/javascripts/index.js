@@ -4370,7 +4370,7 @@ function login() {
 
     //フォームを切り替える
     nameForm.style.display = "none";
-    msgForm.style.display = "block";
+    msgForm.style.display = "flex";
     msgForm.msg.focus();
 
     //wa_iButtunがオフの時

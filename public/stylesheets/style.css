@@ -305,11 +305,31 @@ li>a {
     text-align: right;
     display: none;
     background-color: #939393;
+    width: 100%;
+    align-items: stretch;
+    gap: 2px;
+}
+
+#sendBtn {
+    flex-shrink: 0;
+    padding: 0 10px;
+    white-space: nowrap;
+    font-weight: bold;
+    background-color: #f5c080;
+    border: 1px solid #e0a050;
+    display: none;
+}
+
+@media(max-width: 870px) {
+    #sendBtn {
+        display: block;
+    }
 }
 
 #msg {
     font-size: 19px;
-    width: 99%;
+    flex: 1;
+    min-width: 0;
     background-color: #E1E1E1;
     -moz-transform-origin: 3px 0px;
     -webkit-transform-origin: 3px 0px;
