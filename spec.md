@@ -441,6 +441,11 @@ CREATE TABLE editing_sessions (
   - `msgPrefix` span（icon + 名前）は `display: inline; white-space: nowrap`
   - テキストノードと `<br>` は `li` に直接 appendChild（span等のネストなし）
 
+#### 更新 (2026-05-16 画面ログ スワイプ操作・電車ボタン改善)
+- **左右スワイプで背景色切替**: `mainLog` に touchstart/touchmove/touchend を追加。50px以上の水平スワイプで7色のプリセットカラーを循環。localStorage `logBgColor` に保存・復元
+- **上下スワイプでスクロール**: 縦スワイプ検出時に `mainLog.scrollTop` を手動更新し `preventDefault()` でキャンバスへの伝播を防止
+- **電車ボタン → ログ自動表示**: `socket.on("train")` で `useMainLog` が false の場合に自動展開し、常に最下部にスクロールして電車ボタンを表示
+
 ---
 
 ### 8. 他者からのアバター落書きON/OFF ✅
