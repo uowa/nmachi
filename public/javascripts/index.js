@@ -5956,58 +5956,6 @@ mainLogButton.addEventListener('pointerdown', e => {
   mainLogResizeBar.style.display = useMainLog ? "block" : "none";
 });
 
-// mainLog スワイプ操作：左右で背景色切替、上下でスクロール
-const _logBgColors = [
-  'rgb(76, 76, 82)',
-  'rgb(10, 20, 45)',
-  'rgb(15, 40, 15)',
-  'rgb(50, 20, 20)',
-  'rgb(30, 15, 55)',
-  'rgb(0, 0, 0)',
-  'rgb(45, 35, 15)',
-];
-let _logBgColorIdx = (() => {
-  const saved = localStorage.getItem("logBgColor");
-  if (saved) {
-    const idx = _logBgColors.indexOf(saved);
-    return idx >= 0 ? idx : 0;
-  }
-  return 0;
-})();
-mainLog.style.backgroundColor = _logBgColors[_logBgColorIdx];
-
-let _logTouchStartX = 0, _logTouchStartY = 0, _logTouchPrevY = 0, _logSwipeDir = null;
-mainLog.addEventListener('touchstart', e => {
-  _logTouchStartX = e.touches[0].clientX;
-  _logTouchStartY = e.touches[0].clientY;
-  _logTouchPrevY = e.touches[0].clientY;
-  _logSwipeDir = null;
-}, { passive: true });
-mainLog.addEventListener('touchmove', e => {
-  if (!e.touches[0]) return;
-  const dx = e.touches[0].clientX - _logTouchStartX;
-  const dy = e.touches[0].clientY - _logTouchStartY;
-  if (!_logSwipeDir) {
-    if (Math.abs(dy) > Math.abs(dx) + 5) _logSwipeDir = 'v';
-    else if (Math.abs(dx) > Math.abs(dy) + 5) _logSwipeDir = 'h';
-  }
-  if (_logSwipeDir === 'h') {
-    e.preventDefault();
-  } else if (_logSwipeDir === 'v') {
-    e.preventDefault();
-    mainLog.scrollTop -= (e.touches[0].clientY - _logTouchPrevY);
-  }
-  _logTouchPrevY = e.touches[0].clientY;
-}, { passive: false });
-mainLog.addEventListener('touchend', e => {
-  if (_logSwipeDir !== 'h') return;
-  const dx = e.changedTouches[0].clientX - _logTouchStartX;
-  if (Math.abs(dx) < 50) return;
-  _logBgColorIdx = (_logBgColorIdx + (dx > 0 ? -1 : 1) + _logBgColors.length) % _logBgColors.length;
-  mainLog.style.backgroundColor = _logBgColors[_logBgColorIdx];
-  localStorage.setItem("logBgColor", _logBgColors[_logBgColorIdx]);
-}, { passive: true });
-
 //画面chatの表示切替
 let useOverlayChat = false;
 useOverlayChatButton.addEventListener('pointerdown', e => {
@@ -6017,6 +5965,44 @@ useOverlayChatButton.addEventListener('pointerdown', e => {
   overlayChat.visible = useOverlayChat;
   useOverlayChatButton.style.backgroundColor = useOverlayChat ? 'skyblue' : 'red';
 });
+
+// 画面チャット スワイプ：左右でテキスト色切替、上下でスクロール
+const _ocTextColors = ['white', 'black', '#ffff00', '#ff8800', '#ff4444', '#00ffff', '#ff88ff'];
+let _ocTextColorIdx = 0;
+let _ocSwStartX = 0, _ocSwStartY = 0, _ocSwPrevY = 0, _ocSwDir = null;
+myCanvas.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) return;
+  _ocSwStartX = e.touches[0].clientX;
+  _ocSwStartY = e.touches[0].clientY;
+  _ocSwPrevY = e.touches[0].clientY;
+  _ocSwDir = null;
+}, { passive: true });
+myCanvas.addEventListener('touchmove', e => {
+  if (e.touches.length !== 1 || !useOverlayChat) return;
+  const adx = Math.abs(e.touches[0].clientX - _ocSwStartX);
+  const ady = Math.abs(e.touches[0].clientY - _ocSwStartY);
+  if (!_ocSwDir) {
+    if (ady > adx + 5) _ocSwDir = 'v';
+    else if (adx > ady + 5) _ocSwDir = 'h';
+  }
+  if (_ocSwDir === 'v') {
+    const rect = myCanvas.getBoundingClientRect();
+    const scale = 460 / rect.height;
+    overlayChat.y = Math.min(0, overlayChat.y + (e.touches[0].clientY - _ocSwPrevY) * scale);
+  }
+  _ocSwPrevY = e.touches[0].clientY;
+}, { passive: true });
+myCanvas.addEventListener('touchend', e => {
+  if (!useOverlayChat || !e.changedTouches[0]) return;
+  const dx = e.changedTouches[0].clientX - _ocSwStartX;
+  const dy = e.changedTouches[0].clientY - _ocSwStartY;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+  _ocTextColorIdx = (_ocTextColorIdx + (dx > 0 ? -1 : 1) + _ocTextColors.length) % _ocTextColors.length;
+  overlayChatStyle.fill = _ocTextColors[_ocTextColorIdx];
+  overlayChat.children.forEach(child => {
+    if (child instanceof PIXI.Text) child.style.fill = _ocTextColors[_ocTextColorIdx];
+  });
+}, { passive: true });
 
 wa_i.style.backgroundColor = "red";
 wa_i.addEventListener('pointerdown', e => {
@@ -7811,6 +7797,13 @@ socket.on("train", data => {
   }
   mainLogUl.appendChild(li);
   mainLog.scrollTop = mainLog.scrollHeight;
+
+  // 画面チャットにもテキストで表示
+  const _ot = new PIXI.Text(data.trainList.join('  '), { ...overlayChatStyle, fontSize: 13 });
+  _ot.y = 0;
+  const _off = Math.max(_ot.height, 14);
+  overlayChat.children.forEach(c => { c.y += _off; });
+  overlayChat.addChild(_ot);
 });//socket.on("train");
 
 //リスト

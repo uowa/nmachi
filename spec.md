@@ -441,10 +441,11 @@ CREATE TABLE editing_sessions (
   - `msgPrefix` span（icon + 名前）は `display: inline; white-space: nowrap`
   - テキストノードと `<br>` は `li` に直接 appendChild（span等のネストなし）
 
-#### 更新 (2026-05-16 画面ログ スワイプ操作・電車ボタン改善)
-- **左右スワイプで背景色切替**: `mainLog` に touchstart/touchmove/touchend を追加。50px以上の水平スワイプで7色のプリセットカラーを循環。localStorage `logBgColor` に保存・復元
-- **上下スワイプでスクロール**: 縦スワイプ検出時に `mainLog.scrollTop` を手動更新し `preventDefault()` でキャンバスへの伝播を防止
-- **電車ボタン → ログ自動表示**: `socket.on("train")` で `useMainLog` が false の場合に自動展開し、常に最下部にスクロールして電車ボタンを表示
+#### 更新 (2026-05-16 画面チャット スワイプ操作・電車ボタン改善)
+- **左右スワイプでテキスト色切替**: `myCanvas` に touchend を追加。50px以上の水平スワイプ（縦成分の2倍超）で7色プリセット（white/black/黄/橙/赤/水色/ピンク）を循環。`overlayChatStyle.fill` と既存 PIXI.Text 子要素を一括更新
+- **上下スワイプでスクロール**: `myCanvas` の touchmove で縦スワイプ検出時に `overlayChat.y` を更新。スクリーン座標→PIXI座標に変換（`460 / rect.height`）。上端（y=0）を超えない
+- **電車ボタン → 画面チャットにもテキスト表示**: `socket.on("train")` で mainLog の DOM ボタン表示に加え、部屋一覧を PIXI.Text として overlayChat にも追加
+- **電車ボタン → mainLog 自動展開**: mainLog が非表示状態でも電車イベント受信時に自動展開・最下部スクロール
 
 ---
 
