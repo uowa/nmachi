@@ -475,7 +475,7 @@ CREATE TABLE editing_sessions (
 - usersボタン押下時に時刻も表示 / Show time when users list is opened
 
 #### 現状（2026-05-17 実装完了）
-- `socket.on("list")` 受信時に現在時刻（HH:MM）を `li` の先頭に span で追加
+- `socket.on("list")` 受信時に現在時刻（HH:MM）を `li` の末尾に span で追加
 
 ---
 
