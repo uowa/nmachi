@@ -332,6 +332,20 @@
                   <option value="low">低 (120p 10fps)</option>
                 </select>
               </div>
+              <div>
+                カメラ：<select id="cameraSelectMode" onchange="changeCameraSelectMode(this.value)">
+                  <option value="always">毎回選ぶ</option>
+                  <option value="fixed">固定</option>
+                </select>
+                <span id="cameraDeviceLabelSpan" style="font-size:12px; color:#666; margin-left:4px;"></span>
+              </div>
+              <div>
+                マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
+                  <option value="always">毎回選ぶ</option>
+                  <option value="fixed">固定</option>
+                </select>
+                <span id="micDeviceLabelSpan" style="font-size:12px; color:#666; margin-left:4px;"></span>
+              </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">
                 <input type="radio" name="videoSize" value="setMax" checked id="selectVideoSize1"
@@ -670,6 +684,16 @@
     <a href="https://www.enable-javascript.com/ja/">
       あなたのWebブラウザーでJavaScriptを有効にする方法</a>
   </noscript>
+  <div id="devicePickerOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:8px; min-width:240px; max-width:90vw;">
+      <p id="devicePickerLabel" style="margin:0 0 8px; font-weight:bold;"></p>
+      <select id="devicePickerSelect" style="width:100%; margin-bottom:10px;"></select>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="devicePickerOk" type="button">OK</button>
+        <button id="devicePickerCancel" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

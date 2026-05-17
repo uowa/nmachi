@@ -498,11 +498,17 @@ CREATE TABLE editing_sessions (
 - 「毎回選ぶ」か固定かを設定で切り替え（初期値: 毎回）/ Setting: always-ask vs. fixed (default: always-ask)
 - 保存済みカメラが存在しない場合は再選択 / Re-ask if saved camera not found
 
+#### 現状
+2026-05-18 実装完了。設定パネルに「カメラ：毎回選ぶ/固定」セレクトを追加。動画配信ボタン押下時に `_getVideoDeviceId()` → `_pickDevice('videoinput')` でデバイスピッカー表示。固定モードかつ保存済み deviceId が有効なら再選択しない。localStorage: `cameraSelectMode`, `cameraDeviceId`, `cameraDeviceLabel`。
+
 ---
 
 ### 13. マイク選択
 **Mic selection**
 - カメラ選択と同仕様 / Same spec as camera selection
+
+#### 現状
+2026-05-18 実装完了。カメラ選択と同仕様。`_getMicDeviceId()` → `_pickDevice('audioinput')`。localStorage: `micSelectMode`, `micDeviceId`, `micDeviceLabel`。
 
 ---
 

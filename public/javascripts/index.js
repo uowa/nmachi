@@ -824,6 +824,12 @@ const QUALITY_CONSTRAINTS = {
 const QUALITY_BITRATE = { max: undefined, high: 1000000, normal: 400000, low: 100000 };
 const QUALITY_ORDER = ['low', 'normal', 'high', 'max'];
 let streamQualityLevel = localStorage.getItem('streamQualityLevel') || 'max';
+let cameraSelectMode = localStorage.getItem('cameraSelectMode') || 'always';
+let cameraDeviceId = localStorage.getItem('cameraDeviceId') || '';
+let cameraDeviceLabel = localStorage.getItem('cameraDeviceLabel') || '';
+let micSelectMode = localStorage.getItem('micSelectMode') || 'always';
+let micDeviceId = localStorage.getItem('micDeviceId') || '';
+let micDeviceLabel = localStorage.getItem('micDeviceLabel') || '';
 const receiverQualitySelect = {};
 const senderQuality = {};
 
@@ -8482,6 +8488,10 @@ document.querySelector('svg').addEventListener('pointerdown', e => {
 }, { passive: true });
 
 document.getElementById('streamQualitySelect').value = streamQualityLevel;
+document.getElementById('cameraSelectMode').value = cameraSelectMode;
+document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
+document.getElementById('micSelectMode').value = micSelectMode;
+document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
 
 //ビデオサイズ
 if (localStorage.getItem("videoSize")) {
@@ -9658,26 +9668,91 @@ function detachAudio(token) {//remoteAudioの削除
   delete remoteAudios[token];
 }
 
-// ---------------------- media handling ----------------------- 
-function startVideo() {
+// ---------------------- media handling -----------------------
+function _pickDevice(kind) {
+  return navigator.mediaDevices.enumerateDevices().then(devices => {
+    const filtered = devices.filter(d => d.kind === kind);
+    return new Promise((resolve, reject) => {
+      const overlay = document.getElementById('devicePickerOverlay');
+      const labelEl = document.getElementById('devicePickerLabel');
+      const select = document.getElementById('devicePickerSelect');
+      const okBtn = document.getElementById('devicePickerOk');
+      const cancelBtn = document.getElementById('devicePickerCancel');
+      labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
+      select.innerHTML = '';
+      filtered.forEach((d, i) => {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+        select.appendChild(opt);
+      });
+      overlay.style.display = 'flex';
+      function onOk() {
+        const deviceId = select.value;
+        const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
+        overlay.style.display = 'none';
+        cleanup();
+        resolve({ deviceId, deviceLabel });
+      }
+      function onCancel() {
+        overlay.style.display = 'none';
+        cleanup();
+        reject(new Error('cancelled'));
+      }
+      function cleanup() {
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+      }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+    });
+  });
+}
+
+async function _getVideoDeviceId() {
+  if (cameraSelectMode === 'fixed' && cameraDeviceId) {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    if (devices.some(d => d.kind === 'videoinput' && d.deviceId === cameraDeviceId)) {
+      return cameraDeviceId;
+    }
+  }
+  const picked = await _pickDevice('videoinput');
+  cameraDeviceId = picked.deviceId;
+  cameraDeviceLabel = picked.deviceLabel;
+  localStorage.setItem('cameraDeviceId', cameraDeviceId);
+  localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
+  document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
+  return cameraDeviceId;
+}
+
+async function _getMicDeviceId() {
+  if (micSelectMode === 'fixed' && micDeviceId) {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    if (devices.some(d => d.kind === 'audioinput' && d.deviceId === micDeviceId)) {
+      return micDeviceId;
+    }
+  }
+  const picked = await _pickDevice('audioinput');
+  micDeviceId = picked.deviceId;
+  micDeviceLabel = picked.deviceLabel;
+  localStorage.setItem('micDeviceId', micDeviceId);
+  localStorage.setItem('micDeviceLabel', micDeviceLabel);
+  document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
+  return micDeviceId;
+}
+
+async function startVideo() {
   if (videoStatus) {
     return;
   }
-  let camera = {}
-  switch (phoneCameraSelect.phoneCamera.value) {
-    default:
-      camera = { ideal: "environment" };//できれば外側カメラを使う
-      break;
-    case "environment":
-      camera = { exact: "environment" };//外側カメラを使う
-      break;
-    case "user":
-      camera = { exact: "user" }//前面カメラを使う
-      break;
+  let deviceId;
+  try {
+    deviceId = await _getVideoDeviceId();
+  } catch (_e) {
+    return;
   }
-
   videoStatus = {
-    facingMode: camera,
+    deviceId: { exact: deviceId },
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({
@@ -9729,13 +9804,19 @@ function startVideo() {
     });
 }
 
-function startAudio() {
+async function startAudio() {
   if (audioStatus) {
+    return;
+  }
+  let deviceId;
+  try {
+    deviceId = await _getMicDeviceId();
+  } catch (_e) {
     return;
   }
   audioStatus = true;
   getDeviceStream({
-    audio: audioStatus
+    audio: { deviceId: { exact: deviceId } }
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     if (!localStream) {
@@ -10578,6 +10659,16 @@ function mediaConnect(fromToken, type) {
       }
     }
   }
+}
+
+function changeCameraSelectMode(val) {
+  cameraSelectMode = val;
+  localStorage.setItem('cameraSelectMode', val);
+}
+
+function changeMicSelectMode(val) {
+  micSelectMode = val;
+  localStorage.setItem('micSelectMode', val);
 }
 
 function changeStreamQuality(level) {
