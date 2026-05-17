@@ -891,9 +891,6 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     /* #msg {
         width: 50%;
     } */
-    #sizeSelecterFrame {
-        display: none;
-    }
     #titleBar {
         order: 4;
         flex-wrap: wrap;
