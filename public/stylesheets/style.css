@@ -425,8 +425,18 @@ select::-ms-expand {
 
 #mediaContainer {
     position: relative;
-    
+
     /* background-color: #b6a3a3; */
+}
+
+#mediaContainer.video-transparent-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+    pointer-events: none;
+    background: transparent;
 }
 
 

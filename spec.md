@@ -470,7 +470,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 10. usersで時間表示
+### 10. usersで時間表示 ✅
 **Timestamp in users list**
 - usersボタン押下時に時刻も表示 / Show time when users list is opened
 
@@ -535,6 +535,13 @@ CREATE TABLE editing_sessions (
 - 配信画面を半透明にして画面に重ねる / Semi-transparent stream overlaid on screen
 - スライダーで透明度をリアルタイム変更 / Slider to adjust opacity anytime
 
+#### 現状（2026-05-18 実装完了）
+- `#mediaContainer.video-transparent-mode` を `position:fixed; top:0; left:0; width:100%; z-index:50; pointer-events:none` で画面オーバーレイ
+- 動画要素に `opacity = videoTransparentOpacity`（デフォルト0.5）を設定
+- ゲーム画面（`#graphic`）のダブルタップで通常↔透過を切り替え（`toggleVideoTransparent()`）
+- 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）を設定パネルに追加
+- localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
+
 ---
 
 ### 19. 多言語対応
@@ -552,7 +559,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 21. 特定部屋への直接リンク
+### 21. 特定部屋への直接リンク ✅
 **Direct room link**
 - ログイン後に指定部屋へ直行するリンクを発行 / Shareable link that lands user in specific room after login
 - 設定からコピー可能 / Copyable from settings

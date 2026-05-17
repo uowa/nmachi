@@ -143,6 +143,9 @@ let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // �
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
 let useLogItemHighlight = localStorage.getItem("useLogItemHighlight") !== "false"; // デフォルトtrue
 let contextMenuPos = localStorage.getItem("contextMenuPos") || "tapLeft";
+let videoTransparentDefault = localStorage.getItem("videoTransparentDefault") === "true";
+let videoTransparentOpacity = parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5");
+let _videoTransparentActive = videoTransparentDefault;
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -8798,6 +8801,52 @@ if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
   selectVideoInverseAndReverseOther.checked = false;
 }
 
+// 透過配信
+function _applyVideoTransparent() {
+  if (_videoTransparentActive) {
+    mediaContainer.classList.add('video-transparent-mode');
+    Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+  } else {
+    mediaContainer.classList.remove('video-transparent-mode');
+    Object.values(videoArray).forEach(v => { v.style.opacity = ''; });
+  }
+}
+
+function toggleVideoTransparent() {
+  _videoTransparentActive = !_videoTransparentActive;
+  _applyVideoTransparent();
+}
+
+function changeVideoTransparentDefault() {
+  videoTransparentDefault = document.getElementById('videoTransparentDefault').checked;
+  localStorage.setItem("videoTransparentDefault", videoTransparentDefault);
+  _videoTransparentActive = videoTransparentDefault;
+  _applyVideoTransparent();
+}
+
+function changeVideoTransparentOpacity(val) {
+  videoTransparentOpacity = parseFloat(val);
+  localStorage.setItem("videoTransparentOpacity", videoTransparentOpacity);
+  if (_videoTransparentActive) {
+    Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+  }
+}
+
+document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
+document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
+if (videoTransparentDefault) _applyVideoTransparent();
+
+// ゲーム画面ダブルタップで透過配信切り替え
+let _lastTapTime = 0;
+graphic.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - _lastTapTime < 300) {
+    e.preventDefault();
+    toggleVideoTransparent();
+  }
+  _lastTapTime = now;
+}, { passive: false });
+
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
   mainLog.style.fontSize = localStorage.getItem("fontSize") + "px";
@@ -9563,6 +9612,7 @@ function attachVideo(fromToken, stream) {
     videoArray[fromToken].style.transform = "scale(-1,-1)";
   }
 
+  if (_videoTransparentActive) videoArray[fromToken].style.opacity = videoTransparentOpacity;
   mediaContainer.appendChild(videoArray[fromToken]);
 
   playMedia(videoArray[fromToken], stream);

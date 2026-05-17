@@ -373,6 +373,10 @@
                     for="selectVideoInverseAndReverseOther">受信した動画の上下左右反転映像を表示する</label>
                 </div>
               </div>
+              <div>
+                <input type="checkbox" id="videoTransparentDefault" onchange="changeVideoTransparentDefault()"><label for="videoTransparentDefault">透過配信をデフォルトにする（ゲーム画面ダブルタップで切り替え）</label>
+                <span id="videoTransparentOpacityWrap" style="margin-left:8px; white-space:nowrap;">透過度<input type="range" id="videoTransparentOpacitySlider" min="0.05" max="0.95" step="0.05" value="0.5" onchange="changeVideoTransparentOpacity(this.value)" style="width:80px; vertical-align:middle;"></span>
+              </div>
               <br>
               <div>
                 <input type="checkbox" id="showJoinLeaveMsg" onchange="changeShowJoinLeaveMsg()"><label for="showJoinLeaveMsg">入退出メッセージを表示する</label>
