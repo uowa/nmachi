@@ -80,6 +80,7 @@ let gateTex;
 let mugenGateRooms = [null, null, null, null];
 let mugenGateSprites = [];
 let _mugenGateBeingEntered = -1;
+let _inUserRoom = false;
 let objMap = {};
 
 const gomaneco = {};
@@ -3492,8 +3493,7 @@ class Room extends GameObject {
         //メニューをblockで表示させる
         abonMenu.style.display = "none";
         avatarOekakiMenu.style.display = "none";
-        const _sysRooms = new Set(['loginRoom','エントランス','草原','うちゅー','星1','むげんのいりぐち','むげん']);
-        document.getElementById('roomEditMenu').style.display = _sysRooms.has(room?.name) ? 'none' : '';
+        document.getElementById('roomEditMenu').style.display = _inUserRoom ? '' : 'none';
         contextMenu.style.display = "block";
         contextMenuPositionSet(e);
       }
@@ -4424,6 +4424,7 @@ function goSelfToRoomSpot(toSpot, train) {
     room.cloudSyncStarted = false;
   }
 
+  _inUserRoom = false;
   switch (toSpot) {
     //部屋の指定
     case "entranceCloud2":
@@ -4478,12 +4479,13 @@ function goSelfToRoomSpot(toSpot, train) {
             r.roomPolygons.push(floorObj);
             objMap[targetRoomId] = r;
           }
+          _inUserRoom = true;
           room = objMap[targetRoomId];
         }
       }
       break;
   }
-  if (!room) room = Room.getOrCreateRoom(entranceImg, "エントランス", ["standable"]);
+  if (!room) { _inUserRoom = false; room = Room.getOrCreateRoom(entranceImg, "エントランス", ["standable"]); }
   try {
     room.displayRoom();
   } catch (err) {
