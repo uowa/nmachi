@@ -530,7 +530,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 18. 透過配信（スマホ向け）
+### 18. 透過配信（スマホ向け）✅ (2026-05-18 実装完了)
 **Transparent stream overlay (mobile)**
 - 配信画面を半透明にして画面に重ねる / Semi-transparent stream overlaid on screen
 - スライダーで透明度をリアルタイム変更 / Slider to adjust opacity anytime
