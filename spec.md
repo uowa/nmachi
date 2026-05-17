@@ -298,6 +298,7 @@ CREATE TABLE editing_sessions (
    - [x] ワープゾーン配置UI（設定パネル「ワープゾーン管理」、ドラッグ矩形配置）
    - [x] 接続API（GET/POST/PUT/DELETE `/api/rooms/:id/warps`、GET `/api/rooms` 一覧）
    - [x] 既存ワープとの統合（`checkObjectWarpPoints` がDBワープゾーンも判定、ユーザー部屋への移動対応）
+   - [x] ワープゾーンのドラッグ移動・リサイズ（Warpタブ表示中、本体ドラッグで移動、右下ハンドルで拡縮、ドロップ時API自動保存）✅ 2026-05-18 実装完了
    - 実装ファイル: `routes/rooms.js`（APIエンドポイント）、`bin/www`（動的ルーム生成）、`index.js`（dbWarpZones/描画/判定/配置モード）、`index.ejs`（設定パネルUI）
 
 4. **Phase 4**: 画像アップロード ✅ 2026-05-04 実装完了

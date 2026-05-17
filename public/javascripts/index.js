@@ -4659,7 +4659,7 @@ async function saveWarpZone(x, y, w, h) {
   stopWarpPlaceMode();
   document.getElementById('warpPlaceStopBtn').style.display = 'none';
   document.getElementById('warpPlaceBtn').style.display = '';
-  // _enableWarpEditMode();
+  _enableWarpEditMode();
 }
 
 async function saveScaleZone(x, y, w, h, scale) {
@@ -6202,7 +6202,7 @@ function _closeRoomPanel() {
   socket.emit('endRoomEdit');
   _releaseRoomEditLock();
   stopWarpGlow();
-  // _disableWarpEditMode();
+  _disableWarpEditMode();
   _stopImgDoodleMode();
   _clearImgDoodle();
   _disableImgEditMode();
@@ -6534,8 +6534,8 @@ document.getElementById('roomNameSaveBtn').addEventListener('click', () => _save
       document.getElementById('roomEditTab' + t).style.color = active ? '#fff' : '#888';
       document.getElementById('roomEditContent' + t).style.display = active ? 'block' : 'none';
     });
-    if (tab === 'Warp') { startWarpGlow(); /* _enableWarpEditMode(); */ }
-    else { stopWarpGlow(); /* _disableWarpEditMode(); */ }
+    if (tab === 'Warp') { startWarpGlow(); _enableWarpEditMode(); }
+    else { stopWarpGlow(); _disableWarpEditMode(); }
     if (tab === 'Img') _enableImgEditMode();
     else _disableImgEditMode();
     if (tab === 'Scale') {
@@ -6583,7 +6583,7 @@ function stopWarpGlow() {
       btn.style.background = active ? '#1a3a6a' : '#0d0d1a';
       btn.style.color = active ? '#fff' : '#888';
     });
-    // _disableWarpEditMode();
+    _disableWarpEditMode();
     startWarpPlaceMode();
     document.getElementById('warpPlaceBtn').style.display = 'none';
     document.getElementById('warpPlaceStopBtn').style.display = '';
@@ -6591,7 +6591,7 @@ function stopWarpGlow() {
 });
 
 document.getElementById('warpPlaceBtn').addEventListener('click', () => {
-  // _disableWarpEditMode();
+  _disableWarpEditMode();
   startWarpPlaceMode();
   document.getElementById('warpPlaceBtn').style.display = 'none';
   document.getElementById('warpPlaceStopBtn').style.display = '';
@@ -6601,7 +6601,7 @@ document.getElementById('warpPlaceStopBtn').addEventListener('click', () => {
   stopWarpPlaceMode();
   document.getElementById('warpPlaceStopBtn').style.display = 'none';
   document.getElementById('warpPlaceBtn').style.display = '';
-  // _enableWarpEditMode();
+  _enableWarpEditMode();
 });
 
 // ===== スケールタブ =====
