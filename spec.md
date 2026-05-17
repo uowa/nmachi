@@ -540,6 +540,7 @@ CREATE TABLE editing_sessions (
 ### 19. 多言語対応
 **Multilingual UI**
 - 設定で言語切り替え / Language switch in settings
+- **見送り（2026-05-17）**: ブラウザの自動翻訳で代替できるため実装不要と判断
 
 ---
 
@@ -547,6 +548,7 @@ CREATE TABLE editing_sessions (
 **Auto-translate chat**
 - チャットを自動翻訳 / Auto-translate chat messages
 - 設定でON/OFF / Toggleable
+- **見送り（2026-05-17）**: 翻訳APIのコスト・レート制限の問題があり実装見送り
 
 ---
 
