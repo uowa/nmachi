@@ -140,7 +140,7 @@ let showJoinLeaveMsg = localStorage.getItem("showJoinLeaveMsg") !== "false"; // 
 let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // デフォルトtrue
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
 let useLogItemHighlight = localStorage.getItem("useLogItemHighlight") !== "false"; // デフォルトtrue
-let contextMenuPos = localStorage.getItem("contextMenuPos") || "left";
+let contextMenuPos = localStorage.getItem("contextMenuPos") || "tapLeft";
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -7953,6 +7953,7 @@ function contextMenuPositionSet(e) {
   const pos = e.data.getLocalPosition(room.container);
   const winWidth = window.innerWidth;
   const winHeight = window.innerHeight;
+  const margin = 4;
 
   let topOffset;
   if (winWidth > 870) {
@@ -7961,7 +7962,7 @@ function contextMenuPositionSet(e) {
     topOffset = parseInt(window.getComputedStyle(form).getPropertyValue('height'));
   }
 
-  // まずメニュー項目の表示/非表示を更新してから高さを計測
+  // メニュー項目の表示/非表示を更新
   if (avaP[myToken].avatarAspect == "gomaneco" || avaP[myToken].avatarAspect == "gomanecoMono") {
     sleepMenu.style.display = "block";
   } else {
@@ -7982,33 +7983,60 @@ function contextMenuPositionSet(e) {
     contextMenuCloudRelX = null;
   }
 
-  // visibility:hidden で一時表示してメニューサイズを計測
-  contextMenu.style.visibility = 'hidden';
   contextMenu.style.display = 'block';
-  const menuW = contextMenu.offsetWidth;
-  const menuH = contextMenu.offsetHeight;
-  contextMenu.style.display = 'none';
-  contextMenu.style.visibility = '';
+
+  // 画面右上：right プロパティで直接配置（menuW計測不要）
+  if (winWidth <= 870 && contextMenuPos === 'right') {
+    contextMenu.style.left = 'auto';
+    contextMenu.style.right = margin + 'px';
+    contextMenu.style.top = (topOffset + margin) + 'px';
+    const rh = contextMenu.getBoundingClientRect().height;
+    if (topOffset + margin + rh > winHeight) contextMenu.style.top = (winHeight - rh) + 'px';
+    return;
+  }
+
+  // ブラウザのビューポート座標（room座標系のズレを回避）
+  const orig = e.data.originalEvent;
+  const clientX = orig.clientX;
+  const clientY = orig.clientY;
+
+  // 左上で仮表示してサイズ計測
+  contextMenu.style.left = '0';
+  contextMenu.style.right = 'auto';
+  contextMenu.style.top = '0';
+  const { width: menuW, height: menuH } = contextMenu.getBoundingClientRect();
 
   let left, top;
   if (winWidth > 870) {
-    // PC：クリック位置に表示（画面端補正あり）
-    left = pos.x;
-    top = pos.y + topOffset;
+    left = clientX; top = clientY;
     if (left + menuW > winWidth) left = winWidth - menuW;
+    if (left < 0) left = 0;
     if (top + menuH > winHeight) top = winHeight - menuH;
-  } else {
-    // スマホ：設定に応じて左上または右上に固定表示
-    const margin = 4;
-    top = topOffset + margin;
-    left = contextMenuPos === "right" ? winWidth - menuW - margin : margin;
-    if (top + menuH > winHeight - margin) top = winHeight - menuH - margin;
-    if (top < topOffset) top = topOffset;
+    if (top < 0) top = 0;
+  } else if (contextMenuPos === 'left') {
+    left = margin; top = topOffset + margin;
+    if (top + menuH > winHeight) top = winHeight - menuH;
+  } else if (contextMenuPos === 'tapLeft') {
+    left = clientX - menuW; top = clientY - menuH;
+    if (left < 0) left = 0;
+    if (top < topOffset) top = clientY;
+    if (top + menuH > winHeight) top = winHeight - menuH;
+  } else { // tapRight
+    left = clientX; top = clientY - menuH;
+    if (left + menuW > winWidth) left = winWidth - menuW;
+    if (left < 0) left = 0;
+    if (top < topOffset) top = clientY;
+    if (top + menuH > winHeight) top = winHeight - menuH;
   }
 
-  contextMenu.style.left = left + "px";
-  contextMenu.style.top = top + "px";
-  contextMenu.style.display = "block";
+  contextMenu.style.left = left + 'px';
+  contextMenu.style.right = 'auto';
+  contextMenu.style.top = top + 'px';
+
+  // menuW が0だった場合のフォールバック：実描画位置で再補正
+  const fr = contextMenu.getBoundingClientRect();
+  if (fr.right > winWidth) contextMenu.style.left = Math.max(0, winWidth - fr.width) + 'px';
+  if (fr.bottom > winHeight) contextMenu.style.top = Math.max(0, winHeight - fr.height) + 'px';
 }
 
 function changeContextMenuPos(val) {

@@ -921,9 +921,8 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     display: none;
     position: fixed;
     z-index: 1;
-    left: 0px;
     top: 0px;
-    width: 100px;
+    white-space: nowrap;
     border: 1px solid rgb(59, 9, 9);
     background-color: rgba(143, 199, 201, 0.5);
     list-style: none;
@@ -941,7 +940,6 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
 
 @media (max-width: 870px) {
   #contextMenu {
-    width: 200px;
     font-size: 2em;
   }
   #contextMenu li {
