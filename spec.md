@@ -557,6 +557,13 @@ CREATE TABLE editing_sessions (
 - ログイン後に指定部屋へ直行するリンクを発行 / Shareable link that lands user in specific room after login
 - 設定からコピー可能 / Copyable from settings
 
+#### 現状（2026-05-17 実装完了）
+- URL パラメータ `?room=<部屋名>` でアクセスすると、ログイン後にその部屋へ自動移動
+  - システム部屋: `?room=エントランス`、`?room=草原`、`?room=うちゅー`、`?room=星1`、`?room=むげんのいりぐち`、`?room=むげん`
+  - ユーザー部屋: `?room=<room_id>`
+- 設定パネルに「この部屋のリンクをコピー」ボタン → クリックボードにコピーしてチャットに通知
+- 実装場所: `index.js` `_directLinkRoom` 変数（グローバル）、`socket.on("joineRoom")` 末尾のリダイレクト処理、`copyRoomLink()` 関数; `index.ejs` 設定パネル内ボタン
+
 ---
 
 ### 22. YouTuberモード

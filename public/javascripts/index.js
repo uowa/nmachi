@@ -82,6 +82,7 @@ let mugenGateSprites = [];
 let _mugenGateBeingEntered = -1;
 let _inUserRoom = false;
 let objMap = {};
+const _directLinkRoom = new URLSearchParams(location.search).get('room');
 
 const gomaneco = {};
 gomaneco.name = "gomaneco";
@@ -4353,9 +4354,9 @@ function login() {
     localStorage.setItem("avatarAspect", avaP[myToken].avatarAspect);//ローカルストレージにアバター書き込み
     localStorage.setItem("colorCode", typeof colorCode === "number" ? avaP[myToken].avatarColor : String(avaP[myToken].avatarColor));
 
-    app.stage.removeChild(room.container);//移動前の部屋を消す
+    if (room.container.parent) app.stage.removeChild(room.container);//移動前の部屋を消す
     room = Room.getOrCreateRoom(entranceImg, "エントランス", ["standable"]);
-    room.displayRoom();
+    if (!_directLinkRoom) room.displayRoom();
 
     socket.emit("joineRoom", {//エントランスに入る
       userName: avaP[myToken].name,//ユーザーネーム
@@ -4416,7 +4417,7 @@ function goSelfToRoomSpot(toSpot, train) {
   if (audioStatus) {
     stopAudio();
   }
-  app.stage.removeChild(room.container);//移動前の部屋を消す
+  if (room.container.parent) app.stage.removeChild(room.container);//移動前の部屋を消す
   removeAllSigns();
 
   // 既存の雲システムを停止
@@ -4938,6 +4939,13 @@ socket.on("joineRoom", data => {
     _pendingOpenEditPanel = false;
     setTimeout(() => _openRoomEditPanelDirect(data.toRoom, ''), 300);
   }
+
+  if (_directLinkRoom && data.fromRoom === "loginRoom") {
+    const _dlSysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
+    goSelfToRoomSpot(_dlSysSpot[_directLinkRoom] || ('userRoom:' + _directLinkRoom));
+  }
+
+  updateRoomLinkDisplay();
 });
 
 socket.on("otherJoined", data => {//自分以外が部屋にログインor入室してきた時
@@ -8050,6 +8058,26 @@ function contextMenuPositionSet(e) {
 function changeContextMenuPos(val) {
   contextMenuPos = val;
   localStorage.setItem("contextMenuPos", val);
+}
+
+function updateRoomLinkDisplay() {
+  const input = document.getElementById('roomLinkInput');
+  const btn = document.getElementById('roomLinkCopyBtn');
+  if (!input) return;
+  if (!room || room.name === 'loginRoom') {
+    input.textContent = '';
+    if (btn) btn.disabled = true;
+    return;
+  }
+  input.textContent = location.origin + location.pathname + '?room=' + room.name;
+  if (btn) btn.disabled = false;
+}
+
+function copyRoomLink() {
+  updateRoomLinkDisplay();
+  const input = document.getElementById('roomLinkInput');
+  if (!input || !input.textContent) return;
+  navigator.clipboard.writeText(input.textContent);
 }
 
 // クリック位置が足場（standableタグのあるオブジェクト）の上かどうか判定

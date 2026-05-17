@@ -399,6 +399,11 @@
                 </select>
                 <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
               </div>
+              <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
+                <span style="white-space:nowrap; font-size:11px;">部屋リンク</span>
+                <span id="roomLinkInput" style="flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#333; border-bottom:1px solid #aaa; padding-bottom:1px;"></span>
+                <button type="button" id="roomLinkCopyBtn" onclick="copyRoomLink()" style="font-size:14px; padding:0 4px; line-height:1.4;">⧉</button>
+              </div>
             </div>
 
             <div id="mediaContainer"></div>
