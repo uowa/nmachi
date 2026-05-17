@@ -5591,6 +5591,11 @@ msgForm.addEventListener("submit", e => {
   e.preventDefault();
 });
 
+// スマホの送信ボタンタップ時にテキストエリアのフォーカスが奪われないようにする
+document.getElementById('sendBtn').addEventListener('mousedown', e => {
+  e.preventDefault();
+});
+
 let nanasiName = [];
 nanasiName[0] = [
   "風吹けば",
