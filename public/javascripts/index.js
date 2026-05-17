@@ -7836,6 +7836,11 @@ socket.on("train", data => {
 socket.on("list", data => {
   const li = document.createElement("li");
   li.classList.add("flexContainer");
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  const timeSpan = document.createElement("span");
+  timeSpan.textContent = timeStr;
+  timeSpan.style.cssText = "font-size:0.85em;opacity:0.7;margin-left:6px;align-self:center;";
   let button = [];
 
   for (let i = 0; i < data.listName.length; i++) {
@@ -7866,6 +7871,7 @@ socket.on("list", data => {
     });
     li.appendChild(button[i]);
   }
+  li.appendChild(timeSpan);
 
   //メッセージを出力
   if (window.innerWidth > 660 && mainLog.scrollHeight <= mainLog.clientHeight + mainLog.scrollTop + 1) {//windowWidthが660以上の時かつスクロールバーが一番下にある時にスクロールバーを自動移動
