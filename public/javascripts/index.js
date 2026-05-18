@@ -9806,6 +9806,14 @@ function detachAudio(token) {//remoteAudioの削除
 // ---------------------- media handling -----------------------
 function _pickDevice(kind) {
   return navigator.mediaDevices.enumerateDevices().then(devices => {
+    const hasLabel = devices.some(d => d.kind === kind && d.label);
+    if (hasLabel) return devices;
+    // 権限未付与でラベルが空 → 一時取得して権限を得てから再列挙
+    const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
+    return navigator.mediaDevices.getUserMedia(tempConstraint)
+      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); return navigator.mediaDevices.enumerateDevices(); })
+      .catch(() => devices);
+  }).then(devices => {
     const filtered = devices.filter(d => d.kind === kind);
     return new Promise((resolve, reject) => {
       const overlay = document.getElementById('devicePickerOverlay');
