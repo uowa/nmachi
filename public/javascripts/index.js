@@ -8839,9 +8839,12 @@ if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
     mediaContainer.classList.add('video-transparent-mode');
+    mediaContainer.style.height = ''; // inline height を消してCSSのbottom:0を有効にする
     Object.values(videoArray).forEach(v => {
+      v.freeFloat = false;
       v.style.opacity = videoTransparentOpacity;
       v.style.pointerEvents = 'auto';
+      v.style.top = '0';
       v.style.left = '0';
       v.style.width = '100%';
       v.style.height = '100%';
@@ -8850,8 +8853,10 @@ function _applyVideoTransparent() {
   } else {
     mediaContainer.classList.remove('video-transparent-mode');
     Object.values(videoArray).forEach(v => {
+      v.freeFloat = false;
       v.style.opacity = '';
       v.style.pointerEvents = '';
+      v.style.top = '0';
       v.style.objectFit = '';
     });
     videoResize();
