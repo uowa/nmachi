@@ -8838,10 +8838,22 @@ if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
     mediaContainer.classList.add('video-transparent-mode');
-    Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+    Object.values(videoArray).forEach(v => {
+      v.style.opacity = videoTransparentOpacity;
+      v.style.pointerEvents = 'auto';
+      v.style.left = '0';
+      v.style.width = '100%';
+      v.style.height = '100%';
+      v.style.objectFit = 'contain';
+    });
   } else {
     mediaContainer.classList.remove('video-transparent-mode');
-    Object.values(videoArray).forEach(v => { v.style.opacity = ''; });
+    Object.values(videoArray).forEach(v => {
+      v.style.opacity = '';
+      v.style.pointerEvents = '';
+      v.style.objectFit = '';
+    });
+    videoResize();
   }
 }
 
@@ -8865,20 +8877,45 @@ function changeVideoTransparentOpacity(val) {
   }
 }
 
+// 映像へのジェスチャー（ダブルタップで透過切替、横スワイプで透過度調整）
+function _addVideoGestures(videoEl) {
+  let _tapTime = 0;
+  let _swipeStartX = null;
+  let _swipeStartOpacity = null;
+  let _swiped = false;
+
+  videoEl.addEventListener('touchstart', (e) => {
+    _swipeStartX = e.touches[0].clientX;
+    _swipeStartOpacity = videoTransparentOpacity;
+    _swiped = false;
+  }, { passive: true });
+
+  videoEl.addEventListener('touchmove', (e) => {
+    if (_swipeStartX === null || !_videoTransparentActive) return;
+    const dx = e.touches[0].clientX - _swipeStartX;
+    if (Math.abs(dx) > 8) _swiped = true;
+    if (_swiped) {
+      const newVal = Math.max(0.05, Math.min(0.95, _swipeStartOpacity + dx * 0.9 / window.innerWidth));
+      videoTransparentOpacity = newVal;
+      document.getElementById('videoTransparentOpacitySlider').value = newVal;
+      localStorage.setItem("videoTransparentOpacity", newVal);
+      Object.values(videoArray).forEach(v => { v.style.opacity = newVal; });
+    }
+  }, { passive: true });
+
+  videoEl.addEventListener('touchend', () => {
+    if (!_swiped) {
+      const now = Date.now();
+      if (now - _tapTime < 300) toggleVideoTransparent();
+      _tapTime = now;
+    }
+    _swipeStartX = null;
+  }, { passive: true });
+}
+
 document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
 document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
 if (videoTransparentDefault) _applyVideoTransparent();
-
-// ゲーム画面ダブルタップで透過配信切り替え
-let _lastTapTime = 0;
-graphic.addEventListener('touchend', (e) => {
-  const now = Date.now();
-  if (now - _lastTapTime < 300) {
-    e.preventDefault();
-    toggleVideoTransparent();
-  }
-  _lastTapTime = now;
-}, { passive: false });
 
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
@@ -9645,7 +9682,15 @@ function attachVideo(fromToken, stream) {
     videoArray[fromToken].style.transform = "scale(-1,-1)";
   }
 
-  if (_videoTransparentActive) videoArray[fromToken].style.opacity = videoTransparentOpacity;
+  _addVideoGestures(videoArray[fromToken]);
+  if (_videoTransparentActive) {
+    videoArray[fromToken].style.opacity = videoTransparentOpacity;
+    videoArray[fromToken].style.pointerEvents = 'auto';
+    videoArray[fromToken].style.left = '0';
+    videoArray[fromToken].style.width = '100%';
+    videoArray[fromToken].style.height = '100%';
+    videoArray[fromToken].style.objectFit = 'contain';
+  }
   mediaContainer.appendChild(videoArray[fromToken]);
 
   playMedia(videoArray[fromToken], stream);
