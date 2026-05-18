@@ -8887,7 +8887,7 @@ function _syncHandle(fromToken) {
   h.style.top = (v.offsetTop + v.clientHeight - 22) + 'px';
 }
 
-// 映像ジェスチャー（ダブルタップ透過切替・ドラッグ移動・右下コーナードラッグリサイズ）
+// 映像ジェスチャー（タッチ: ダブルタップ後ドラッグ / マウス: ドラッグ移動 / ピンチリサイズ / ハンドル: リサイズ）
 function _addVideoInteraction(fromToken) {
   const v = videoArray[fromToken];
 
@@ -8898,68 +8898,126 @@ function _addVideoInteraction(fromToken) {
   videoHandles[fromToken] = handle;
   _syncHandle(fromToken);
 
+  const ptrs = new Map(); // pointerId → {x, y}
+  let tapTime = 0;       // 最後のタップ離し時刻（タッチのみ）
+  let dragReady = false; // ダブルタップ後ドラッグ可能状態
   let startX, startY, startLeft, startTop, startW, startH;
-  let mode = null; // 'move' | 'resize'
-  let tapTime = 0;
+  let pinchStartDist = 0;
   let moved = false;
+  let mode = null; // 'move' | 'pinch'
 
-  function gestureStart(clientX, clientY, isResize) {
-    startX = clientX; startY = clientY;
-    startLeft = v.offsetLeft; startTop = v.offsetTop;
-    startW = v.clientWidth; startH = v.clientHeight;
-    mode = isResize ? 'resize' : 'move';
-    moved = false;
+  function pinchDist() {
+    const pts = [...ptrs.values()];
+    const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
-  function gestureMove(clientX, clientY) {
-    const dx = clientX - startX;
-    const dy = clientY - startY;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
-    if (!moved) return;
-    v.freeFloat = true;
-    if (mode === 'move') {
-      v.style.left = (startLeft + dx) + 'px';
-      v.style.top = (startTop + dy) + 'px';
-    } else {
-      v.style.width = Math.max(80, startW + dx) + 'px';
-      v.style.height = Math.max(45, startH + dy) + 'px';
-      const needed = v.offsetTop + v.clientHeight;
-      if (needed > parseInt(mediaContainer.style.height || 0)) mediaContainer.style.height = needed + 'px';
-    }
-    _syncHandle(fromToken);
-  }
-
-  function gestureEnd() {
-    if (!moved) {
-      const now = Date.now();
-      if (now - tapTime < 300) toggleVideoTransparent();
-      tapTime = now;
-    }
-    mode = null;
-  }
-
-  // 映像本体
   v.style.touchAction = 'none';
   v.addEventListener('pointerdown', (e) => {
-    const rect = v.getBoundingClientRect();
-    if (e.clientX > rect.right - 28 && e.clientY > rect.bottom - 28) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     e.preventDefault();
     v.setPointerCapture(e.pointerId);
-    gestureStart(e.clientX, e.clientY, false);
-    const onMove = (e) => gestureMove(e.clientX, e.clientY);
-    v.addEventListener('pointermove', onMove);
-    v.addEventListener('pointerup', () => { v.removeEventListener('pointermove', onMove); gestureEnd(); }, { once: true });
+
+    if (ptrs.size >= 2) {
+      mode = 'pinch';
+      dragReady = false;
+      pinchStartDist = pinchDist();
+      startW = v.clientWidth;
+      startH = v.clientHeight;
+      return;
+    }
+
+    startX = e.clientX; startY = e.clientY;
+    startLeft = v.offsetLeft; startTop = v.offsetTop;
+    moved = false;
+
+    if (e.pointerType === 'mouse') {
+      mode = 'move';
+      dragReady = true;
+    } else {
+      // タッチ: ダブルタップ後のみドラッグ可能
+      const now = Date.now();
+      if (now - tapTime < 300) {
+        dragReady = true;
+        mode = 'move';
+      } else {
+        dragReady = false;
+        mode = null;
+      }
+    }
   });
 
-  // リサイズハンドル
+  v.addEventListener('pointermove', (e) => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (mode === 'pinch' && ptrs.size >= 2) {
+      const d = pinchDist();
+      if (pinchStartDist > 0) {
+        const scale = d / pinchStartDist;
+        v.freeFloat = true;
+        v.style.width = Math.max(80, Math.round(startW * scale)) + 'px';
+        v.style.height = Math.max(45, Math.round(startH * scale)) + 'px';
+        _syncHandle(fromToken);
+      }
+      return;
+    }
+
+    if (mode === 'move' && dragReady) {
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
+      if (moved) {
+        v.freeFloat = true;
+        v.style.left = (startLeft + dx) + 'px';
+        v.style.top = (startTop + dy) + 'px';
+        _syncHandle(fromToken);
+      }
+    }
+  });
+
+  v.addEventListener('pointerup', (e) => {
+    ptrs.delete(e.pointerId);
+
+    if (mode === 'pinch') {
+      if (ptrs.size < 2) mode = null;
+      return;
+    }
+
+    if (e.pointerType !== 'mouse') {
+      if (!dragReady) {
+        tapTime = Date.now(); // 1回目タップ離し → 時刻記録
+      } else if (!moved) {
+        toggleVideoTransparent(); // ダブルタップ素早く離した → 透過切替
+        tapTime = 0;
+      } else {
+        tapTime = 0;
+      }
+      dragReady = false;
+    }
+    if (ptrs.size === 0) mode = null;
+  });
+
+  // リサイズハンドル（タッチ/マウスともシングルドラッグ）
   handle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     e.stopPropagation();
     handle.setPointerCapture(e.pointerId);
-    gestureStart(e.clientX, e.clientY, true);
-    const onMove = (e) => gestureMove(e.clientX, e.clientY);
+    let hStartX = e.clientX, hStartY = e.clientY;
+    let hStartW = v.clientWidth, hStartH = v.clientHeight;
+    let hMoved = false;
+    const onMove = (e) => {
+      const dx = e.clientX - hStartX, dy = e.clientY - hStartY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hMoved = true;
+      if (hMoved) {
+        v.freeFloat = true;
+        v.style.width = Math.max(80, hStartW + dx) + 'px';
+        v.style.height = Math.max(45, hStartH + dy) + 'px';
+        const needed = v.offsetTop + v.clientHeight;
+        if (needed > parseInt(mediaContainer.style.height || 0)) mediaContainer.style.height = needed + 'px';
+        _syncHandle(fromToken);
+      }
+    };
     handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', () => { handle.removeEventListener('pointermove', onMove); gestureEnd(); }, { once: true });
+    handle.addEventListener('pointerup', () => handle.removeEventListener('pointermove', onMove), { once: true });
   });
 }
 
