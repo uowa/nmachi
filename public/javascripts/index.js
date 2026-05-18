@@ -861,6 +861,7 @@ let checkAllListen;
 
 const videoArray = {};
 const videoArrayWrapper = {};
+const videoHandles = {};
 let videoFlag = true;
 let videoMaxFlag = true;
 
@@ -8877,40 +8878,89 @@ function changeVideoTransparentOpacity(val) {
   }
 }
 
-// 映像へのジェスチャー（ダブルタップで透過切替、横スワイプで透過度調整）
-function _addVideoGestures(videoEl) {
-  let _tapTime = 0;
-  let _swipeStartX = null;
-  let _swipeStartOpacity = null;
-  let _swiped = false;
+// 映像ハンドルの位置同期
+function _syncHandle(fromToken) {
+  const v = videoArray[fromToken];
+  const h = videoHandles[fromToken];
+  if (!v || !h) return;
+  h.style.left = (v.offsetLeft + v.clientWidth - 22) + 'px';
+  h.style.top = (v.offsetTop + v.clientHeight - 22) + 'px';
+}
 
-  videoEl.addEventListener('touchstart', (e) => {
-    _swipeStartX = e.touches[0].clientX;
-    _swipeStartOpacity = videoTransparentOpacity;
-    _swiped = false;
-  }, { passive: true });
+// 映像ジェスチャー（ダブルタップ透過切替・ドラッグ移動・右下コーナードラッグリサイズ）
+function _addVideoInteraction(fromToken) {
+  const v = videoArray[fromToken];
 
-  videoEl.addEventListener('touchmove', (e) => {
-    if (_swipeStartX === null || !_videoTransparentActive) return;
-    const dx = e.touches[0].clientX - _swipeStartX;
-    if (Math.abs(dx) > 8) _swiped = true;
-    if (_swiped) {
-      const newVal = Math.max(0.05, Math.min(0.95, _swipeStartOpacity + dx * 0.9 / window.innerWidth));
-      videoTransparentOpacity = newVal;
-      document.getElementById('videoTransparentOpacitySlider').value = newVal;
-      localStorage.setItem("videoTransparentOpacity", newVal);
-      Object.values(videoArray).forEach(v => { v.style.opacity = newVal; });
+  const handle = document.createElement('div');
+  handle.style.cssText = 'position:absolute;width:22px;height:22px;z-index:2;cursor:se-resize;touch-action:none;pointer-events:auto;background:rgba(180,180,180,0.5);border-radius:0 0 4px 0;box-sizing:border-box;';
+  handle.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" style="position:absolute;bottom:2px;right:2px;"><path d="M3 11L11 3M7 11L11 7" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/></svg>';
+  mediaContainer.appendChild(handle);
+  videoHandles[fromToken] = handle;
+  _syncHandle(fromToken);
+
+  let startX, startY, startLeft, startTop, startW, startH;
+  let mode = null; // 'move' | 'resize'
+  let tapTime = 0;
+  let moved = false;
+
+  function gestureStart(clientX, clientY, isResize) {
+    startX = clientX; startY = clientY;
+    startLeft = v.offsetLeft; startTop = v.offsetTop;
+    startW = v.clientWidth; startH = v.clientHeight;
+    mode = isResize ? 'resize' : 'move';
+    moved = false;
+  }
+
+  function gestureMove(clientX, clientY) {
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
+    if (!moved) return;
+    v.freeFloat = true;
+    if (mode === 'move') {
+      v.style.left = (startLeft + dx) + 'px';
+      v.style.top = (startTop + dy) + 'px';
+    } else {
+      v.style.width = Math.max(80, startW + dx) + 'px';
+      v.style.height = Math.max(45, startH + dy) + 'px';
+      const needed = v.offsetTop + v.clientHeight;
+      if (needed > parseInt(mediaContainer.style.height || 0)) mediaContainer.style.height = needed + 'px';
     }
-  }, { passive: true });
+    _syncHandle(fromToken);
+  }
 
-  videoEl.addEventListener('touchend', () => {
-    if (!_swiped) {
+  function gestureEnd() {
+    if (!moved) {
       const now = Date.now();
-      if (now - _tapTime < 300) toggleVideoTransparent();
-      _tapTime = now;
+      if (now - tapTime < 300) toggleVideoTransparent();
+      tapTime = now;
     }
-    _swipeStartX = null;
-  }, { passive: true });
+    mode = null;
+  }
+
+  // 映像本体
+  v.style.touchAction = 'none';
+  v.addEventListener('pointerdown', (e) => {
+    const rect = v.getBoundingClientRect();
+    if (e.clientX > rect.right - 28 && e.clientY > rect.bottom - 28) return;
+    e.preventDefault();
+    v.setPointerCapture(e.pointerId);
+    gestureStart(e.clientX, e.clientY, false);
+    const onMove = (e) => gestureMove(e.clientX, e.clientY);
+    v.addEventListener('pointermove', onMove);
+    v.addEventListener('pointerup', () => { v.removeEventListener('pointermove', onMove); gestureEnd(); }, { once: true });
+  });
+
+  // リサイズハンドル
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    gestureStart(e.clientX, e.clientY, true);
+    const onMove = (e) => gestureMove(e.clientX, e.clientY);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', () => { handle.removeEventListener('pointermove', onMove); gestureEnd(); }, { once: true });
+  });
 }
 
 document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
@@ -9150,6 +9200,7 @@ function videoResize() {
       let used = 0;
       let remain = 0;
       Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (videoArray[key].freeFloat) return;
         if (!videoArray[key].fixFlag) {
           allWidth += containerH / orgR[key];
           remain += containerH / orgR[key];
@@ -9160,6 +9211,11 @@ function videoResize() {
       });
 
       Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (videoArray[key].freeFloat) {
+          if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
+          _syncHandle(key);
+          return;
+        }
         if (!videoArray[key].fixFlag) {//要素が固定されてない時
           videoArray[key].style.width = containerH / orgR[key] / allWidth * 100 + "%";
           videoArray[key].style.height = 100 + "%";
@@ -9249,6 +9305,11 @@ function videoResize() {
       });
     } else if (selectVideoSize.videoSize.value === "setWidth") {//横の大きさで揃える
       Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (videoArray[key].freeFloat) {
+          if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
+          _syncHandle(key);
+          return;
+        }
         if (!videoArray[key].fixFlag) {
           videoArray[key].style.width = selectVideoSize2Num.value + "px";
           videoArray[key].style.height = selectVideoSize2Num.value * orgR[key] + "px";
@@ -9319,6 +9380,11 @@ function videoResize() {
 
     } else if (selectVideoSize.videoSize.value === "setHeight") {//縦の大きさで揃える
       Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+        if (videoArray[key].freeFloat) {
+          if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
+          _syncHandle(key);
+          return;
+        }
         if (!videoArray[key].fixFlag) {
           videoArray[key].style.height = selectVideoSize3Num.value + "px";
           videoArray[key].style.width = selectVideoSize3Num.value / orgR[key] + "px";
@@ -9682,7 +9748,7 @@ function attachVideo(fromToken, stream) {
     videoArray[fromToken].style.transform = "scale(-1,-1)";
   }
 
-  _addVideoGestures(videoArray[fromToken]);
+  _addVideoInteraction(fromToken);
   if (_videoTransparentActive) {
     videoArray[fromToken].style.opacity = videoTransparentOpacity;
     videoArray[fromToken].style.pointerEvents = 'auto';
@@ -9728,6 +9794,7 @@ function attachAudio(fromToken, stream) {//remoteAudioの追加
 function detachVideo(token) {//videoの削除
   pauseMedia(videoArray[token]);
   delete videoArray[token];
+  if (videoHandles[token]) { videoHandles[token].remove(); delete videoHandles[token]; }
   videoResize();
 }
 
