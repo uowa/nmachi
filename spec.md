@@ -544,10 +544,13 @@ CREATE TABLE editing_sessions (
 - スライダーで透明度をリアルタイム変更 / Slider to adjust opacity anytime
 
 #### 現状（2026-05-18 実装完了）
-- `#mediaContainer.video-transparent-mode` を `position:fixed; top:0; left:0; width:100%; z-index:50; pointer-events:none` で画面オーバーレイ
-- 動画要素に `opacity = videoTransparentOpacity`（デフォルト0.5）を設定
-- ゲーム画面（`#graphic`）のダブルタップで通常↔透過を切り替え（`toggleVideoTransparent()`）
-- 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）を設定パネルに追加
+- `#mediaContainer.video-transparent-mode` を `position:fixed; top:0; left:0; right:0; bottom:0; z-index:50; pointer-events:none` で全画面オーバーレイ
+- 透過モード時: 動画 `opacity = videoTransparentOpacity`、`pointer-events:auto`、`width:100%; height:100%; object-fit:contain` で全画面表示
+- **映像のダブルタップ**で通常↔透過切替（`toggleVideoTransparent()`）
+- **映像のドラッグ**で位置移動、**右下コーナー（28px）ドラッグ**でリサイズ（通常・透過両モード対応）
+  - `freeFloat=true` で `videoResize()` の自動レイアウトから除外
+  - `videoHandles[token]` にグリップハンドルdivを保持、`_syncHandle()` で位置同期
+- 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）
 - localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
 
 ---
@@ -601,7 +604,6 @@ CREATE TABLE editing_sessions (
 ### 26. 文字の部屋 / Room where typed text falls from above
 ### 27. マンション / 999-floor apartment (up to 3 rooms each)
 ### 28. 自動生成迷路 / Auto-generated maze room
-### 29. ライブカメラ部屋 / Room where stream feed is the room itself
-### 30. ピアノ部屋 / Piano room (avatars step on keys to play notes)
+### 29. ライブカメラ部屋 / Room where stream feed is the room itself### 30. ピアノ部屋 / Piano room (avatars step on keys to play notes)
 ### 31. 粉の部屋 / Powder room (colorful powder falls as avatars walk)
 ### 32. もち / "もち" keyword in chat triggers mochi to fall
