@@ -546,10 +546,15 @@ CREATE TABLE editing_sessions (
 #### 現状（2026-05-18 実装完了）
 - `#mediaContainer.video-transparent-mode` を `position:fixed; top:0; left:0; right:0; bottom:0; z-index:50; pointer-events:none` で全画面オーバーレイ
 - 透過モード時: 動画 `opacity = videoTransparentOpacity`、`pointer-events:auto`、`width:100%; height:100%; object-fit:contain` で全画面表示
-- **映像のダブルタップ**で通常↔透過切替（`toggleVideoTransparent()`）
-- **映像のドラッグ**で位置移動、**右下コーナー（28px）ドラッグ**でリサイズ（通常・透過両モード対応）
-  - `freeFloat=true` で `videoResize()` の自動レイアウトから除外
+- **映像のダブルタップ（タッチ）**で通常↔透過切替（`toggleVideoTransparent()`）
+- **映像の位置・サイズ操作**（通常・透過両モード対応）
+  - マウス: シングルドラッグで移動
+  - タッチ: ダブルタップ後ホールド→ドラッグで移動（シングルタップは1回目カウントのみ）
+  - ピンチ: 2本指で拡縮リサイズ（`ptrs` Mapで複数ポインタ追跡）
+  - 右下グリップハンドル: タッチ/マウスともシングルドラッグでリサイズ
+  - `freeFloat=true` で `videoResize()` の自動レイアウトから除外、透過切替時にリセット
   - `videoHandles[token]` にグリップハンドルdivを保持、`_syncHandle()` で位置同期
+- 透過モード入り時: `mediaContainer.style.height=''` で inline height を消しCSSの `bottom:0` を有効化、全動画の `top/left/width/height` を全画面値にリセット
 - 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）
 - localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
 
