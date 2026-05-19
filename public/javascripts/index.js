@@ -9997,6 +9997,7 @@ async function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
       }
+      populateDeviceSelects();
 
     }).catch(function (error) { // error
       videoStatus = false;
@@ -10883,11 +10884,15 @@ function changeMicSelectMode(val) {
 
 async function populateDeviceSelects(kind) {
   // kind='videoinput': カメラ権限のみ取得、'audioinput': マイク権限のみ取得、未指定: 権限不要
+  // すでに配信中なら権限は取得済みなのでgetUserMediaをスキップ
   if (kind) {
-    const constraint = kind === 'videoinput' ? { video: true } : { audio: true };
-    await navigator.mediaDevices.getUserMedia(constraint)
-      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
-      .catch(() => {});
+    const alreadyStreaming = (kind === 'videoinput' && videoStatus) || (kind === 'audioinput' && audioStatus);
+    if (!alreadyStreaming) {
+      const constraint = kind === 'videoinput' ? { video: true } : { audio: true };
+      await navigator.mediaDevices.getUserMedia(constraint)
+        .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
+        .catch(() => {});
+    }
   }
   const devices = await navigator.mediaDevices.enumerateDevices();
   function fill(selectEl, kindFilter, savedId, savedLabel) {
@@ -10922,6 +10927,44 @@ function onCameraDeviceSelect(sel) {
   cameraDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
   localStorage.setItem('cameraDeviceId', cameraDeviceId);
   localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
+  if (videoStatus) switchVideoDevice(cameraDeviceId);
+}
+
+async function switchVideoDevice(deviceId) {
+  let newStream;
+  try {
+    newStream = await getDeviceStream({ video: { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] } });
+  } catch (e) {
+    outputChatMsg('カメラの切り替えに失敗しました: ' + e.name, 'red');
+    return;
+  }
+  const newTrack = newStream.getVideoTracks()[0];
+  if (!newTrack) { newStream.getTracks().forEach(t => t.stop()); return; }
+
+  // RTCPeerConnectionのトラックを差し替え（接続を切らずに切り替え）
+  mapPeer.forEach(value => {
+    if (!value.get('onVideo')) return;
+    value.get('rtc').getSenders().forEach(sender => {
+      if (sender.track && sender.track.id === value.get('idOldVideo')) {
+        sender.replaceTrack(newTrack);
+        value.set('oldVideo', newTrack);
+        value.set('idOldVideo', newTrack.id);
+      }
+    });
+  });
+
+  // 古いローカルビデオトラックを停止
+  if (localStream) {
+    localStream.getVideoTracks().forEach(t => { localStream.removeTrack(t); t.stop(); });
+    localStream.addTrack(newTrack);
+  }
+
+  // ローカル表示を更新
+  [myToken, myToken + 'Re', myToken + 'Inv', myToken + 'IR'].forEach(key => {
+    if (videoArray[key]) videoArray[key].srcObject = newStream;
+  });
+
+  videoStatus = { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] };
 }
 
 function onMicDeviceSelect(sel) {
