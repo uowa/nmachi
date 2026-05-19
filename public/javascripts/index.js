@@ -9924,11 +9924,13 @@ function _pickDevice(kind) {
         const previewWrap = document.getElementById('devicePickerPreviewWrap');
         const previewCheck = document.getElementById('devicePickerPreviewCheck');
         labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
+        const savedPickerId = kind === 'videoinput' ? cameraDeviceId : micDeviceId;
         select.innerHTML = '';
         filtered.forEach((d, i) => {
           const opt = document.createElement('option');
           opt.value = d.deviceId;
           opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+          if (d.deviceId === savedPickerId) opt.selected = true;
           select.appendChild(opt);
         });
         if (kind === 'videoinput') {
@@ -9999,33 +10001,26 @@ function onDevicePickerPreviewChange(checkbox) {
   }
 }
 
-let _settingPreviewStream = null; // 非配信時のプレビュー用ストリーム（localStream使用時はnull）
+let _settingPreviewStream = null;
 let _settingPreviewActive = false;
+let _settingPreviewOrigCameraDeviceId = '';
+let _settingPreviewOrigCameraDeviceLabel = '';
+let _settingPreviewCurrentDeviceId = '';
 
-async function toggleSettingPreview() {
-  if (_settingPreviewActive) {
-    stopSettingPreview();
-    return;
-  }
-  _settingPreviewActive = true;
-  const previewEl = document.getElementById('settingPreview');
-  if (videoStatus && localStream) {
-    previewEl.srcObject = localStream;
-    previewEl.style.display = '';
+function onSettingPreviewCheckChange(checkbox) {
+  if (checkbox.checked) {
+    _settingPreviewActive = true;
+    _settingPreviewOrigCameraDeviceId = cameraDeviceId;
+    _settingPreviewOrigCameraDeviceLabel = cameraDeviceLabel;
+    _settingPreviewCurrentDeviceId = '';
+    const sel = document.getElementById('cameraDeviceSelect');
+    if (sel.value) _switchSettingPreview(sel.value, true);
   } else {
-    try {
-      const constraint = cameraDeviceId ? { video: { deviceId: { exact: cameraDeviceId } } } : { video: true };
-      _settingPreviewStream = await navigator.mediaDevices.getUserMedia(constraint);
-      previewEl.srcObject = _settingPreviewStream;
-      previewEl.style.display = '';
-    } catch (e) {
-      _settingPreviewActive = false;
-      outputChatMsg('プレビューの取得に失敗しました: ' + e.name, 'red');
-    }
+    stopSettingPreview();
   }
 }
 
-function stopSettingPreview() {
+async function stopSettingPreview() {
   if (_settingPreviewStream) {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
     _settingPreviewStream = null;
@@ -10034,24 +10029,40 @@ function stopSettingPreview() {
   const previewEl = document.getElementById('settingPreview');
   previewEl.srcObject = null;
   previewEl.style.display = 'none';
-  // カメラ名を元の選択に戻す
+  previewEl.style.minHeight = '';
+  const check = document.getElementById('settingPreviewCheck');
+  if (check) check.checked = false;
+
+  // 配信中かつ別カメラをプレビューしていた場合、元のカメラで配信を復活
+  if (videoStatus && _settingPreviewCurrentDeviceId && _settingPreviewCurrentDeviceId !== _settingPreviewOrigCameraDeviceId) {
+    switchVideoDevice(_settingPreviewOrigCameraDeviceId);
+  }
+  // カメラ選択を元に戻す
+  cameraDeviceId = _settingPreviewOrigCameraDeviceId;
+  cameraDeviceLabel = _settingPreviewOrigCameraDeviceLabel;
+  localStorage.setItem('cameraDeviceId', cameraDeviceId);
+  localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
   populateDeviceSelects();
+  _settingPreviewCurrentDeviceId = '';
 }
 
-async function _switchSettingPreview(deviceId) {
+async function _switchSettingPreview(deviceId, isInitial) {
   if (_settingPreviewStream) {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
     _settingPreviewStream = null;
   }
   const previewEl = document.getElementById('settingPreview');
   previewEl.srcObject = null;
+  if (!isInitial) _settingPreviewCurrentDeviceId = deviceId;
   try {
     _settingPreviewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
     previewEl.srcObject = _settingPreviewStream;
     previewEl.style.display = '';
+    previewEl.style.minHeight = '';
   } catch (e) {
     previewEl.srcObject = null;
     previewEl.style.display = '';
+    previewEl.style.minHeight = '60px'; // 真っ暗表示
   }
 }
 

@@ -338,17 +338,15 @@
                   <option value="fixed">固定</option>
                 </select>
                 <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)"></select>
+                <label><input type="checkbox" id="settingPreviewCheck" onchange="onSettingPreviewCheckChange(this)"> プレビュー</label>
               </div>
+              <video id="settingPreview" autoplay playsinline muted style="width:50%; margin-top:4px; border-radius:4px; background:#000; min-height:0; display:none;"></video>
               <div>
                 マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
                 <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)"></select>
-              </div>
-              <div>
-                <button type="button" id="settingPreviewBtn" onclick="toggleSettingPreview()">プレビュー</button>
-                <video id="settingPreview" autoplay playsinline muted style="width:50%; margin-top:6px; border-radius:4px; background:#000; display:none;"></video>
               </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">
