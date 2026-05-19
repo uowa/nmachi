@@ -2490,17 +2490,13 @@ class Avatar {
       onComplete: () => {
         this.isMoving = false;
 
-        // ⭐ 移動完了後に乗車処理を実行
-        if (standingOn && this.isMovingObject(standingOn)) {
-          this.startRiding(standingOn);
-
-          // 移動完了後の正確な相対座標を再計算
-          const objectContainer = standingOn.container || standingOn;
-          const objectX = objectContainer.x || 0;
-          const objectY = objectContainer.y || 0;
-          this.ridingOffset.x = this.container.x - objectX;
-          this.ridingOffset.y = this.container.y - objectY;
-
+        // 移動後の実際の位置で乗車オブジェクトを再チェック
+        const nowStanding = this.isStandingOnObject(this);
+        if (nowStanding && this.isMovingObject(nowStanding)) {
+          this.startRiding(nowStanding);
+          const objectContainer = nowStanding.container || nowStanding;
+          this.ridingOffset.x = this.container.x - (objectContainer.x || 0);
+          this.ridingOffset.y = this.container.y - (objectContainer.y || 0);
         }
 
         if (this.token == myToken) {
@@ -8823,17 +8819,17 @@ let _mcOriginalNextSibling = null;
 let _avaOverlayCtx = null;
 let _avaOverlayPreTicker = null;
 let _avaOverlayPostTicker = null;
+let _avaOverlayRT = null;
 
 function _startAvaOverlay() {
   let el = document.getElementById('avaVideoOverlay');
   if (!el) return;
-  // #main に transform があるため position:fixed がビューポート基準にならない
-  // mediaContainer と同様に document.body 直下に移動する
   if (el.parentNode !== document.body) document.body.appendChild(el);
   el.width = window.innerWidth;
   el.height = window.innerHeight;
   el.style.display = 'block';
   _avaOverlayCtx = el.getContext('2d');
+  if (!_avaOverlayRT) _avaOverlayRT = PIXI.RenderTexture.create({ width: 660, height: 460 });
 
   // PIXI描画前: 動画床に乗っているアバターを通常描画から除外
   if (_avaOverlayPreTicker) app.ticker.remove(_avaOverlayPreTicker);
@@ -8845,29 +8841,25 @@ function _startAvaOverlay() {
   };
   app.ticker.add(_avaOverlayPreTicker, null, 0);
 
-  // PIXI描画後: オーバーレイキャンバスに乗っているアバターを描画
+  // PIXI描画後: RTにアバターを描いてオーバーレイキャンバスへ転送
   if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
   _avaOverlayPostTicker = () => {
-    if (!_avaOverlayCtx) return;
+    if (!_avaOverlayCtx || !_avaOverlayRT) return;
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
-    const cRect = myCanvas.getBoundingClientRect();
-    const sx = cRect.width / 660;
-    const sy = cRect.height / 460;
-    for (const ava of Object.values(avaP)) {
-      if (!ava.ridingObject?.name?.startsWith('videoFloor:')) continue;
-      try {
-        ava.container.renderable = true;
-        const bounds = ava.container.getBounds();
-        if (!bounds || bounds.width <= 0 || bounds.height <= 0) { ava.container.renderable = false; continue; }
-        const extracted = app.renderer.extract.canvas(ava.container);
-        ava.container.renderable = false;
-        const dstX = cRect.left + bounds.x * sx;
-        const dstY = cRect.top + bounds.y * sy;
-        const dstW = bounds.width * sx;
-        const dstH = bounds.height * sy;
-        _avaOverlayCtx.drawImage(extracted, dstX, dstY, dstW, dstH);
-      } catch (_) { if (ava.container) ava.container.renderable = false; }
+    const ridingAvas = Object.values(avaP).filter(a => a.ridingObject?.name?.startsWith('videoFloor:'));
+    if (ridingAvas.length === 0) return;
+    // 乗っているアバターだけ RT (660×460 stage座標系) に描画
+    let first = true;
+    for (const ava of ridingAvas) {
+      ava.container.renderable = true;
+      app.renderer.render(ava.container, { renderTexture: _avaOverlayRT, clear: first });
+      ava.container.renderable = false;
+      first = false;
     }
+    // RT → 2D overlay（PIXIキャンバスのDOM矩形に合わせてスケール）
+    const extracted = app.renderer.extract.canvas(_avaOverlayRT);
+    const cRect = myCanvas.getBoundingClientRect();
+    _avaOverlayCtx.drawImage(extracted, cRect.left, cRect.top, cRect.width, cRect.height);
   };
   app.ticker.add(_avaOverlayPostTicker, null, -50);
 }
