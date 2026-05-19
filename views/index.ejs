@@ -681,14 +681,14 @@
       あなたのWebブラウザーでJavaScriptを有効にする方法</a>
   </noscript>
   <div id="devicePickerOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:8px; min-width:240px; max-width:90vw;">
+    <div style="background:#fff; color:#333; padding:16px; border-radius:8px; min-width:240px; max-width:90vw;">
       <p id="devicePickerLabel" style="margin:0 0 8px; font-weight:bold;"></p>
       <video id="devicePickerPreview" autoplay playsinline muted style="width:100%; margin-bottom:6px; border-radius:4px; background:#000; display:none;"></video>
       <div id="devicePickerPreviewWrap" style="margin-bottom:8px; display:none;">
-        <label><input type="checkbox" id="devicePickerPreviewCheck" onchange="onDevicePickerPreviewChange(this)"> プレビューを表示</label>
+        <button type="button" id="devicePickerPreviewBtn" onclick="onDevicePickerPreviewClick()">プレビュー</button>
       </div>
       <div id="devicePickerFixWrap" style="margin-bottom:8px; display:none;">
-        <label><input type="checkbox" id="devicePickerFixCheck"> 次回から固定</label>
+        <label><input type="checkbox" id="devicePickerFixCheck"> <span id="devicePickerFixLabel">次回から固定</span></label>
       </div>
       <select id="devicePickerSelect" style="width:100%; margin-bottom:10px;"></select>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
