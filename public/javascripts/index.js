@@ -10894,9 +10894,9 @@ function changeMicSelectMode(val) {
   localStorage.setItem('micSelectMode', val);
 }
 
-async function populateDeviceSelects() {
+async function populateDeviceSelects(withPermission) {
   let devices = await navigator.mediaDevices.enumerateDevices();
-  if (!devices.some(d => d.label)) {
+  if (withPermission && !devices.some(d => d.label)) {
     await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
       .catch(() => {});
@@ -10908,7 +10908,6 @@ async function populateDeviceSelects() {
     list.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      // ラベルが空かつ保存済みIDと一致する場合は保存済みラベルを使う
       opt.textContent = d.label || (d.deviceId === savedId && savedLabel) || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
       if (d.deviceId === savedId) opt.selected = true;
       selectEl.appendChild(opt);
