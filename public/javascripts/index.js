@@ -9983,7 +9983,7 @@ async function startVideo() {
     return;
   }
   videoStatus = {
-    ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+    ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({
@@ -10047,7 +10047,7 @@ async function startAudio() {
   }
   audioStatus = true;
   getDeviceStream({
-    audio: deviceId ? { deviceId: { exact: deviceId } } : true
+    audio: deviceId ? { deviceId: { ideal: deviceId } } : true
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     if (!localStream) {
