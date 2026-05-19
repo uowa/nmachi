@@ -10881,22 +10881,33 @@ function changeMicSelectMode(val) {
   localStorage.setItem('micSelectMode', val);
 }
 
-async function populateDeviceSelects(withPermission) {
-  if (withPermission) {
-    await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+async function populateDeviceSelects(kind) {
+  // kind='videoinput': カメラ権限のみ取得、'audioinput': マイク権限のみ取得、未指定: 権限不要
+  if (kind) {
+    const constraint = kind === 'videoinput' ? { video: true } : { audio: true };
+    await navigator.mediaDevices.getUserMedia(constraint)
       .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
       .catch(() => {});
   }
   const devices = await navigator.mediaDevices.enumerateDevices();
-  function fill(selectEl, kind, savedId, savedLabel) {
-    // deviceIdが空のデバイスは権限未取得なので表示しない
-    const list = devices.filter(d => d.kind === kind && d.deviceId);
-    if (!list.length) return;
+  function fill(selectEl, kindFilter, savedId, savedLabel) {
+    const list = devices.filter(d => d.kind === kindFilter && d.deviceId);
     selectEl.innerHTML = '';
+    if (!list.length) {
+      // 権限未取得でも保存済みラベルがあれば表示
+      if (savedId && savedLabel) {
+        const opt = document.createElement('option');
+        opt.value = savedId;
+        opt.textContent = savedLabel;
+        opt.selected = true;
+        selectEl.appendChild(opt);
+      }
+      return;
+    }
     list.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      opt.textContent = d.label || (d.deviceId === savedId && savedLabel) || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+      opt.textContent = d.label || (d.deviceId === savedId && savedLabel) || (kindFilter === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
       if (d.deviceId === savedId) opt.selected = true;
       selectEl.appendChild(opt);
     });
