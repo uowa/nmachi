@@ -8904,7 +8904,7 @@ function _syncHandle(fromToken) {
   h.style.top = (v.offsetTop + v.clientHeight - 22) + 'px';
 }
 
-// 映像ジェスチャー（タッチ: ダブルタップ後ドラッグ / マウス: ドラッグ移動 / ピンチリサイズ / ハンドル: リサイズ）
+// 映像ジェスチャー（タッチ1本: ダブルタップ透過切替・スワイプ透過度調整 / タッチ2本: 移動+ピンチリサイズ同時 / マウス: ドラッグ移動）
 function _addVideoInteraction(fromToken) {
   const v = videoArray[fromToken];
 
@@ -8916,19 +8916,13 @@ function _addVideoInteraction(fromToken) {
   _syncHandle(fromToken);
 
   const ptrs = new Map(); // pointerId → {x, y}
-  let tapTime = 0;        // 最後のタップ離し時刻（タッチのみ）
-  let dragReady = false;  // ダブルタップ後ドラッグ可能状態
+  let tapTime = 0;
   let startX, startY, startLeft, startTop, startW, startH;
-  let startOpacity = 0;   // スワイプ開始時の透過度
+  let startOpacity = 0;
   let pinchStartDist = 0;
+  let pinchStartCenter = { x: 0, y: 0 };
   let moved = false;
-  let mode = null; // 'move' | 'pinch'
-
-  function pinchDist() {
-    const pts = [...ptrs.values()];
-    const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
+  let mode = null; // 'mouse-move' | 'two-finger'
 
   v.style.touchAction = 'none';
   v.addEventListener('pointerdown', (e) => {
@@ -8937,51 +8931,52 @@ function _addVideoInteraction(fromToken) {
     v.setPointerCapture(e.pointerId);
 
     if (ptrs.size >= 2) {
-      mode = 'pinch';
-      dragReady = false;
-      pinchStartDist = pinchDist();
-      startW = v.clientWidth;
-      startH = v.clientHeight;
+      // 2本指: 移動+ピンチ同時開始（中心点と指間距離を記録）
+      mode = 'two-finger';
+      const pts = [...ptrs.values()];
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      pinchStartCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      startLeft = v.offsetLeft; startTop = v.offsetTop;
+      startW = v.clientWidth; startH = v.clientHeight;
+      moved = false;
       return;
     }
 
+    // 1本指
     startX = e.clientX; startY = e.clientY;
-    startLeft = v.offsetLeft; startTop = v.offsetTop;
     startOpacity = videoTransparentOpacity;
     moved = false;
-
     if (e.pointerType === 'mouse') {
-      mode = 'move';
-      dragReady = true;
+      mode = 'mouse-move';
+      startLeft = v.offsetLeft; startTop = v.offsetTop;
     } else {
-      // タッチ: ダブルタップ後のみドラッグ可能
-      const now = Date.now();
-      if (now - tapTime < 300) {
-        dragReady = true;
-        mode = 'move';
-      } else {
-        dragReady = false;
-        mode = null;
-      }
+      mode = null;
     }
   });
 
   v.addEventListener('pointermove', (e) => {
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (mode === 'pinch' && ptrs.size >= 2) {
-      const d = pinchDist();
+    if (mode === 'two-finger' && ptrs.size >= 2) {
+      const pts = [...ptrs.values()];
+      const newCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      const newDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      moved = true;
+      v.freeFloat = true;
+      // パン（中心点の移動量をそのまま位置に加算）
+      v.style.left = (startLeft + newCenter.x - pinchStartCenter.x) + 'px';
+      v.style.top = (startTop + newCenter.y - pinchStartCenter.y) + 'px';
+      // ピンチ（指間距離の比率でサイズ変更）
       if (pinchStartDist > 0) {
-        const scale = d / pinchStartDist;
-        v.freeFloat = true;
+        const scale = newDist / pinchStartDist;
         v.style.width = Math.max(80, Math.round(startW * scale)) + 'px';
         v.style.height = Math.max(45, Math.round(startH * scale)) + 'px';
-        _syncHandle(fromToken);
       }
+      _syncHandle(fromToken);
       return;
     }
 
-    if (mode === 'move' && dragReady) {
+    if (mode === 'mouse-move') {
       const dx = e.clientX - startX, dy = e.clientY - startY;
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
       if (moved) {
@@ -8990,8 +8985,8 @@ function _addVideoInteraction(fromToken) {
         v.style.top = (startTop + dy) + 'px';
         _syncHandle(fromToken);
       }
-    } else if (mode === null && !dragReady && _videoTransparentActive && e.pointerType !== 'mouse') {
-      // シングルタッチ水平スワイプ → 透過度調整
+    } else if (mode === null && _videoTransparentActive && e.pointerType !== 'mouse') {
+      // タッチ1本水平スワイプ → 透過度調整
       const dx = e.clientX - startX;
       if (Math.abs(dx) > 8) moved = true;
       if (moved) {
@@ -9007,21 +9002,19 @@ function _addVideoInteraction(fromToken) {
   v.addEventListener('pointerup', (e) => {
     ptrs.delete(e.pointerId);
 
-    if (mode === 'pinch') {
+    if (mode === 'two-finger') {
       if (ptrs.size < 2) mode = null;
       return;
     }
 
-    if (e.pointerType !== 'mouse') {
-      if (!dragReady) {
-        tapTime = Date.now(); // 1回目タップ離し → 時刻記録
-      } else if (!moved) {
-        toggleVideoTransparent(); // ダブルタップ素早く離した → 透過切替
+    if (e.pointerType !== 'mouse' && !moved) {
+      const now = Date.now();
+      if (now - tapTime < 300) {
+        toggleVideoTransparent();
         tapTime = 0;
       } else {
-        tapTime = 0;
+        tapTime = now;
       }
-      dragReady = false;
     }
     if (ptrs.size === 0) mode = null;
   });
