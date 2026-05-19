@@ -9901,7 +9901,11 @@ let _pickerSwitchPreview = null; // _pickDevice実行中のみ有効、onDeviceP
 function _pickDevice(kind) {
   // getUserMediaをPromiseチェーン外の最初の呼び出しにすることで
   // iOSのジェスチャーコンテキスト内に収める（.then()内だとコンテキストが失われる）
-  const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
+  const savedPickerId = kind === 'videoinput' ? cameraDeviceId : micDeviceId;
+  // 前回使用したデバイスを優先（idealなので未取得でもフォールバック可）
+  const tempConstraint = kind === 'videoinput'
+    ? (savedPickerId ? { video: { deviceId: { ideal: savedPickerId } } } : { video: true })
+    : { audio: true };
   let previewStream = null;
   return navigator.mediaDevices.getUserMedia(tempConstraint)
     .then(tmp => {
@@ -9923,8 +9927,9 @@ function _pickDevice(kind) {
         const previewEl = document.getElementById('devicePickerPreview');
         const previewWrap = document.getElementById('devicePickerPreviewWrap');
         const previewCheck = document.getElementById('devicePickerPreviewCheck');
+        const fixWrap = document.getElementById('devicePickerFixWrap');
+        const fixCheck = document.getElementById('devicePickerFixCheck');
         labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
-        const savedPickerId = kind === 'videoinput' ? cameraDeviceId : micDeviceId;
         select.innerHTML = '';
         filtered.forEach((d, i) => {
           const opt = document.createElement('option');
@@ -9933,18 +9938,22 @@ function _pickDevice(kind) {
           if (d.deviceId === savedPickerId) opt.selected = true;
           select.appendChild(opt);
         });
+        // 「次回から固定」チェックボックス
+        fixWrap.style.display = '';
+        fixCheck.checked = false;
         if (kind === 'videoinput') {
           previewWrap.style.display = '';
-          previewCheck.checked = cameraPickerPreview;
+          // 毎回選ぶモードではプレビューは毎回OFF
+          previewCheck.checked = false;
           if (previewStream) {
             previewEl.srcObject = previewStream;
-            previewEl.style.display = cameraPickerPreview ? '' : 'none';
+            previewEl.style.display = 'none'; // デフォルトOFF
           }
 
           async function switchPreview(deviceId) {
             if (previewStream) { previewStream.getTracks().forEach(t => t.stop()); previewStream = null; }
             previewEl.srcObject = null;
-            if (!cameraPickerPreview || !deviceId) { previewEl.style.display = 'none'; return; }
+            if (!previewCheck.checked || !deviceId) { previewEl.style.display = 'none'; return; }
             try {
               previewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
               previewEl.srcObject = previewStream;
@@ -9968,6 +9977,20 @@ function _pickDevice(kind) {
         function onOk() {
           const deviceId = select.value;
           const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
+          // 「次回から固定」がチェックされていたらモードと保存IDを更新
+          if (fixCheck.checked) {
+            if (kind === 'videoinput') {
+              cameraSelectMode = 'fixed'; localStorage.setItem('cameraSelectMode', 'fixed');
+              cameraDeviceId = deviceId; cameraDeviceLabel = deviceLabel;
+              localStorage.setItem('cameraDeviceId', deviceId); localStorage.setItem('cameraDeviceLabel', deviceLabel);
+              const sel = document.getElementById('cameraSelectMode'); if (sel) sel.value = 'fixed';
+            } else {
+              micSelectMode = 'fixed'; localStorage.setItem('micSelectMode', 'fixed');
+              micDeviceId = deviceId; micDeviceLabel = deviceLabel;
+              localStorage.setItem('micDeviceId', deviceId); localStorage.setItem('micDeviceLabel', deviceLabel);
+              const sel = document.getElementById('micSelectMode'); if (sel) sel.value = 'fixed';
+            }
+          }
           overlay.style.display = 'none';
           stopPreview();
           cleanup();
