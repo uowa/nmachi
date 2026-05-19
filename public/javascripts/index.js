@@ -10895,20 +10895,27 @@ function changeMicSelectMode(val) {
 }
 
 async function populateDeviceSelects() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  function fill(selectEl, kind, savedId) {
+  let devices = await navigator.mediaDevices.enumerateDevices();
+  if (!devices.some(d => d.label)) {
+    await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
+      .catch(() => {});
+    devices = await navigator.mediaDevices.enumerateDevices();
+  }
+  function fill(selectEl, kind, savedId, savedLabel) {
     const list = devices.filter(d => d.kind === kind);
     selectEl.innerHTML = '';
     list.forEach((d, i) => {
       const opt = document.createElement('option');
       opt.value = d.deviceId;
-      opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+      // ラベルが空かつ保存済みIDと一致する場合は保存済みラベルを使う
+      opt.textContent = d.label || (d.deviceId === savedId && savedLabel) || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
       if (d.deviceId === savedId) opt.selected = true;
       selectEl.appendChild(opt);
     });
   }
-  fill(document.getElementById('cameraDeviceSelect'), 'videoinput', cameraDeviceId);
-  fill(document.getElementById('micDeviceSelect'), 'audioinput', micDeviceId);
+  fill(document.getElementById('cameraDeviceSelect'), 'videoinput', cameraDeviceId, cameraDeviceLabel);
+  fill(document.getElementById('micDeviceSelect'), 'audioinput', micDeviceId, micDeviceLabel);
 }
 
 function onCameraDeviceSelect(sel) {

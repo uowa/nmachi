@@ -531,7 +531,7 @@ li>a {
 
 #setting{
     display: none;
-    font-size: 14px;
+    font-size: 16px;
     position: relative;
     z-index: 20;
     overscroll-behavior-x: contain;
@@ -554,7 +554,7 @@ li>a {
     vertical-align: middle;
 }
 #setting select {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 
