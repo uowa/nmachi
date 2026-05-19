@@ -8925,6 +8925,7 @@ function _addVideoInteraction(fromToken) {
 
   const ptrs = new Map(); // pointerId → {x, y}
   let tapTime = 0;
+  let tapForwardTimer = null;
   let startX, startY, startLeft, startTop, startW, startH;
   let startOpacity = 0;
   let pinchStartDist = 0;
@@ -9018,13 +9019,29 @@ function _addVideoInteraction(fromToken) {
       return;
     }
 
-    if (e.pointerType !== 'mouse' && !moved) {
-      const now = Date.now();
-      if (now - tapTime < 300) {
-        toggleVideoTransparent();
-        tapTime = 0;
+    if (!moved) {
+      const fx = e.clientX, fy = e.clientY;
+      const forwardToCanvas = () => {
+        const cRect = myCanvas.getBoundingClientRect();
+        if (fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom) {
+          myCanvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: fx, clientY: fy, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 1 }));
+          myCanvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: fx, clientY: fy, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 0 }));
+        }
+      };
+      if (e.pointerType === 'mouse') {
+        forwardToCanvas();
       } else {
-        tapTime = now;
+        const now = Date.now();
+        if (now - tapTime < 300) {
+          clearTimeout(tapForwardTimer);
+          tapForwardTimer = null;
+          toggleVideoTransparent();
+          tapTime = 0;
+        } else {
+          tapTime = now;
+          clearTimeout(tapForwardTimer);
+          tapForwardTimer = setTimeout(() => { tapForwardTimer = null; forwardToCanvas(); }, 310);
+        }
       }
     }
     if (ptrs.size === 0) mode = null;
