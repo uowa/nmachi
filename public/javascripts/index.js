@@ -8825,8 +8825,11 @@ let _avaOverlayPreTicker = null;
 let _avaOverlayPostTicker = null;
 
 function _startAvaOverlay() {
-  const el = document.getElementById('avaVideoOverlay');
+  let el = document.getElementById('avaVideoOverlay');
   if (!el) return;
+  // #main に transform があるため position:fixed がビューポート基準にならない
+  // mediaContainer と同様に document.body 直下に移動する
+  if (el.parentNode !== document.body) document.body.appendChild(el);
   el.width = window.innerWidth;
   el.height = window.innerHeight;
   el.style.display = 'block';
