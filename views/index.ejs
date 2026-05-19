@@ -364,31 +364,33 @@
                     onfocus="fucusVidoeSize('setHeight')" onblur="setVideoValue()"
                     onchange="changeVideoValue()"></label>
               </form>
-              <br>
-              <div role="main" id="main" class="flexContainer">
-                <div>
-                  <input type="checkbox" name="videoReverse" id="selectVideoReverse"
-                    onchange="changeVideoReverse()"><label for="selectVideoReverse">自分の動画の左右反転映像を表示する(見えるのは自分だけ)</label>
-                  <br>
-                  <input type="checkbox" name="videoInverse" id="selectVideoInverse"
-                    onchange="changeVideoInverse()"><label for="selectVideoInverse">自分の動画の上下反転映像を表示する(見えるのは自分だけ)</label>
-                  <br>
-                  <input type="checkbox" name="videoInverseAndReverse" id="selectVideoInverseAndReverse"
-                    onchange="changeVideoInverseAndReverse()"><label
-                    for="selectVideoInverseAndReverse">自分の動画の上下左右反転映像を表示する(見えるのは自分だけ)</label>
+              <details>
+                <summary style="cursor:pointer; user-select:none;">反転映像設定</summary>
+                <div role="main" id="main" class="flexContainer">
+                  <div>
+                    <input type="checkbox" name="videoReverse" id="selectVideoReverse"
+                      onchange="changeVideoReverse()"><label for="selectVideoReverse">自分の動画の左右反転映像を表示する(見えるのは自分だけ)</label>
+                    <br>
+                    <input type="checkbox" name="videoInverse" id="selectVideoInverse"
+                      onchange="changeVideoInverse()"><label for="selectVideoInverse">自分の動画の上下反転映像を表示する(見えるのは自分だけ)</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseAndReverse" id="selectVideoInverseAndReverse"
+                      onchange="changeVideoInverseAndReverse()"><label
+                      for="selectVideoInverseAndReverse">自分の動画の上下左右反転映像を表示する(見えるのは自分だけ)</label>
+                  </div>
+                  <div>
+                    <input type="checkbox" name="videoReverseOther" id="selectVideoReverseOther"
+                      onchange="changeVideoReverseOther()"><label for="selectVideoReverseOther">受信した動画の左右反転映像を表示する</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseOther" id="selectVideoInverseOther"
+                      onchange="changeVideoInverseOther()"><label for="selectVideoInverseOther">受信した動画の上下反転映像を表示する</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseAndReverseOther" id="selectVideoInverseAndReverseOther"
+                      onchange="changeVideoInverseAndReverseOther()"><label
+                      for="selectVideoInverseAndReverseOther">受信した動画の上下左右反転映像を表示する</label>
+                  </div>
                 </div>
-                <div>
-                  <input type="checkbox" name="videoReverseOther" id="selectVideoReverseOther"
-                    onchange="changeVideoReverseOther()"><label for="selectVideoReverseOther">受信した動画の左右反転映像を表示する</label>
-                  <br>
-                  <input type="checkbox" name="videoInverseOther" id="selectVideoInverseOther"
-                    onchange="changeVideoInverseOther()"><label for="selectVideoInverseOther">受信した動画の上下反転映像を表示する</label>
-                  <br>
-                  <input type="checkbox" name="videoInverseAndReverseOther" id="selectVideoInverseAndReverseOther"
-                    onchange="changeVideoInverseAndReverseOther()"><label
-                    for="selectVideoInverseAndReverseOther">受信した動画の上下左右反転映像を表示する</label>
-                </div>
-              </div>
+              </details>
               <div style="display:flex; align-items:center; gap:4px;">
                 <input type="checkbox" id="videoTransparentDefault" onchange="changeVideoTransparentDefault()"><label for="videoTransparentDefault" style="white-space:nowrap;">透過配信（ダブルタップ切替）</label>
                 <span style="white-space:nowrap;">透過度</span><input type="range" id="videoTransparentOpacitySlider" min="0.01" max="0.99" step="0.01" value="0.5" onchange="changeVideoTransparentOpacity(this.value)" style="flex:1; min-width:0;">
