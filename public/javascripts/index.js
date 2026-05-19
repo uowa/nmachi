@@ -10040,10 +10040,10 @@ function onSettingPreviewCheckChange(checkbox) {
 }
 
 async function stopSettingPreview() {
-  if (_settingPreviewStream) {
+  if (_settingPreviewStream && _settingPreviewStream !== localStream) {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
-    _settingPreviewStream = null;
   }
+  _settingPreviewStream = null;
   _settingPreviewActive = false;
   const previewEl = document.getElementById('settingPreview');
   previewEl.srcObject = null;
@@ -10066,18 +10066,25 @@ async function stopSettingPreview() {
 }
 
 async function _switchSettingPreview(deviceId, isInitial) {
-  if (_settingPreviewStream) {
+  if (_settingPreviewStream && _settingPreviewStream !== localStream) {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
-    _settingPreviewStream = null;
   }
+  _settingPreviewStream = null;
   const previewEl = document.getElementById('settingPreview');
   previewEl.srcObject = null;
   if (!isInitial) _settingPreviewCurrentDeviceId = deviceId;
-  // 配信中は別カメラを同時取得できないので黒画面のみ表示
-  if (videoStatus && deviceId !== (videoStatus.deviceId && videoStatus.deviceId.exact)) {
+  const streamingDeviceId = videoStatus && videoStatus.deviceId && videoStatus.deviceId.exact;
+  // 配信中で同じカメラ: localStreamを流用（中断なし）
+  if (videoStatus && localStream && deviceId === streamingDeviceId) {
+    _settingPreviewStream = localStream;
+    previewEl.srcObject = localStream;
     previewEl.style.display = '';
-    previewEl.style.minHeight = '60px';
+    previewEl.style.minHeight = '';
     return;
+  }
+  // 配信中で別カメラ: 配信ビデオトラックを止めて（配信側が黒）新カメラをプレビューに
+  if (videoStatus && localStream) {
+    localStream.getVideoTracks().forEach(t => t.stop());
   }
   try {
     _settingPreviewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
