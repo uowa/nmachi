@@ -8929,6 +8929,7 @@ function _addVideoInteraction(fromToken) {
   let mode = null; // 'mouse-move' | 'two-finger'
 
   v.style.touchAction = 'none';
+  v.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
   v.addEventListener('pointerdown', (e) => {
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     e.preventDefault();

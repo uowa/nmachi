@@ -435,7 +435,7 @@ select::-ms-expand {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 50;
+    z-index: 10;
     pointer-events: none;
     background: transparent;
 }
@@ -532,6 +532,8 @@ li>a {
 #setting{
     display: none;
     font-size: 11px;
+    position: relative;
+    z-index: 20;
     color: rgb(114, 108, 153);
     width: 655px;
     min-height: 200px;
