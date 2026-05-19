@@ -8491,6 +8491,7 @@ function settingClick() {
     document.getElementById("setting").style.display = "none";
   } else {
     document.getElementById("setting").style.display = "block";
+    populateDeviceSelects();
   }
 }
 
@@ -8513,9 +8514,7 @@ document.querySelector('svg').addEventListener('pointerdown', e => {
 
 document.getElementById('streamQualitySelect').value = streamQualityLevel;
 document.getElementById('cameraSelectMode').value = cameraSelectMode;
-document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
 document.getElementById('micSelectMode').value = micSelectMode;
-document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
 
 //ビデオサイズ
 if (localStorage.getItem("videoSize")) {
@@ -9950,7 +9949,6 @@ async function _getVideoDeviceId() {
   cameraDeviceLabel = picked.deviceLabel;
   localStorage.setItem('cameraDeviceId', cameraDeviceId);
   localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
-  document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
   return cameraDeviceId;
 }
 
@@ -9963,7 +9961,6 @@ async function _getMicDeviceId() {
   micDeviceLabel = picked.deviceLabel;
   localStorage.setItem('micDeviceId', micDeviceId);
   localStorage.setItem('micDeviceLabel', micDeviceLabel);
-  document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
   return micDeviceId;
 }
 
@@ -10897,26 +10894,43 @@ function changeMicSelectMode(val) {
   localStorage.setItem('micSelectMode', val);
 }
 
-async function pickAndSaveCameraDevice() {
-  try {
-    const picked = await _pickDevice('videoinput');
-    cameraDeviceId = picked.deviceId;
-    cameraDeviceLabel = picked.deviceLabel;
-    localStorage.setItem('cameraDeviceId', cameraDeviceId);
-    localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
-    document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
-  } catch (_e) {}
+async function populateDeviceSelects() {
+  let devices = await navigator.mediaDevices.enumerateDevices();
+  const hasLabel = devices.some(d => d.label);
+  if (!hasLabel) {
+    const kind = 'video';
+    await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
+      .catch(() => {});
+    devices = await navigator.mediaDevices.enumerateDevices();
+  }
+  function fill(selectEl, kind, savedId) {
+    const list = devices.filter(d => d.kind === kind);
+    selectEl.innerHTML = '';
+    list.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+      if (d.deviceId === savedId) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+  }
+  fill(document.getElementById('cameraDeviceSelect'), 'videoinput', cameraDeviceId);
+  fill(document.getElementById('micDeviceSelect'), 'audioinput', micDeviceId);
 }
 
-async function pickAndSaveMicDevice() {
-  try {
-    const picked = await _pickDevice('audioinput');
-    micDeviceId = picked.deviceId;
-    micDeviceLabel = picked.deviceLabel;
-    localStorage.setItem('micDeviceId', micDeviceId);
-    localStorage.setItem('micDeviceLabel', micDeviceLabel);
-    document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
-  } catch (_e) {}
+function onCameraDeviceSelect(sel) {
+  cameraDeviceId = sel.value;
+  cameraDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
+  localStorage.setItem('cameraDeviceId', cameraDeviceId);
+  localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
+}
+
+function onMicDeviceSelect(sel) {
+  micDeviceId = sel.value;
+  micDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
+  localStorage.setItem('micDeviceId', micDeviceId);
+  localStorage.setItem('micDeviceLabel', micDeviceLabel);
 }
 
 function changeStreamQuality(level) {

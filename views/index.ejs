@@ -337,16 +337,14 @@
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
-                <button onclick="pickAndSaveCameraDevice()">変更</button>
-                <span id="cameraDeviceLabelSpan" style="font-size:12px; color:#666; margin-left:4px;"></span>
+                <select id="cameraDeviceSelect" onchange="onCameraDeviceSelect(this)" style="max-width:200px;"></select>
               </div>
               <div>
                 マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
-                <button onclick="pickAndSaveMicDevice()">変更</button>
-                <span id="micDeviceLabelSpan" style="font-size:12px; color:#666; margin-left:4px;"></span>
+                <select id="micDeviceSelect" onchange="onMicDeviceSelect(this)" style="max-width:200px;"></select>
               </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">
@@ -365,7 +363,7 @@
                     onchange="changeVideoValue()"></label>
               </form>
               <details>
-                <summary style="cursor:pointer; user-select:none;">反転映像設定</summary>
+                <summary style="cursor:pointer; user-select:none;">反転映像</summary>
                 <div role="main" id="main" class="flexContainer">
                   <div>
                     <input type="checkbox" name="videoReverse" id="selectVideoReverse"
