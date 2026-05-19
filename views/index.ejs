@@ -337,12 +337,14 @@
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
+                <select id="cameraDeviceSelect" onfocus="populateDeviceSelects()" onchange="onCameraDeviceSelect(this)" style="max-width:120px;"></select>
               </div>
               <div>
                 マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
+                <select id="micDeviceSelect" onfocus="populateDeviceSelects()" onchange="onMicDeviceSelect(this)" style="max-width:120px;"></select>
               </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">

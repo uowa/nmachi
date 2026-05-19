@@ -832,15 +832,11 @@ const QUALITY_BITRATE = { max: undefined, high: 1000000, normal: 400000, low: 10
 const QUALITY_ORDER = ['low', 'normal', 'high', 'max'];
 let streamQualityLevel = localStorage.getItem('streamQualityLevel') || 'max';
 let cameraSelectMode = localStorage.getItem('cameraSelectMode') || 'always';
-let cameraDeviceId = '';
-let cameraDeviceLabel = '';
+let cameraDeviceId = localStorage.getItem('cameraDeviceId') || '';
+let cameraDeviceLabel = localStorage.getItem('cameraDeviceLabel') || '';
 let micSelectMode = localStorage.getItem('micSelectMode') || 'always';
-let micDeviceId = '';
-let micDeviceLabel = '';
-localStorage.removeItem('cameraDeviceId');
-localStorage.removeItem('cameraDeviceLabel');
-localStorage.removeItem('micDeviceId');
-localStorage.removeItem('micDeviceLabel');
+let micDeviceId = localStorage.getItem('micDeviceId') || '';
+let micDeviceLabel = localStorage.getItem('micDeviceLabel') || '';
 const receiverQualitySelect = {};
 const senderQuality = {};
 
@@ -9946,32 +9942,32 @@ function _pickDevice(kind) {
   });
 }
 
-function _getVideoDeviceId() {
+async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) return cameraDeviceId;
-  return null;
+  const result = await _pickDevice('videoinput');
+  return result.deviceId;
 }
 
-function _getMicDeviceId() {
+async function _getMicDeviceId() {
   if (micSelectMode === 'fixed' && micDeviceId) return micDeviceId;
-  return null;
+  const result = await _pickDevice('audioinput');
+  return result.deviceId;
 }
 
-function startVideo() {
+async function startVideo() {
   if (videoStatus) {
     return;
   }
-  const deviceId = _getVideoDeviceId();
+  let deviceId;
+  try {
+    deviceId = await _getVideoDeviceId();
+  } catch (_e) { return; }
   videoStatus = {
-    ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
+    deviceId: { exact: deviceId },
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
-  // iOSは複雑なconstraintsで権限ダイアログが出ない → {video:true}で1回だけgetUserMediaし
-  // 取得後にapplyConstraintsで品質を適用する
-  const simpleConstraint = deviceId ? { video: { deviceId: { ideal: deviceId } } } : { video: true };
-  getDeviceStream(simpleConstraint) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
+  getDeviceStream({ video: videoStatus }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
     .then(function (stream) { // success
-      const vTrack = stream.getVideoTracks()[0];
-      if (vTrack) vTrack.applyConstraints(QUALITY_CONSTRAINTS[streamQualityLevel]).catch(() => {});
       document.getElementById('startVideo').style.backgroundColor = "skyblue";
       if (!localStream) {
         localStream = stream;
@@ -10022,14 +10018,17 @@ function startVideo() {
     });
 }
 
-function startAudio() {
+async function startAudio() {
   if (audioStatus) {
     return;
   }
-  const deviceId = _getMicDeviceId();
+  let deviceId;
+  try {
+    deviceId = await _getMicDeviceId();
+  } catch (_e) { return; }
   audioStatus = true;
   getDeviceStream({
-    audio: deviceId ? { deviceId: { ideal: deviceId } } : true
+    audio: { deviceId: { exact: deviceId } }
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     if (!localStream) {
