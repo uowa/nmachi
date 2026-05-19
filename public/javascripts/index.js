@@ -9961,13 +9961,13 @@ function startVideo() {
     ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
-  // iOSは複雑なconstraintsで初回getUserMediaを呼ぶと権限ダイアログを出さずに失敗する
-  // まず{video:true}で権限だけ取り、取れたら本番のconstraintsで呼び直す
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
-    .catch(() => {})
-    .then(() => getDeviceStream({ video: videoStatus })) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
+  // iOSは複雑なconstraintsで権限ダイアログが出ない → {video:true}で1回だけgetUserMediaし
+  // 取得後にapplyConstraintsで品質を適用する
+  const simpleConstraint = deviceId ? { video: { deviceId: { ideal: deviceId } } } : { video: true };
+  getDeviceStream(simpleConstraint) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
     .then(function (stream) { // success
+      const vTrack = stream.getVideoTracks()[0];
+      if (vTrack) vTrack.applyConstraints(QUALITY_CONSTRAINTS[streamQualityLevel]).catch(() => {});
       document.getElementById('startVideo').style.backgroundColor = "skyblue";
       if (!localStream) {
         localStream = stream;
