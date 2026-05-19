@@ -10050,7 +10050,8 @@ async function _switchSettingPreview(deviceId) {
     previewEl.srcObject = _settingPreviewStream;
     previewEl.style.display = '';
   } catch (e) {
-    previewEl.style.display = 'none';
+    previewEl.srcObject = null;
+    previewEl.style.display = '';
   }
 }
 
