@@ -554,7 +554,8 @@ CREATE TABLE editing_sessions (
   - 右下グリップハンドル: タッチ/マウスともシングルドラッグでリサイズ
   - `freeFloat=true` で `videoResize()` の自動レイアウトから除外、透過切替時にリセット
   - `videoHandles[token]` にグリップハンドルdivを保持、`_syncHandle()` で位置同期
-- 透過モード入り時: `mediaContainer.style.height=''` で inline height を消しCSSの `bottom:0` を有効化、全動画の `top/left/width/height` を全画面値にリセット
+- 透過モード入り時: `mediaContainer.style.height=''` `mediaContainer.style.width=''` で inline height/width を消しCSSの `bottom:0` を有効化、全動画の `top/left/width/height` を全画面値にリセット
+- `videoResize()` 末尾で `Object.keys(videoArray).forEach(k => _syncHandle(k))` を呼び、透過切替後もハンドル位置を正しく同期
 - 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）
 - localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
 

@@ -8846,6 +8846,8 @@ function _applyVideoTransparent() {
     _mcOriginalNextSibling = mediaContainer.nextSibling;
     document.body.appendChild(mediaContainer);
     mediaContainer.classList.add('video-transparent-mode');
+    mediaContainer.style.height = '';
+    mediaContainer.style.width = '';
     Object.values(videoArray).forEach(v => {
       v.freeFloat = false;
       v.style.opacity = videoTransparentOpacity;
@@ -9536,6 +9538,7 @@ function videoResize() {
       });
     }
     mediaContainer.style.height = maxHeight + "px";
+    Object.keys(videoArray).forEach(k => _syncHandle(k));
   } else {
     mediaContainer.style.height = 0 + "px";
   }
