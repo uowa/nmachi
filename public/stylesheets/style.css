@@ -531,7 +531,7 @@ li>a {
 
 #setting{
     display: none;
-    font-size: 11px;
+    font-size: 14px;
     position: relative;
     z-index: 20;
     overscroll-behavior-x: contain;
@@ -547,6 +547,14 @@ li>a {
 }
 #setting input[type="range"] {
     touch-action: pan-x;
+}
+#setting input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+}
+#setting select {
+    font-size: 14px;
 }
 
 
