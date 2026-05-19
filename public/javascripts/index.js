@@ -9895,15 +9895,17 @@ function detachAudio(token) {//remoteAudioの削除
 }
 
 // ---------------------- media handling -----------------------
+let _pickerSwitchPreview = null; // _pickDevice実行中のみ有効、onDevicePickerPreviewChangeから参照
+
 function _pickDevice(kind) {
   // getUserMediaをPromiseチェーン外の最初の呼び出しにすることで
   // iOSのジェスチャーコンテキスト内に収める（.then()内だとコンテキストが失われる）
   const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
-  let initialStream = null;
+  let previewStream = null;
   return navigator.mediaDevices.getUserMedia(tempConstraint)
     .then(tmp => {
       if (kind === 'videoinput') {
-        initialStream = tmp; // プレビュー用に保持（stopはcleanupで行う）
+        previewStream = tmp; // プレビュー用に保持（stopはcleanupで行う）
       } else {
         tmp.getTracks().forEach(t => t.stop());
       }
@@ -9928,18 +9930,35 @@ function _pickDevice(kind) {
           opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
           select.appendChild(opt);
         });
-        if (kind === 'videoinput' && initialStream) {
+        if (kind === 'videoinput') {
           previewWrap.style.display = '';
           previewCheck.checked = cameraPickerPreview;
-          previewEl.srcObject = initialStream;
-          previewEl.style.display = cameraPickerPreview ? '' : 'none';
+          if (previewStream) {
+            previewEl.srcObject = previewStream;
+            previewEl.style.display = cameraPickerPreview ? '' : 'none';
+          }
+
+          async function switchPreview(deviceId) {
+            if (previewStream) { previewStream.getTracks().forEach(t => t.stop()); previewStream = null; }
+            previewEl.srcObject = null;
+            if (!cameraPickerPreview || !deviceId) { previewEl.style.display = 'none'; return; }
+            try {
+              previewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+              previewEl.srcObject = previewStream;
+              previewEl.style.display = '';
+            } catch (_e) { previewEl.style.display = 'none'; }
+          }
+
+          _pickerSwitchPreview = switchPreview;
+          select.addEventListener('change', () => switchPreview(select.value));
         } else {
           previewWrap.style.display = 'none';
           previewEl.style.display = 'none';
         }
         overlay.style.display = 'flex';
         function stopPreview() {
-          if (initialStream) { initialStream.getTracks().forEach(t => t.stop()); initialStream = null; }
+          _pickerSwitchPreview = null;
+          if (previewStream) { previewStream.getTracks().forEach(t => t.stop()); previewStream = null; }
           previewEl.srcObject = null;
           previewEl.style.display = 'none';
         }
@@ -9970,8 +9989,13 @@ function _pickDevice(kind) {
 function onDevicePickerPreviewChange(checkbox) {
   cameraPickerPreview = checkbox.checked;
   localStorage.setItem('cameraPickerPreview', cameraPickerPreview);
-  const previewEl = document.getElementById('devicePickerPreview');
-  previewEl.style.display = cameraPickerPreview ? '' : 'none';
+  const select = document.getElementById('devicePickerSelect');
+  if (cameraPickerPreview && _pickerSwitchPreview) {
+    _pickerSwitchPreview(select.value);
+  } else {
+    const previewEl = document.getElementById('devicePickerPreview');
+    previewEl.style.display = 'none';
+  }
 }
 
 async function _getVideoDeviceId() {
