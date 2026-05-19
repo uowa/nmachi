@@ -8490,6 +8490,7 @@ function removeAllSigns() {
 function settingClick() {
   if (setting.style.display === "block") {
     document.getElementById("setting").style.display = "none";
+    stopSettingPreview();
   } else {
     document.getElementById("setting").style.display = "block";
     populateDeviceSelects();
@@ -9998,6 +9999,39 @@ function onDevicePickerPreviewChange(checkbox) {
   }
 }
 
+let _settingPreviewStream = null; // 非配信時のプレビュー用ストリーム（localStream使用時はnull）
+
+async function toggleSettingPreview() {
+  const previewEl = document.getElementById('settingPreview');
+  if (previewEl.style.display !== 'none') {
+    stopSettingPreview();
+    return;
+  }
+  if (videoStatus && localStream) {
+    previewEl.srcObject = localStream;
+    previewEl.style.display = '';
+  } else {
+    try {
+      const constraint = cameraDeviceId ? { video: { deviceId: { exact: cameraDeviceId } } } : { video: true };
+      _settingPreviewStream = await navigator.mediaDevices.getUserMedia(constraint);
+      previewEl.srcObject = _settingPreviewStream;
+      previewEl.style.display = '';
+    } catch (e) {
+      outputChatMsg('プレビューの取得に失敗しました: ' + e.name, 'red');
+    }
+  }
+}
+
+function stopSettingPreview() {
+  if (_settingPreviewStream) {
+    _settingPreviewStream.getTracks().forEach(t => t.stop());
+    _settingPreviewStream = null;
+  }
+  const previewEl = document.getElementById('settingPreview');
+  previewEl.srcObject = null;
+  previewEl.style.display = 'none';
+}
+
 async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) return cameraDeviceId;
   const result = await _pickDevice('videoinput');
@@ -11021,6 +11055,10 @@ async function switchVideoDevice(deviceId) {
   [myToken, myToken + 'Re', myToken + 'Inv', myToken + 'IR'].forEach(key => {
     if (videoArray[key]) videoArray[key].srcObject = newStream;
   });
+
+  // 設定パネルのプレビューも更新
+  const settingPreviewEl = document.getElementById('settingPreview');
+  if (settingPreviewEl && settingPreviewEl.style.display !== 'none') settingPreviewEl.srcObject = newStream;
 
   videoStatus = { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] };
 }
