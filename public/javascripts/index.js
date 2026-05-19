@@ -10895,15 +10895,7 @@ function changeMicSelectMode(val) {
 }
 
 async function populateDeviceSelects() {
-  let devices = await navigator.mediaDevices.enumerateDevices();
-  const hasLabel = devices.some(d => d.label);
-  if (!hasLabel) {
-    const kind = 'video';
-    await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
-      .catch(() => {});
-    devices = await navigator.mediaDevices.enumerateDevices();
-  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
   function fill(selectEl, kind, savedId) {
     const list = devices.filter(d => d.kind === kind);
     selectEl.innerHTML = '';
