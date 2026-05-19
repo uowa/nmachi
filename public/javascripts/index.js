@@ -8857,6 +8857,7 @@ function _applyVideoTransparent() {
       v.style.width = '100%';
       v.style.height = '100%';
       v.style.objectFit = 'contain';
+      v.style.objectPosition = 'left top';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
   } else {
@@ -8871,6 +8872,7 @@ function _applyVideoTransparent() {
       v.style.pointerEvents = '';
       v.style.top = '0';
       v.style.objectFit = '';
+      v.style.objectPosition = '';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = ''; });
     videoResize();
@@ -9841,6 +9843,7 @@ function attachVideo(fromToken, stream) {
     videoArray[fromToken].style.width = '100%';
     videoArray[fromToken].style.height = '100%';
     videoArray[fromToken].style.objectFit = 'contain';
+    videoArray[fromToken].style.objectPosition = 'left top';
   }
   mediaContainer.appendChild(videoArray[fromToken]);
 
