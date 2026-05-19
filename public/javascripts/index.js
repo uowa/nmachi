@@ -9169,8 +9169,10 @@ function windowResize() {
     // footer.style.width = kousinrireki.clientWidth + "px";
     mainFrame.style.width = window.innerWidth + "px";
     mainFrame.style.height = window.innerHeight + "px";
+    document.getElementById("sizeSelecterFrame").style.display = "none";
 
   } else {//870以上の時
+    document.getElementById("sizeSelecterFrame").style.display = "";
     let scale = "scale(" + PMsize + ")";
     StyleDeclarationSetTransform(main.style, scale);
 
@@ -9944,6 +9946,9 @@ async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) {
     return cameraDeviceId;
   }
+  if (cameraSelectMode === 'fixed') {
+    return null;
+  }
   const picked = await _pickDevice('videoinput');
   cameraDeviceId = picked.deviceId;
   cameraDeviceLabel = picked.deviceLabel;
@@ -9955,6 +9960,9 @@ async function _getVideoDeviceId() {
 async function _getMicDeviceId() {
   if (micSelectMode === 'fixed' && micDeviceId) {
     return micDeviceId;
+  }
+  if (micSelectMode === 'fixed') {
+    return null;
   }
   const picked = await _pickDevice('audioinput');
   micDeviceId = picked.deviceId;
@@ -9975,7 +9983,7 @@ async function startVideo() {
     return;
   }
   videoStatus = {
-    deviceId: { exact: deviceId },
+    ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({
@@ -10039,7 +10047,7 @@ async function startAudio() {
   }
   audioStatus = true;
   getDeviceStream({
-    audio: { deviceId: { exact: deviceId } }
+    audio: deviceId ? { deviceId: { exact: deviceId } } : true
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     if (!localStream) {
@@ -10900,9 +10908,11 @@ async function populateDeviceSelects(withPermission) {
       .then(tmp => { tmp.getTracks().forEach(t => t.stop()); })
       .catch(() => {});
   }
-  let devices = await navigator.mediaDevices.enumerateDevices();
+  const devices = await navigator.mediaDevices.enumerateDevices();
   function fill(selectEl, kind, savedId, savedLabel) {
-    const list = devices.filter(d => d.kind === kind);
+    // deviceIdが空のデバイスは権限未取得なので表示しない
+    const list = devices.filter(d => d.kind === kind && d.deviceId);
+    if (!list.length) return;
     selectEl.innerHTML = '';
     list.forEach((d, i) => {
       const opt = document.createElement('option');
@@ -10917,6 +10927,7 @@ async function populateDeviceSelects(withPermission) {
 }
 
 function onCameraDeviceSelect(sel) {
+  if (!sel.value) return;
   cameraDeviceId = sel.value;
   cameraDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
   localStorage.setItem('cameraDeviceId', cameraDeviceId);
@@ -10924,6 +10935,7 @@ function onCameraDeviceSelect(sel) {
 }
 
 function onMicDeviceSelect(sel) {
+  if (!sel.value) return;
   micDeviceId = sel.value;
   micDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
   localStorage.setItem('micDeviceId', micDeviceId);
