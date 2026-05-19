@@ -556,6 +556,7 @@ CREATE TABLE editing_sessions (
   - `videoHandles[token]` にグリップハンドルdivを保持、`_syncHandle()` で位置同期
 - 透過モード入り時: `mediaContainer.style.height=''` `mediaContainer.style.width=''` で inline height/width を消しCSSの `bottom:0` を有効化、全動画の `top/left/width/height` を全画面値にリセット
 - `videoResize()` 末尾で `Object.keys(videoArray).forEach(k => _syncHandle(k))` を呼び、透過切替後もハンドル位置を正しく同期
+- `videoResize()` 先頭に `if (_videoTransparentActive) return;` ガードを追加。透過モード中に `loadedmetadata` 等で `videoResize()` が呼ばれ `mediaContainer.style.height` が再設定されて全画面が崩れる問題を修正
 - 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）
 - localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
 

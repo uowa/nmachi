@@ -9266,6 +9266,7 @@ function setVideoValue() {//値の表記を変更
 }
 
 function videoResize() {
+  if (_videoTransparentActive) return;
   if (Object.keys(videoArray).length) {
     let left = 0;
     let allWidth = 0;
