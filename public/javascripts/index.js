@@ -5278,81 +5278,58 @@ function checkColPoint(BX, BY, startX = AX, startY = AY) {
 }
 
 //ステージをクリックしたときの移動処理
+function _doStageTap(targetX, targetY) {
+  if (!avaP[myToken]) return;
+  const currentX = avaP[myToken].container.x;
+  const currentY = avaP[myToken].container.y;
+  if (currentX == targetX && currentY == targetY) return;
+
+  MX = targetX;
+  MY = targetY;
+  let sin = (MY - currentY) / Math.sqrt(Math.pow(MX - currentX, 2) + Math.pow(MY - currentY, 2));
+  DIR = calculateDirection(sin, currentX, MX);
+
+  if (room.name === "草原") meadowBlock();
+  if (room.name === "エントランス" && entranceIs2F) {
+    if (!pointInPolygon(targetX, targetY, ENTRANCE_2F_POLY)) {
+      entranceIs2F = false;
+      avaP[myToken].is2F = false;
+    }
+  }
+
+  if (colPointAll[0] == undefined) {
+    AX = targetX;
+    AY = targetY;
+  } else {
+    handleCollision();
+  }
+
+  const targetObject = findObjectAtPosition(targetX, targetY);
+  if (targetObject && targetObject.isMoving && targetObject.isMoving()) {
+    const objectContainer = targetObject.container || targetObject;
+    const relativeX = AX - (objectContainer.x || 0);
+    const relativeY = AY - (objectContainer.y || 0);
+    if (room.name !== "loginRoom" && !isReconnecting) {
+      socket.emit("tapMap", { DIR, moveType: "relative", targetObject: targetObject.name, relativeX, relativeY, sit: avaP[myToken].sit, AX, AY });
+    }
+  } else {
+    if (room.name !== "loginRoom" && !isReconnecting) {
+      socket.emit("tapMap", { DIR, moveType: "absolute", AX, AY, sit: avaP[myToken].sit });
+    }
+  }
+  avaP[myToken].tappedMove(AX, AY, DIR, avaP[myToken].sit);
+  colPointAll = [];
+}
+
 function stageMove(value) {
   value.eventMode = 'static';
   value.on('pointerdown', e => {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (floorPolyMode) return;
     if (_imgDoodleMode) return;
-
     const targetX = e.data.getLocalPosition(value).x;
     const targetY = e.data.getLocalPosition(value).y;
-    const currentX = avaP[myToken].container.x;
-    const currentY = avaP[myToken].container.y;
-
-    if (currentX != targetX || currentY != targetY) {
-      MX = targetX;
-      MY = targetY;
-
-      // ⭐ 方向計算を確実に実行
-      let sin = (MY - currentY) / Math.sqrt(Math.pow(MX - currentX, 2) + Math.pow(MY - currentY, 2));
-      DIR = calculateDirection(sin, currentX, MX);
-
-       if (room.name === "草原") {
-          meadowBlock();
-        }//別の部屋の場合でつき足す!!!!!!!!!!!!
-      if (room.name === "エントランス" && entranceIs2F) {
-        if (!pointInPolygon(targetX, targetY, ENTRANCE_2F_POLY)) {
-          entranceIs2F = false;
-          avaP[myToken].is2F = false;
-        }
-      }
-
-      // 衝突処理...
-      if (colPointAll[0] == undefined) {
-        AX = targetX;
-        AY = targetY;
-      } else {
-        handleCollision();
-      }
-
-      // オブジェクト判定...
-      const targetObject = findObjectAtPosition(targetX, targetY);
-
-      if (targetObject && targetObject.isMoving && targetObject.isMoving()) {// 動くオブジェクト上への移動
-        const objectContainer = targetObject.container || targetObject;
-        const objectX = objectContainer.x || 0;
-        const objectY = objectContainer.y || 0;
-        const relativeX = AX - objectX;
-        const relativeY = AY - objectY
-        if (room.name !== "loginRoom" && !isReconnecting) {
-          socket.emit("tapMap", {
-            DIR: DIR, // ⭐ 確実に方向を送信
-            moveType: "relative",
-            targetObject: targetObject.name,
-            relativeX: relativeX,
-            relativeY: relativeY,
-            sit: avaP[myToken].sit,
-            AX: AX, // ⭐ 追加
-            AY: AY  // ⭐ 追加
-          });
-        }
-      } else {
-        // 通常移動
-        if (room.name !== "loginRoom" && !isReconnecting) {
-          socket.emit("tapMap", {
-            DIR: DIR, // ⭐ 確実に方向を送信
-            moveType: "absolute",
-            AX: AX,
-            AY: AY,
-            sit: avaP[myToken].sit
-          });
-        }
-      }
-      avaP[myToken].tappedMove(AX, AY, DIR, avaP[myToken].sit);
-
-      colPointAll = [];
-    }
+    _doStageTap(targetX, targetY);
   });
 }
 
@@ -8864,6 +8841,7 @@ function _applyVideoTransparent() {
       v.style.objectPosition = 'left top';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
+    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
   } else {
     mediaContainer.classList.remove('video-transparent-mode');
     if (_mcOriginalParent) {
@@ -9023,10 +9001,11 @@ function _addVideoInteraction(fromToken) {
       const fx = e.clientX, fy = e.clientY;
       const forwardToCanvas = () => {
         const cRect = myCanvas.getBoundingClientRect();
-        if (fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom) {
-          myCanvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: fx, clientY: fy, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 1 }));
-          myCanvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: fx, clientY: fy, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 0 }));
-        }
+        if (fx < cRect.left || fx > cRect.right || fy < cRect.top || fy > cRect.bottom) return;
+        if (floorPolyMode || _imgDoodleMode) return;
+        const targetX = (fx - cRect.left) * (660 / cRect.width);
+        const targetY = (fy - cRect.top) * (460 / cRect.height);
+        _doStageTap(targetX, targetY);
       };
       if (e.pointerType === 'mouse') {
         forwardToCanvas();
