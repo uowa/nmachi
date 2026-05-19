@@ -8820,6 +8820,64 @@ if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
 let _mcOriginalParent = null;
 let _mcOriginalNextSibling = null;
 
+let _avaOverlayCtx = null;
+let _avaOverlayPreTicker = null;
+let _avaOverlayPostTicker = null;
+
+function _startAvaOverlay() {
+  const el = document.getElementById('avaVideoOverlay');
+  if (!el) return;
+  el.width = window.innerWidth;
+  el.height = window.innerHeight;
+  el.style.display = 'block';
+  _avaOverlayCtx = el.getContext('2d');
+
+  // PIXI描画前: 動画床に乗っているアバターを通常描画から除外
+  if (_avaOverlayPreTicker) app.ticker.remove(_avaOverlayPreTicker);
+  _avaOverlayPreTicker = () => {
+    for (const ava of Object.values(avaP)) {
+      const riding = !!(ava.ridingObject?.name?.startsWith('videoFloor:'));
+      if (ava.container.renderable !== !riding) ava.container.renderable = !riding;
+    }
+  };
+  app.ticker.add(_avaOverlayPreTicker, null, 0);
+
+  // PIXI描画後: オーバーレイキャンバスに乗っているアバターを描画
+  if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
+  _avaOverlayPostTicker = () => {
+    if (!_avaOverlayCtx) return;
+    _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
+    const cRect = myCanvas.getBoundingClientRect();
+    const sx = cRect.width / 660;
+    const sy = cRect.height / 460;
+    for (const ava of Object.values(avaP)) {
+      if (!ava.ridingObject?.name?.startsWith('videoFloor:')) continue;
+      try {
+        ava.container.renderable = true;
+        const bounds = ava.container.getBounds();
+        if (!bounds || bounds.width <= 0 || bounds.height <= 0) { ava.container.renderable = false; continue; }
+        const extracted = app.renderer.extract.canvas(ava.container);
+        ava.container.renderable = false;
+        const dstX = cRect.left + bounds.x * sx;
+        const dstY = cRect.top + bounds.y * sy;
+        const dstW = bounds.width * sx;
+        const dstH = bounds.height * sy;
+        _avaOverlayCtx.drawImage(extracted, dstX, dstY, dstW, dstH);
+      } catch (_) { if (ava.container) ava.container.renderable = false; }
+    }
+  };
+  app.ticker.add(_avaOverlayPostTicker, null, -50);
+}
+
+function _stopAvaOverlay() {
+  if (_avaOverlayPreTicker) { app.ticker.remove(_avaOverlayPreTicker); _avaOverlayPreTicker = null; }
+  if (_avaOverlayPostTicker) { app.ticker.remove(_avaOverlayPostTicker); _avaOverlayPostTicker = null; }
+  _avaOverlayCtx = null;
+  for (const ava of Object.values(avaP)) { if (ava.container) ava.container.renderable = true; }
+  const el = document.getElementById('avaVideoOverlay');
+  if (el) el.style.display = 'none';
+}
+
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
     // transform を持つ #main の外に出して fixed が viewport 基準になるようにする
@@ -8842,7 +8900,9 @@ function _applyVideoTransparent() {
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
     if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
+    _startAvaOverlay();
   } else {
+    _stopAvaOverlay();
     mediaContainer.classList.remove('video-transparent-mode');
     if (_mcOriginalParent) {
       _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
