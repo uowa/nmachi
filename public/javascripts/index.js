@@ -10000,13 +10000,15 @@ function onDevicePickerPreviewChange(checkbox) {
 }
 
 let _settingPreviewStream = null; // 非配信時のプレビュー用ストリーム（localStream使用時はnull）
+let _settingPreviewActive = false;
 
 async function toggleSettingPreview() {
-  const previewEl = document.getElementById('settingPreview');
-  if (previewEl.style.display !== 'none') {
+  if (_settingPreviewActive) {
     stopSettingPreview();
     return;
   }
+  _settingPreviewActive = true;
+  const previewEl = document.getElementById('settingPreview');
   if (videoStatus && localStream) {
     previewEl.srcObject = localStream;
     previewEl.style.display = '';
@@ -10017,6 +10019,7 @@ async function toggleSettingPreview() {
       previewEl.srcObject = _settingPreviewStream;
       previewEl.style.display = '';
     } catch (e) {
+      _settingPreviewActive = false;
       outputChatMsg('プレビューの取得に失敗しました: ' + e.name, 'red');
     }
   }
@@ -10027,9 +10030,28 @@ function stopSettingPreview() {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
     _settingPreviewStream = null;
   }
+  _settingPreviewActive = false;
   const previewEl = document.getElementById('settingPreview');
   previewEl.srcObject = null;
   previewEl.style.display = 'none';
+  // カメラ名を元の選択に戻す
+  populateDeviceSelects();
+}
+
+async function _switchSettingPreview(deviceId) {
+  if (_settingPreviewStream) {
+    _settingPreviewStream.getTracks().forEach(t => t.stop());
+    _settingPreviewStream = null;
+  }
+  const previewEl = document.getElementById('settingPreview');
+  previewEl.srcObject = null;
+  try {
+    _settingPreviewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+    previewEl.srcObject = _settingPreviewStream;
+    previewEl.style.display = '';
+  } catch (e) {
+    previewEl.style.display = 'none';
+  }
 }
 
 async function _getVideoDeviceId() {
@@ -11015,6 +11037,11 @@ async function populateDeviceSelects(kind) {
 
 function onCameraDeviceSelect(sel) {
   if (!sel.value) return;
+  if (_settingPreviewActive) {
+    // プレビューモード中: プレビューのみ切り替え、保存・配信切り替えはしない
+    _switchSettingPreview(sel.value);
+    return;
+  }
   cameraDeviceId = sel.value;
   cameraDeviceLabel = sel.options[sel.selectedIndex]?.textContent || '';
   localStorage.setItem('cameraDeviceId', cameraDeviceId);
