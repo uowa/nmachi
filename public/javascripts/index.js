@@ -8836,10 +8836,16 @@ if (localStorage.getItem("videoInverseAndReverseOther") === "1") {
 }
 
 // 透過配信
+let _mcOriginalParent = null;
+let _mcOriginalNextSibling = null;
+
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
+    // transform を持つ #main の外に出して fixed が viewport 基準になるようにする
+    _mcOriginalParent = mediaContainer.parentNode;
+    _mcOriginalNextSibling = mediaContainer.nextSibling;
+    document.body.appendChild(mediaContainer);
     mediaContainer.classList.add('video-transparent-mode');
-    mediaContainer.style.height = ''; // inline height を消してCSSのbottom:0を有効にする
     Object.values(videoArray).forEach(v => {
       v.freeFloat = false;
       v.style.opacity = videoTransparentOpacity;
@@ -8850,8 +8856,13 @@ function _applyVideoTransparent() {
       v.style.height = '100%';
       v.style.objectFit = 'contain';
     });
+    Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
   } else {
     mediaContainer.classList.remove('video-transparent-mode');
+    if (_mcOriginalParent) {
+      _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
+      _mcOriginalParent = null;
+    }
     Object.values(videoArray).forEach(v => {
       v.freeFloat = false;
       v.style.opacity = '';
@@ -8859,6 +8870,7 @@ function _applyVideoTransparent() {
       v.style.top = '0';
       v.style.objectFit = '';
     });
+    Object.values(videoHandles).forEach(h => { h.style.display = ''; });
     videoResize();
   }
 }
@@ -8904,9 +8916,10 @@ function _addVideoInteraction(fromToken) {
   _syncHandle(fromToken);
 
   const ptrs = new Map(); // pointerId → {x, y}
-  let tapTime = 0;       // 最後のタップ離し時刻（タッチのみ）
-  let dragReady = false; // ダブルタップ後ドラッグ可能状態
+  let tapTime = 0;        // 最後のタップ離し時刻（タッチのみ）
+  let dragReady = false;  // ダブルタップ後ドラッグ可能状態
   let startX, startY, startLeft, startTop, startW, startH;
+  let startOpacity = 0;   // スワイプ開始時の透過度
   let pinchStartDist = 0;
   let moved = false;
   let mode = null; // 'move' | 'pinch'
@@ -8934,6 +8947,7 @@ function _addVideoInteraction(fromToken) {
 
     startX = e.clientX; startY = e.clientY;
     startLeft = v.offsetLeft; startTop = v.offsetTop;
+    startOpacity = videoTransparentOpacity;
     moved = false;
 
     if (e.pointerType === 'mouse') {
@@ -8975,6 +8989,17 @@ function _addVideoInteraction(fromToken) {
         v.style.left = (startLeft + dx) + 'px';
         v.style.top = (startTop + dy) + 'px';
         _syncHandle(fromToken);
+      }
+    } else if (mode === null && !dragReady && _videoTransparentActive && e.pointerType !== 'mouse') {
+      // シングルタッチ水平スワイプ → 透過度調整
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 8) moved = true;
+      if (moved) {
+        const newVal = Math.max(0.05, Math.min(0.95, startOpacity + dx * 0.9 / window.innerWidth));
+        videoTransparentOpacity = newVal;
+        document.getElementById('videoTransparentOpacitySlider').value = newVal;
+        localStorage.setItem("videoTransparentOpacity", newVal);
+        Object.values(videoArray).forEach(vv => { vv.style.opacity = newVal; });
       }
     }
   });
