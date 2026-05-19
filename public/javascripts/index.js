@@ -145,7 +145,7 @@ let useLogItemHighlight = localStorage.getItem("useLogItemHighlight") !== "false
 let contextMenuPos = localStorage.getItem("contextMenuPos") || "tapLeft";
 let showCoord = localStorage.getItem("showCoord") === "true";
 let videoTransparentDefault = localStorage.getItem("videoTransparentDefault") === "true";
-let videoTransparentOpacity = Math.max(0.1, parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5"));
+let videoTransparentOpacity = Math.max(0.3, parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5"));
 let _videoTransparentActive = videoTransparentDefault;
 let highlightToken = null;
 const msgSE = {};
@@ -8996,7 +8996,7 @@ function _addVideoInteraction(fromToken) {
       const dx = e.clientX - startX;
       if (Math.abs(dx) > 8) moved = true;
       if (moved) {
-        const newVal = Math.max(0.1, Math.min(0.99, startOpacity + dx * 1.96 / window.innerWidth));
+        const newVal = Math.max(0.3, Math.min(0.99, startOpacity + dx * 1.96 / window.innerWidth));
         videoTransparentOpacity = newVal;
         document.getElementById('videoTransparentOpacitySlider').value = newVal;
         localStorage.setItem("videoTransparentOpacity", newVal);
