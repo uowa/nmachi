@@ -9895,51 +9895,49 @@ function detachAudio(token) {//remoteAudioの削除
 
 // ---------------------- media handling -----------------------
 function _pickDevice(kind) {
-  return navigator.mediaDevices.enumerateDevices().then(devices => {
-    const hasLabel = devices.some(d => d.kind === kind && d.label);
-    if (hasLabel) return devices;
-    // 権限未付与でラベルが空 → 一時取得して権限を得てから再列挙
-    const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
-    return navigator.mediaDevices.getUserMedia(tempConstraint)
-      .then(tmp => { tmp.getTracks().forEach(t => t.stop()); return navigator.mediaDevices.enumerateDevices(); })
-      .catch(() => devices);
-  }).then(devices => {
-    const filtered = devices.filter(d => d.kind === kind);
-    return new Promise((resolve, reject) => {
-      const overlay = document.getElementById('devicePickerOverlay');
-      const labelEl = document.getElementById('devicePickerLabel');
-      const select = document.getElementById('devicePickerSelect');
-      const okBtn = document.getElementById('devicePickerOk');
-      const cancelBtn = document.getElementById('devicePickerCancel');
-      labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
-      select.innerHTML = '';
-      filtered.forEach((d, i) => {
-        const opt = document.createElement('option');
-        opt.value = d.deviceId;
-        opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
-        select.appendChild(opt);
+  // getUserMediaをPromiseチェーン外の最初の呼び出しにすることで
+  // iOSのジェスチャーコンテキスト内に収める（.then()内だとコンテキストが失われる）
+  const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
+  return navigator.mediaDevices.getUserMedia(tempConstraint)
+    .then(tmp => { tmp.getTracks().forEach(t => t.stop()); return navigator.mediaDevices.enumerateDevices(); },
+          () => navigator.mediaDevices.enumerateDevices())
+    .then(devices => {
+      const filtered = devices.filter(d => d.kind === kind);
+      return new Promise((resolve, reject) => {
+        const overlay = document.getElementById('devicePickerOverlay');
+        const labelEl = document.getElementById('devicePickerLabel');
+        const select = document.getElementById('devicePickerSelect');
+        const okBtn = document.getElementById('devicePickerOk');
+        const cancelBtn = document.getElementById('devicePickerCancel');
+        labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
+        select.innerHTML = '';
+        filtered.forEach((d, i) => {
+          const opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
+          select.appendChild(opt);
+        });
+        overlay.style.display = 'flex';
+        function onOk() {
+          const deviceId = select.value;
+          const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
+          overlay.style.display = 'none';
+          cleanup();
+          resolve({ deviceId, deviceLabel });
+        }
+        function onCancel() {
+          overlay.style.display = 'none';
+          cleanup();
+          reject(new Error('cancelled'));
+        }
+        function cleanup() {
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+        }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
       });
-      overlay.style.display = 'flex';
-      function onOk() {
-        const deviceId = select.value;
-        const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
-        overlay.style.display = 'none';
-        cleanup();
-        resolve({ deviceId, deviceLabel });
-      }
-      function onCancel() {
-        overlay.style.display = 'none';
-        cleanup();
-        reject(new Error('cancelled'));
-      }
-      function cleanup() {
-        okBtn.removeEventListener('click', onOk);
-        cancelBtn.removeEventListener('click', onCancel);
-      }
-      okBtn.addEventListener('click', onOk);
-      cancelBtn.addEventListener('click', onCancel);
     });
-  });
 }
 
 async function _getVideoDeviceId() {
