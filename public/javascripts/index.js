@@ -10003,10 +10003,15 @@ function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         startVideo();
       }
-      outputChatMsg("カメラの取得に失敗しました: " + error.name + " " + error.message, "red");
+      // OverconstrainedError や deviceId 起因なら保存済みIDをクリアして再試行できるよう案内
+      if (cameraDeviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+        cameraDeviceId = '';
+        localStorage.removeItem('cameraDeviceId');
+        outputChatMsg("保存済みカメラを解除しました。もう一度押してください。", "red");
+      } else {
+        outputChatMsg("カメラの取得に失敗しました: " + error.name, "red");
+      }
       console.error('getUserMedia error:', error);
-
-      return;
     });
 }
 
