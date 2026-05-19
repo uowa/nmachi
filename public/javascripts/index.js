@@ -8994,7 +8994,7 @@ function _addVideoInteraction(fromToken) {
       const dx = e.clientX - startX;
       if (Math.abs(dx) > 8) moved = true;
       if (moved) {
-        const newVal = Math.max(0.05, Math.min(0.95, startOpacity + dx * 0.9 / window.innerWidth));
+        const newVal = Math.max(0.01, Math.min(0.99, startOpacity + dx * 1.96 / window.innerWidth));
         videoTransparentOpacity = newVal;
         document.getElementById('videoTransparentOpacitySlider').value = newVal;
         localStorage.setItem("videoTransparentOpacity", newVal);
