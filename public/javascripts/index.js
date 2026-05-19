@@ -837,6 +837,7 @@ let cameraDeviceLabel = localStorage.getItem('cameraDeviceLabel') || '';
 let micSelectMode = localStorage.getItem('micSelectMode') || 'always';
 let micDeviceId = localStorage.getItem('micDeviceId') || '';
 let micDeviceLabel = localStorage.getItem('micDeviceLabel') || '';
+let cameraPickerPreview = localStorage.getItem('cameraPickerPreview') === 'true';
 const receiverQualitySelect = {};
 const senderQuality = {};
 
@@ -9898,9 +9899,16 @@ function _pickDevice(kind) {
   // getUserMediaをPromiseチェーン外の最初の呼び出しにすることで
   // iOSのジェスチャーコンテキスト内に収める（.then()内だとコンテキストが失われる）
   const tempConstraint = kind === 'videoinput' ? { video: true } : { audio: true };
+  let initialStream = null;
   return navigator.mediaDevices.getUserMedia(tempConstraint)
-    .then(tmp => { tmp.getTracks().forEach(t => t.stop()); return navigator.mediaDevices.enumerateDevices(); },
-          () => navigator.mediaDevices.enumerateDevices())
+    .then(tmp => {
+      if (kind === 'videoinput') {
+        initialStream = tmp; // プレビュー用に保持（stopはcleanupで行う）
+      } else {
+        tmp.getTracks().forEach(t => t.stop());
+      }
+      return navigator.mediaDevices.enumerateDevices();
+    }, () => navigator.mediaDevices.enumerateDevices())
     .then(devices => {
       const filtered = devices.filter(d => d.kind === kind);
       return new Promise((resolve, reject) => {
@@ -9909,6 +9917,9 @@ function _pickDevice(kind) {
         const select = document.getElementById('devicePickerSelect');
         const okBtn = document.getElementById('devicePickerOk');
         const cancelBtn = document.getElementById('devicePickerCancel');
+        const previewEl = document.getElementById('devicePickerPreview');
+        const previewWrap = document.getElementById('devicePickerPreviewWrap');
+        const previewCheck = document.getElementById('devicePickerPreviewCheck');
         labelEl.textContent = kind === 'videoinput' ? 'カメラを選択' : 'マイクを選択';
         select.innerHTML = '';
         filtered.forEach((d, i) => {
@@ -9917,16 +9928,32 @@ function _pickDevice(kind) {
           opt.textContent = d.label || (kind === 'videoinput' ? 'カメラ' : 'マイク') + (i + 1);
           select.appendChild(opt);
         });
+        if (kind === 'videoinput' && initialStream) {
+          previewWrap.style.display = '';
+          previewCheck.checked = cameraPickerPreview;
+          previewEl.srcObject = initialStream;
+          previewEl.style.display = cameraPickerPreview ? '' : 'none';
+        } else {
+          previewWrap.style.display = 'none';
+          previewEl.style.display = 'none';
+        }
         overlay.style.display = 'flex';
+        function stopPreview() {
+          if (initialStream) { initialStream.getTracks().forEach(t => t.stop()); initialStream = null; }
+          previewEl.srcObject = null;
+          previewEl.style.display = 'none';
+        }
         function onOk() {
           const deviceId = select.value;
           const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
           overlay.style.display = 'none';
+          stopPreview();
           cleanup();
           resolve({ deviceId, deviceLabel });
         }
         function onCancel() {
           overlay.style.display = 'none';
+          stopPreview();
           cleanup();
           reject(new Error('cancelled'));
         }
@@ -9938,6 +9965,13 @@ function _pickDevice(kind) {
         cancelBtn.addEventListener('click', onCancel);
       });
     });
+}
+
+function onDevicePickerPreviewChange(checkbox) {
+  cameraPickerPreview = checkbox.checked;
+  localStorage.setItem('cameraPickerPreview', cameraPickerPreview);
+  const previewEl = document.getElementById('devicePickerPreview');
+  previewEl.style.display = cameraPickerPreview ? '' : 'none';
 }
 
 async function _getVideoDeviceId() {
