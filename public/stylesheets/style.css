@@ -534,6 +534,8 @@ li>a {
     font-size: 11px;
     position: relative;
     z-index: 20;
+    overscroll-behavior-x: contain;
+    touch-action: pan-y;
     color: rgb(114, 108, 153);
     width: 655px;
     min-height: 200px;
@@ -542,6 +544,9 @@ li>a {
     border-top: transparent; /* 上辺が透明になる */
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
+}
+#setting input[type="range"] {
+    touch-action: pan-x;
 }
 
 

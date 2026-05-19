@@ -9943,10 +9943,7 @@ function _pickDevice(kind) {
 
 async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    if (devices.some(d => d.kind === 'videoinput' && d.deviceId === cameraDeviceId)) {
-      return cameraDeviceId;
-    }
+    return cameraDeviceId;
   }
   const picked = await _pickDevice('videoinput');
   cameraDeviceId = picked.deviceId;
@@ -9959,10 +9956,7 @@ async function _getVideoDeviceId() {
 
 async function _getMicDeviceId() {
   if (micSelectMode === 'fixed' && micDeviceId) {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    if (devices.some(d => d.kind === 'audioinput' && d.deviceId === micDeviceId)) {
-      return micDeviceId;
-    }
+    return micDeviceId;
   }
   const picked = await _pickDevice('audioinput');
   micDeviceId = picked.deviceId;
@@ -10901,6 +10895,28 @@ function changeCameraSelectMode(val) {
 function changeMicSelectMode(val) {
   micSelectMode = val;
   localStorage.setItem('micSelectMode', val);
+}
+
+async function pickAndSaveCameraDevice() {
+  try {
+    const picked = await _pickDevice('videoinput');
+    cameraDeviceId = picked.deviceId;
+    cameraDeviceLabel = picked.deviceLabel;
+    localStorage.setItem('cameraDeviceId', cameraDeviceId);
+    localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
+    document.getElementById('cameraDeviceLabelSpan').textContent = cameraDeviceLabel;
+  } catch (_e) {}
+}
+
+async function pickAndSaveMicDevice() {
+  try {
+    const picked = await _pickDevice('audioinput');
+    micDeviceId = picked.deviceId;
+    micDeviceLabel = picked.deviceLabel;
+    localStorage.setItem('micDeviceId', micDeviceId);
+    localStorage.setItem('micDeviceLabel', micDeviceLabel);
+    document.getElementById('micDeviceLabelSpan').textContent = micDeviceLabel;
+  } catch (_e) {}
 }
 
 function changeStreamQuality(level) {
