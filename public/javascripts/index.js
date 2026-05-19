@@ -10028,7 +10028,7 @@ async function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         startVideo();
       }
-      outputChatMsg("カメラの取得に失敗しました。", "red");
+      outputChatMsg("カメラの取得に失敗しました: " + error.name + " " + error.message, "red");
       console.error('getUserMedia error:', error);
 
       return;
