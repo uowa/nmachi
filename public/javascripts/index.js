@@ -9942,46 +9942,21 @@ function _pickDevice(kind) {
   });
 }
 
-async function _getVideoDeviceId() {
-  if (cameraSelectMode === 'fixed' && cameraDeviceId) {
-    return cameraDeviceId;
-  }
-  if (cameraSelectMode === 'fixed') {
-    return null;
-  }
-  const picked = await _pickDevice('videoinput');
-  cameraDeviceId = picked.deviceId;
-  cameraDeviceLabel = picked.deviceLabel;
-  localStorage.setItem('cameraDeviceId', cameraDeviceId);
-  localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
-  return cameraDeviceId;
+function _getVideoDeviceId() {
+  if (cameraSelectMode === 'fixed' && cameraDeviceId) return cameraDeviceId;
+  return null;
 }
 
-async function _getMicDeviceId() {
-  if (micSelectMode === 'fixed' && micDeviceId) {
-    return micDeviceId;
-  }
-  if (micSelectMode === 'fixed') {
-    return null;
-  }
-  const picked = await _pickDevice('audioinput');
-  micDeviceId = picked.deviceId;
-  micDeviceLabel = picked.deviceLabel;
-  localStorage.setItem('micDeviceId', micDeviceId);
-  localStorage.setItem('micDeviceLabel', micDeviceLabel);
-  return micDeviceId;
+function _getMicDeviceId() {
+  if (micSelectMode === 'fixed' && micDeviceId) return micDeviceId;
+  return null;
 }
 
-async function startVideo() {
+function startVideo() {
   if (videoStatus) {
     return;
   }
-  let deviceId;
-  try {
-    deviceId = await _getVideoDeviceId();
-  } catch (_e) {
-    return;
-  }
+  const deviceId = _getVideoDeviceId();
   videoStatus = {
     ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
@@ -10035,16 +10010,11 @@ async function startVideo() {
     });
 }
 
-async function startAudio() {
+function startAudio() {
   if (audioStatus) {
     return;
   }
-  let deviceId;
-  try {
-    deviceId = await _getMicDeviceId();
-  } catch (_e) {
-    return;
-  }
+  const deviceId = _getMicDeviceId();
   audioStatus = true;
   getDeviceStream({
     audio: deviceId ? { deviceId: { ideal: deviceId } } : true
