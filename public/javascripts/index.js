@@ -8832,11 +8832,15 @@ function _startAvaOverlay() {
   if (!_avaOverlayRT) _avaOverlayRT = PIXI.RenderTexture.create({ width: 660, height: 460 });
 
   // PIXI描画前: 動画床に乗っているアバターを通常描画から除外
+  const _isOnVideoFloor = (ava) => Object.values(videoFloorObjects).some(f => hitAB(ava, f));
+
+  // PIXI描画前: videoFloor矩形内にいるアバターを通常描画から除外
   if (_avaOverlayPreTicker) app.ticker.remove(_avaOverlayPreTicker);
   _avaOverlayPreTicker = () => {
+    const hasFloor = Object.keys(videoFloorObjects).length > 0;
     for (const ava of Object.values(avaP)) {
-      const riding = !!(ava.ridingObject?.name?.startsWith('videoFloor:'));
-      if (ava.container.renderable !== !riding) ava.container.renderable = !riding;
+      const onVideo = hasFloor && _isOnVideoFloor(ava);
+      if (ava.container.renderable !== !onVideo) ava.container.renderable = !onVideo;
     }
   };
   app.ticker.add(_avaOverlayPreTicker, null, 0);
@@ -8846,17 +8850,15 @@ function _startAvaOverlay() {
   _avaOverlayPostTicker = () => {
     if (!_avaOverlayCtx || !_avaOverlayRT) return;
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
-    const ridingAvas = Object.values(avaP).filter(a => a.ridingObject?.name?.startsWith('videoFloor:'));
-    if (ridingAvas.length === 0) return;
-    // 乗っているアバターだけ RT (660×460 stage座標系) に描画
+    const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
+    if (overlayAvas.length === 0) return;
     let first = true;
-    for (const ava of ridingAvas) {
+    for (const ava of overlayAvas) {
       ava.container.renderable = true;
       app.renderer.render(ava.container, { renderTexture: _avaOverlayRT, clear: first });
       ava.container.renderable = false;
       first = false;
     }
-    // RT → 2D overlay（PIXIキャンバスのDOM矩形に合わせてスケール）
     const extracted = app.renderer.extract.canvas(_avaOverlayRT);
     const cRect = myCanvas.getBoundingClientRect();
     _avaOverlayCtx.drawImage(extracted, cRect.left, cRect.top, cRect.width, cRect.height);
