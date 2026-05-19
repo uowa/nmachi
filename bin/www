@@ -552,7 +552,7 @@ io.on('connection', socket => {
     // 入室時に既存のビデオ足場を送信
     const vSurfaces = rooms[data.toRoom].videoSurfaces || {};
     for (const [surfToken, surf] of Object.entries(vSurfaces)) {
-      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, enabled: true });
+      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, enabled: true });
     }
 
     socket.broadcast.to(data.toRoom).emit("otherJoined", {
@@ -1028,7 +1028,7 @@ io.on('connection', socket => {
     if (!rooms[room]) return;
     if (!rooms[room].videoSurfaces) rooms[room].videoSurfaces = {};
     if (data.enabled) {
-      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width };
+      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height };
     } else {
       delete rooms[room].videoSurfaces[data.token];
     }

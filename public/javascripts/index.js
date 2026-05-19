@@ -9916,14 +9916,18 @@ function _videoToPIXI(v) {
     x: (vRect.left - cRect.left) * (660 / cRect.width),
     y: (vRect.top - cRect.top) * (460 / cRect.height),
     width: vRect.width * (660 / cRect.width),
+    height: vRect.height * (460 / cRect.height),
   };
 }
 
-function _updateVideoFloor(token, pixiX, pixiY, pixiW) {
+function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   let floorObj = videoFloorObjects[token];
   if (!floorObj) {
     const container = new PIXI.Container();
     container.eventMode = 'none';
+    const gfx = new PIXI.Graphics();
+    container.addChild(gfx);
+    container._gfx = gfx;
     floorObj = { container, tags: ['standable', 'moving'], name: 'videoFloor:' + token };
     videoFloorObjects[token] = floorObj;
     objMap['videoFloor:' + token] = floorObj;
@@ -9933,7 +9937,14 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW) {
   }
   floorObj.container.x = pixiX;
   floorObj.container.y = pixiY;
-  floorObj.container.hitArea = new PIXI.Rectangle(0, 0, Math.max(pixiW, 10), 12);
+  const w = Math.max(pixiW, 10);
+  const h = Math.max(pixiH || 100, 10);
+  floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
+  // 動画エリアを示す半透明枠
+  const gfx = floorObj.container._gfx;
+  gfx.clear();
+  gfx.lineStyle(2, 0x88ddff, 0.4);
+  gfx.drawRect(0, 0, w, h);
 }
 
 function _removeVideoFloor(token) {
@@ -9964,17 +9975,17 @@ function _syncVideoFloor(fromToken) {
   if (raw && raw.y >= 0 && raw.y < 430 && raw.x < 660 && raw.x + raw.width > 0) {
     coords = raw;
   } else {
-    coords = { x: 30, y: 100, width: 600 };
+    coords = { x: 30, y: 100, width: 600, height: 300 };
   }
-  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, enabled: _streamSurfaceAllowed });
-  if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width);
+  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, enabled: _streamSurfaceAllowed });
+  if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width, coords.height);
 }
 
 socket.on('videoSurface', data => {
   if (!data.enabled) {
     _removeVideoFloor(data.token);
   } else {
-    _updateVideoFloor(data.token, data.x, data.y, data.width);
+    _updateVideoFloor(data.token, data.x, data.y, data.width, data.height);
   }
 });
 
