@@ -156,6 +156,7 @@ for (let i = 0; i < roomNameList.length; i++) {
     drawHistory: [],
     usersToken: new Set(),
     signs: [],
+    videoSurfaces: {},
   };
 }
 
@@ -354,9 +355,9 @@ io.on('connection', socket => {
         io.to(socket.id).emit("roomNotFound");
         return;
       }
-      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [] };
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
     } else if (!rooms[data.toRoom]) {
-      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [] };
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
     }
     // last_activity 更新（ユーザー投稿部屋のみ）
     try {
@@ -547,6 +548,12 @@ io.on('connection', socket => {
       starColors: starColors,
       signs: rooms[data.toRoom].signs,
     });
+
+    // 入室時に既存のビデオ足場を送信
+    const vSurfaces = rooms[data.toRoom].videoSurfaces || {};
+    for (const [surfToken, surf] of Object.entries(vSurfaces)) {
+      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, enabled: true });
+    }
 
     socket.broadcast.to(data.toRoom).emit("otherJoined", {
       userName: user[token].userName,
@@ -1015,6 +1022,19 @@ io.on('connection', socket => {
     socket._editingRoomId = null;
   });
 
+  socket.on('videoSurface', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room]) return;
+    if (!rooms[room].videoSurfaces) rooms[room].videoSurfaces = {};
+    if (data.enabled) {
+      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width };
+    } else {
+      delete rooms[room].videoSurfaces[data.token];
+    }
+    socket.broadcast.to(room).emit('videoSurface', data);
+  });
+
   socket.on("disconnect", () => {
     if (socket._editingRoomId) {
       const r = db.get('SELECT name FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);
@@ -1028,6 +1048,9 @@ io.on('connection', socket => {
     if (!checkUser()) return;
     if (user[token].room !== "loginRoom") {
       rooms[user[token].room].usersToken.delete(token);//部屋のユーザーリストから削除
+      if (rooms[user[token].room].videoSurfaces) {
+        delete rooms[user[token].room].videoSurfaces[token];
+      }
       io.to(user[token].room).emit("logout", {
         token: token,
         msg: user[token].userName + "が退出しました。" + time(),

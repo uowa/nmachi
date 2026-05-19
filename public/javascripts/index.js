@@ -147,6 +147,8 @@ let showCoord = localStorage.getItem("showCoord") === "true";
 let videoTransparentDefault = localStorage.getItem("videoTransparentDefault") === "true";
 let videoTransparentOpacity = Math.max(0.3, parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5"));
 let _videoTransparentActive = videoTransparentDefault;
+let _streamSurfaceAllowed = localStorage.getItem('streamSurfaceAllowed') !== 'false';
+const videoFloorObjects = {};
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -4794,6 +4796,7 @@ function updateWarpList() {
 //自分が入室時の処理
 socket.on("joineRoom", data => {
   _mugenGateBeingEntered = -1;
+  Object.keys(videoFloorObjects).forEach(t => _removeVideoFloor(t));
   // 再接続成功
   if (isReconnecting) {
     isReconnecting = false;
@@ -8979,6 +8982,7 @@ function _addVideoInteraction(fromToken) {
         v.style.height = Math.max(45, Math.round(startH * scale)) + 'px';
       }
       _syncHandle(fromToken);
+      if (fromToken === myToken) _syncVideoFloor(fromToken);
       return;
     }
 
@@ -8990,6 +8994,7 @@ function _addVideoInteraction(fromToken) {
         v.style.left = (startLeft + dx) + 'px';
         v.style.top = (startTop + dy) + 'px';
         _syncHandle(fromToken);
+        if (fromToken === myToken) _syncVideoFloor(fromToken);
       }
     } else if (mode === null && _videoTransparentActive && e.pointerType !== 'mouse') {
       // タッチ1本水平スワイプ → 透過度調整
@@ -9043,6 +9048,7 @@ function _addVideoInteraction(fromToken) {
         const needed = v.offsetTop + v.clientHeight;
         if (needed > parseInt(mediaContainer.style.height || 0)) mediaContainer.style.height = needed + 'px';
         _syncHandle(fromToken);
+        if (fromToken === myToken) _syncVideoFloor(fromToken);
       }
     };
     handle.addEventListener('pointermove', onMove);
@@ -9053,6 +9059,7 @@ function _addVideoInteraction(fromToken) {
 document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
 document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
 if (videoTransparentDefault) _applyVideoTransparent();
+document.getElementById('streamSurfaceAllowed').checked = _streamSurfaceAllowed;
 
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
@@ -9859,6 +9866,7 @@ function attachVideo(fromToken, stream) {
   // メタデータ読み込み時にvideoResizeを呼ぶ
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
+    if (fromToken === myToken) _syncVideoFloor(fromToken);
   }, { passive: true });
 }
 
@@ -9887,7 +9895,92 @@ function detachVideo(token) {//videoの削除
   pauseMedia(videoArray[token]);
   delete videoArray[token];
   if (videoHandles[token]) { videoHandles[token].remove(); delete videoHandles[token]; }
+  if (_isBaseVideoToken(token)) {
+    _removeVideoFloor(token);
+    if (token === myToken) socket.emit('videoSurface', { token, enabled: false });
+  }
   videoResize();
+}
+
+// --- ビデオ足場システム ---
+
+function _isBaseVideoToken(tok) {
+  return !/Re$|Inv$|IR$/.test(tok);
+}
+
+function _videoToPIXI(v) {
+  const vRect = v.getBoundingClientRect();
+  const cRect = myCanvas.getBoundingClientRect();
+  if (cRect.width === 0 || cRect.height === 0) return null;
+  return {
+    x: (vRect.left - cRect.left) * (660 / cRect.width),
+    y: (vRect.top - cRect.top) * (460 / cRect.height),
+    width: vRect.width * (660 / cRect.width),
+  };
+}
+
+function _updateVideoFloor(token, pixiX, pixiY, pixiW) {
+  let floorObj = videoFloorObjects[token];
+  if (!floorObj) {
+    const container = new PIXI.Container();
+    container.eventMode = 'none';
+    floorObj = { container, tags: ['standable', 'moving'], name: 'videoFloor:' + token };
+    videoFloorObjects[token] = floorObj;
+    objMap['videoFloor:' + token] = floorObj;
+  }
+  if (room && room.container && !floorObj.container.parent) {
+    room.container.addChild(floorObj.container);
+  }
+  floorObj.container.x = pixiX;
+  floorObj.container.y = pixiY;
+  floorObj.container.hitArea = new PIXI.Rectangle(0, 0, Math.max(pixiW, 10), 8);
+}
+
+function _removeVideoFloor(token) {
+  const floorObj = videoFloorObjects[token];
+  if (!floorObj) return;
+  for (const ava of Object.values(avaP)) {
+    if (ava.ridingObject === floorObj) {
+      ava.stopRiding();
+      if (ava.token === myToken) {
+        if (AX < 0) AX = 10;
+        if (AX > 660) AX = 650;
+        ava.container.x = AX;
+      }
+    }
+  }
+  if (floorObj.container.parent) floorObj.container.parent.removeChild(floorObj.container);
+  delete videoFloorObjects[token];
+  delete objMap['videoFloor:' + token];
+}
+
+function _syncVideoFloor(fromToken) {
+  if (!_isBaseVideoToken(fromToken)) return;
+  const v = videoArray[fromToken];
+  if (!v) return;
+  const coords = _videoToPIXI(v);
+  if (!coords) return;
+  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, enabled: _streamSurfaceAllowed });
+  if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width);
+}
+
+socket.on('videoSurface', data => {
+  if (!data.enabled) {
+    _removeVideoFloor(data.token);
+  } else {
+    _updateVideoFloor(data.token, data.x, data.y, data.width);
+  }
+});
+
+function changeStreamSurface() {
+  _streamSurfaceAllowed = document.getElementById('streamSurfaceAllowed').checked;
+  localStorage.setItem('streamSurfaceAllowed', _streamSurfaceAllowed);
+  if (_streamSurfaceAllowed) {
+    if (videoArray[myToken]) _syncVideoFloor(myToken);
+  } else {
+    _removeVideoFloor(myToken);
+    socket.emit('videoSurface', { token: myToken, enabled: false });
+  }
 }
 
 function detachAudio(token) {//remoteAudioの削除
