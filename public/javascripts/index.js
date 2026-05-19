@@ -9933,7 +9933,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW) {
   }
   floorObj.container.x = pixiX;
   floorObj.container.y = pixiY;
-  floorObj.container.hitArea = new PIXI.Rectangle(0, 0, Math.max(pixiW, 10), 8);
+  floorObj.container.hitArea = new PIXI.Rectangle(0, 0, Math.max(pixiW, 10), 12);
 }
 
 function _removeVideoFloor(token) {
@@ -9958,8 +9958,14 @@ function _syncVideoFloor(fromToken) {
   if (!_isBaseVideoToken(fromToken)) return;
   const v = videoArray[fromToken];
   if (!v) return;
-  const coords = _videoToPIXI(v);
-  if (!coords) return;
+  const raw = _videoToPIXI(v);
+  // 動画がステージ内に実際に重なっている場合のみDOM座標を使用、それ以外はデフォルト位置
+  let coords;
+  if (raw && raw.y >= 0 && raw.y < 430 && raw.x < 660 && raw.x + raw.width > 0) {
+    coords = raw;
+  } else {
+    coords = { x: 30, y: 100, width: 600 };
+  }
   socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, enabled: _streamSurfaceAllowed });
   if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width);
 }
