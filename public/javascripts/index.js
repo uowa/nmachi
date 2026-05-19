@@ -9925,9 +9925,6 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   if (!floorObj) {
     const container = new PIXI.Container();
     container.eventMode = 'none';
-    const gfx = new PIXI.Graphics();
-    container.addChild(gfx);
-    container._gfx = gfx;
     floorObj = { container, tags: ['standable', 'moving'], name: 'videoFloor:' + token };
     videoFloorObjects[token] = floorObj;
     objMap['videoFloor:' + token] = floorObj;
@@ -9940,11 +9937,6 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   const w = Math.max(pixiW, 10);
   const h = Math.max(pixiH || 100, 10);
   floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
-  // 動画エリアを示す半透明枠
-  const gfx = floorObj.container._gfx;
-  gfx.clear();
-  gfx.lineStyle(2, 0x88ddff, 0.4);
-  gfx.drawRect(0, 0, w, h);
 }
 
 function _removeVideoFloor(token) {
