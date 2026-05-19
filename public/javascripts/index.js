@@ -832,11 +832,15 @@ const QUALITY_BITRATE = { max: undefined, high: 1000000, normal: 400000, low: 10
 const QUALITY_ORDER = ['low', 'normal', 'high', 'max'];
 let streamQualityLevel = localStorage.getItem('streamQualityLevel') || 'max';
 let cameraSelectMode = localStorage.getItem('cameraSelectMode') || 'always';
-let cameraDeviceId = localStorage.getItem('cameraDeviceId') || '';
-let cameraDeviceLabel = localStorage.getItem('cameraDeviceLabel') || '';
+let cameraDeviceId = '';
+let cameraDeviceLabel = '';
 let micSelectMode = localStorage.getItem('micSelectMode') || 'always';
-let micDeviceId = localStorage.getItem('micDeviceId') || '';
-let micDeviceLabel = localStorage.getItem('micDeviceLabel') || '';
+let micDeviceId = '';
+let micDeviceLabel = '';
+localStorage.removeItem('cameraDeviceId');
+localStorage.removeItem('cameraDeviceLabel');
+localStorage.removeItem('micDeviceId');
+localStorage.removeItem('micDeviceLabel');
 const receiverQualitySelect = {};
 const senderQuality = {};
 
