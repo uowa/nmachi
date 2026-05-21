@@ -8829,7 +8829,6 @@ function _startAvaOverlay() {
   el.height = window.innerHeight;
   el.style.display = 'block';
   _avaOverlayCtx = el.getContext('2d');
-  if (!_avaOverlayRT) _avaOverlayRT = PIXI.RenderTexture.create({ width: 660, height: 460 });
 
   // PIXI描画前: 動画床に乗っているアバターを通常描画から除外
   const _isOnVideoFloor = (ava) => Object.values(videoFloorObjects).some(f => hitAB(ava, f));
@@ -8845,23 +8844,28 @@ function _startAvaOverlay() {
   };
   app.ticker.add(_avaOverlayPreTicker, null, 0);
 
-  // PIXI描画後: RTにアバターを描いてオーバーレイキャンバスへ転送
+  // PIXI描画後: 各アバターをBounds基準でオーバーレイキャンバスへ描画（PIXIエリア外座標にも対応）
   if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
   _avaOverlayPostTicker = () => {
-    if (!_avaOverlayCtx || !_avaOverlayRT) return;
+    if (!_avaOverlayCtx) return;
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     if (overlayAvas.length === 0) return;
-    let first = true;
+    const cRect = myCanvas.getBoundingClientRect();
+    const sx = cRect.width / 660, sy = cRect.height / 460;
     for (const ava of overlayAvas) {
       ava.container.renderable = true;
-      app.renderer.render(ava.container, { renderTexture: _avaOverlayRT, clear: first });
+      const bounds = ava.container.getBounds();
+      const extracted = app.renderer.extract.canvas(ava.container);
       ava.container.renderable = false;
-      first = false;
+      if (!extracted || bounds.width <= 0 || bounds.height <= 0) continue;
+      _avaOverlayCtx.drawImage(extracted,
+        cRect.left + bounds.x * sx,
+        cRect.top + bounds.y * sy,
+        bounds.width * sx,
+        bounds.height * sy
+      );
     }
-    const extracted = app.renderer.extract.canvas(_avaOverlayRT);
-    const cRect = myCanvas.getBoundingClientRect();
-    _avaOverlayCtx.drawImage(extracted, cRect.left, cRect.top, cRect.width, cRect.height);
   };
   app.ticker.add(_avaOverlayPostTicker, null, -50);
 }
@@ -8899,7 +8903,6 @@ function _applyVideoTransparent() {
     if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
     _startAvaOverlay();
   } else {
-    _stopAvaOverlay();
     mediaContainer.classList.remove('video-transparent-mode');
     if (_mcOriginalParent) {
       _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
@@ -8915,6 +8918,7 @@ function _applyVideoTransparent() {
     });
     Object.values(videoHandles).forEach(h => { h.style.display = ''; });
     videoResize();
+    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
   }
 }
 
@@ -9058,7 +9062,6 @@ function _addVideoInteraction(fromToken) {
       const fx = e.clientX, fy = e.clientY;
       const forwardToCanvas = () => {
         const cRect = myCanvas.getBoundingClientRect();
-        if (fx < cRect.left || fx > cRect.right || fy < cRect.top || fy > cRect.bottom) return;
         if (floorPolyMode || _imgDoodleMode) return;
         const targetX = (fx - cRect.left) * (660 / cRect.width);
         const targetY = (fy - cRect.top) * (460 / cRect.height);
@@ -9990,6 +9993,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   const w = Math.max(pixiW, 10);
   const h = Math.max(pixiH || 100, 10);
   floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
+  if (!_avaOverlayPostTicker) _startAvaOverlay();
 }
 
 function _removeVideoFloor(token) {
@@ -10008,6 +10012,7 @@ function _removeVideoFloor(token) {
   if (floorObj.container.parent) floorObj.container.parent.removeChild(floorObj.container);
   delete videoFloorObjects[token];
   delete objMap['videoFloor:' + token];
+  if (Object.keys(videoFloorObjects).length === 0) _stopAvaOverlay();
 }
 
 function _syncVideoFloor(fromToken) {
@@ -10015,16 +10020,7 @@ function _syncVideoFloor(fromToken) {
   const v = videoArray[fromToken];
   if (!v) return;
   const raw = _videoToPIXI(v);
-  let coords;
-  if (raw) {
-    const x1 = Math.max(0, raw.x);
-    const y1 = Math.max(0, raw.y);
-    const x2 = Math.min(660, raw.x + raw.width);
-    const y2 = Math.min(460, raw.y + raw.height);
-    coords = (x2 > x1 && y2 > y1) ? { x: x1, y: y1, width: x2 - x1, height: y2 - y1 } : { x: 0, y: 0, width: 660, height: 460 };
-  } else {
-    coords = { x: 0, y: 0, width: 660, height: 460 };
-  }
+  const coords = raw || { x: 0, y: 0, width: 660, height: 460 };
   socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, enabled: _streamSurfaceAllowed });
   if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width, coords.height);
 }
