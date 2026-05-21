@@ -8829,6 +8829,7 @@ function _startAvaOverlay() {
   el.height = window.innerHeight;
   el.style.display = 'block';
   _avaOverlayCtx = el.getContext('2d');
+  if (!_avaOverlayRT) _avaOverlayRT = PIXI.RenderTexture.create({ width: 660, height: 460 });
 
   // PIXI描画前: 動画床に乗っているアバターを通常描画から除外
   const _isOnVideoFloor = (ava) => Object.values(videoFloorObjects).some(f => hitAB(ava, f));
@@ -8844,18 +8845,39 @@ function _startAvaOverlay() {
   };
   app.ticker.add(_avaOverlayPreTicker, null, 0);
 
-  // PIXI描画後: 各アバターをBounds基準でオーバーレイキャンバスへ描画（PIXIエリア外座標にも対応）
+  // PIXI描画後: RTに一括描画→1回extract（大多数）+ PIXIエリア外は個別extract（少数）
   if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
   _avaOverlayPostTicker = () => {
-    if (!_avaOverlayCtx) return;
+    if (!_avaOverlayCtx || !_avaOverlayRT) return;
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     if (overlayAvas.length === 0) return;
     const cRect = myCanvas.getBoundingClientRect();
     const sx = cRect.width / 660, sy = cRect.height / 460;
+    // RTと重なるアバター（通常は全員）は一括RT→1回extract
+    const rtAvas = [], extAvas = [];
     for (const ava of overlayAvas) {
+      const b = ava.container.getBounds();
+      if (b.x < 660 && b.x + b.width > 0 && b.y < 460 && b.y + b.height > 0) {
+        rtAvas.push(ava);
+      } else {
+        extAvas.push({ ava, bounds: b });
+      }
+    }
+    if (rtAvas.length > 0) {
+      let first = true;
+      for (const ava of rtAvas) {
+        ava.container.renderable = true;
+        app.renderer.render(ava.container, { renderTexture: _avaOverlayRT, clear: first });
+        ava.container.renderable = false;
+        first = false;
+      }
+      const extracted = app.renderer.extract.canvas(_avaOverlayRT);
+      _avaOverlayCtx.drawImage(extracted, cRect.left, cRect.top, cRect.width, cRect.height);
+    }
+    // PIXIエリア外に完全にはみ出たアバターは個別extract（端を歩いた少数のみ）
+    for (const { ava, bounds } of extAvas) {
       ava.container.renderable = true;
-      const bounds = ava.container.getBounds();
       const extracted = app.renderer.extract.canvas(ava.container);
       ava.container.renderable = false;
       if (!extracted || bounds.width <= 0 || bounds.height <= 0) continue;
