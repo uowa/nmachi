@@ -8940,7 +8940,6 @@ function _applyVideoTransparent() {
     });
     Object.values(videoHandles).forEach(h => { h.style.display = ''; });
     videoResize();
-    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
   }
 }
 
@@ -9044,7 +9043,6 @@ function _addVideoInteraction(fromToken) {
         v.style.height = Math.max(45, Math.round(startH * scale)) + 'px';
       }
       _syncHandle(fromToken);
-      if (fromToken === myToken) _syncVideoFloor(fromToken);
       return;
     }
 
@@ -9056,7 +9054,6 @@ function _addVideoInteraction(fromToken) {
         v.style.left = (startLeft + dx) + 'px';
         v.style.top = (startTop + dy) + 'px';
         _syncHandle(fromToken);
-        if (fromToken === myToken) _syncVideoFloor(fromToken);
       }
     } else if (mode === null && _videoTransparentActive && e.pointerType !== 'mouse') {
       // タッチ1本水平スワイプ → 透過度調整
@@ -9083,8 +9080,21 @@ function _addVideoInteraction(fromToken) {
     if (!moved) {
       const fx = e.clientX, fy = e.clientY;
       const forwardToCanvas = () => {
-        const cRect = myCanvas.getBoundingClientRect();
         if (floorPolyMode || _imgDoodleMode) return;
+        const floor = videoFloorObjects[fromToken];
+        if (floor && floor.container.hitArea) {
+          const vRect = v.getBoundingClientRect();
+          if (vRect.width > 0 && vRect.height > 0) {
+            const relX = (fx - vRect.left) / vRect.width;
+            const relY = (fy - vRect.top) / vRect.height;
+            _doStageTap(
+              floor.container.x + relX * floor.container.hitArea.width,
+              floor.container.y + relY * floor.container.hitArea.height
+            );
+            return;
+          }
+        }
+        const cRect = myCanvas.getBoundingClientRect();
         const targetX = (fx - cRect.left) * (660 / cRect.width);
         const targetY = (fy - cRect.top) * (460 / cRect.height);
         _doStageTap(targetX, targetY);
@@ -9126,7 +9136,6 @@ function _addVideoInteraction(fromToken) {
         const needed = v.offsetTop + v.clientHeight;
         if (needed > parseInt(mediaContainer.style.height || 0)) mediaContainer.style.height = needed + 'px';
         _syncHandle(fromToken);
-        if (fromToken === myToken) _syncVideoFloor(fromToken);
       }
     };
     handle.addEventListener('pointermove', onMove);
@@ -9945,6 +9954,7 @@ function attachVideo(fromToken, stream) {
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
     if (fromToken === myToken) _syncVideoFloor(fromToken);
+    if (!_avaOverlayPostTicker && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
 }
 
@@ -10015,7 +10025,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   const w = Math.max(pixiW, 10);
   const h = Math.max(pixiH || 100, 10);
   floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
-  if (!_avaOverlayPostTicker) _startAvaOverlay();
+  if (!_avaOverlayPostTicker && videoArray[token]) _startAvaOverlay();
 }
 
 function _removeVideoFloor(token) {
