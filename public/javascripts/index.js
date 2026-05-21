@@ -8926,7 +8926,6 @@ function _applyVideoTransparent() {
       v.style.objectPosition = 'left top';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
-    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
     _startAvaOverlay();
   } else {
     _stopAvaOverlay();
@@ -9087,7 +9086,8 @@ function _addVideoInteraction(fromToken) {
       const forwardToCanvas = () => {
         if (floorPolyMode || _imgDoodleMode) return;
         const cRect = myCanvas.getBoundingClientRect();
-        if (!_videoTransparentActive && (fx < cRect.left || fx > cRect.right || fy < cRect.top || fy > cRect.bottom)) return;
+        const withinBounds = fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom;
+        if (!withinBounds && Object.keys(videoFloorObjects).length === 0) return;
         const targetX = (fx - cRect.left) * (660 / cRect.width);
         const targetY = (fy - cRect.top) * (460 / cRect.height);
         _doStageTap(targetX, targetY);
@@ -9946,7 +9946,7 @@ function attachVideo(fromToken, stream) {
   // メタデータ読み込み時にvideoResizeを呼ぶ
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
-    if (fromToken === myToken) _syncVideoFloor(fromToken);
+    if (fromToken === myToken && !_videoTransparentActive) _syncVideoFloor(fromToken);
     if (!_avaOverlayPostTicker && _videoTransparentActive && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
 }
