@@ -10015,12 +10015,15 @@ function _syncVideoFloor(fromToken) {
   const v = videoArray[fromToken];
   if (!v) return;
   const raw = _videoToPIXI(v);
-  // 動画がステージ内に実際に重なっている場合のみDOM座標を使用、それ以外はデフォルト位置
   let coords;
-  if (raw && raw.y >= 0 && raw.y < 430 && raw.x < 660 && raw.x + raw.width > 0) {
-    coords = raw;
+  if (raw) {
+    const x1 = Math.max(0, raw.x);
+    const y1 = Math.max(0, raw.y);
+    const x2 = Math.min(660, raw.x + raw.width);
+    const y2 = Math.min(460, raw.y + raw.height);
+    coords = (x2 > x1 && y2 > y1) ? { x: x1, y: y1, width: x2 - x1, height: y2 - y1 } : { x: 0, y: 0, width: 660, height: 460 };
   } else {
-    coords = { x: 30, y: 100, width: 600, height: 300 };
+    coords = { x: 0, y: 0, width: 660, height: 460 };
   }
   socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, enabled: _streamSurfaceAllowed });
   if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width, coords.height);
