@@ -8926,6 +8926,7 @@ function _applyVideoTransparent() {
       v.style.objectPosition = 'left top';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
+    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
     _startAvaOverlay();
   } else {
     _stopAvaOverlay();
@@ -9946,7 +9947,7 @@ function attachVideo(fromToken, stream) {
   // メタデータ読み込み時にvideoResizeを呼ぶ
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
-    if (fromToken === myToken && !_videoTransparentActive) _syncVideoFloor(fromToken);
+    if (fromToken === myToken) _syncVideoFloor(fromToken);
     if (!_avaOverlayPostTicker && _videoTransparentActive && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
 }
