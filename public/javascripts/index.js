@@ -8849,6 +8849,10 @@ function _startAvaOverlay() {
   if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
   _avaOverlayPostTicker = () => {
     if (!_avaOverlayCtx || !_avaOverlayRT) return;
+    if (el.width !== window.innerWidth || el.height !== window.innerHeight) {
+      el.width = window.innerWidth;
+      el.height = window.innerHeight;
+    }
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     if (overlayAvas.length === 0) return;
@@ -8925,6 +8929,7 @@ function _applyVideoTransparent() {
     if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
     _startAvaOverlay();
   } else {
+    _stopAvaOverlay();
     mediaContainer.classList.remove('video-transparent-mode');
     if (_mcOriginalParent) {
       _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
@@ -9954,7 +9959,7 @@ function attachVideo(fromToken, stream) {
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
     if (fromToken === myToken) _syncVideoFloor(fromToken);
-    if (!_avaOverlayPostTicker && videoFloorObjects[fromToken]) _startAvaOverlay();
+    if (!_avaOverlayPostTicker && _videoTransparentActive && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
 }
 
@@ -10025,7 +10030,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   const w = Math.max(pixiW, 10);
   const h = Math.max(pixiH || 100, 10);
   floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
-  if (!_avaOverlayPostTicker && videoArray[token]) _startAvaOverlay();
+  if (!_avaOverlayPostTicker && _videoTransparentActive && videoArray[token]) _startAvaOverlay();
 }
 
 function _removeVideoFloor(token) {
