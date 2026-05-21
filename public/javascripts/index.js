@@ -8930,7 +8930,6 @@ function _applyVideoTransparent() {
     _overlayFloorSynced = false;
     _startAvaOverlay();
   } else {
-    _stopAvaOverlay();
     mediaContainer.classList.remove('video-transparent-mode');
     if (_mcOriginalParent) {
       _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
@@ -10026,7 +10025,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
   const w = Math.max(pixiW, 10);
   const h = Math.max(pixiH || 100, 10);
   floorObj.container.hitArea = new PIXI.Rectangle(0, 0, w, h);
-  if (!_avaOverlayPostTicker && _videoTransparentActive && videoArray[token]) _startAvaOverlay();
+  if (!_avaOverlayPostTicker && videoArray[token]) _startAvaOverlay();
 }
 
 function _removeVideoFloor(token) {
