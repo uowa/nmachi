@@ -8820,6 +8820,7 @@ let _avaOverlayCtx = null;
 let _avaOverlayPreTicker = null;
 let _avaOverlayPostTicker = null;
 let _avaOverlayRT = null;
+let _overlayFloorSynced = false;
 
 function _startAvaOverlay() {
   let el = document.getElementById('avaVideoOverlay');
@@ -8926,7 +8927,7 @@ function _applyVideoTransparent() {
       v.style.objectPosition = 'left top';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
-    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
+    _overlayFloorSynced = false;
     _startAvaOverlay();
   } else {
     _stopAvaOverlay();
@@ -8944,6 +8945,8 @@ function _applyVideoTransparent() {
       v.style.objectPosition = '';
     });
     Object.values(videoHandles).forEach(h => { h.style.display = ''; });
+    _overlayFloorSynced = false;
+    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
     videoResize();
   }
 }
@@ -9089,6 +9092,10 @@ function _addVideoInteraction(fromToken) {
         const cRect = myCanvas.getBoundingClientRect();
         const withinBounds = fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom;
         if (!withinBounds && Object.keys(videoFloorObjects).length === 0) return;
+        if (_videoTransparentActive && !_overlayFloorSynced && videoArray[myToken]) {
+          _overlayFloorSynced = true;
+          _syncVideoFloor(myToken);
+        }
         const targetX = (fx - cRect.left) * (660 / cRect.width);
         const targetY = (fy - cRect.top) * (460 / cRect.height);
         _doStageTap(targetX, targetY);
@@ -9947,7 +9954,7 @@ function attachVideo(fromToken, stream) {
   // メタデータ読み込み時にvideoResizeを呼ぶ
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
-    if (fromToken === myToken) _syncVideoFloor(fromToken);
+    if (fromToken === myToken && !_videoTransparentActive) _syncVideoFloor(fromToken);
     if (!_avaOverlayPostTicker && _videoTransparentActive && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
 }
