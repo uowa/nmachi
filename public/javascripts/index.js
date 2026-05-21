@@ -9086,20 +9086,8 @@ function _addVideoInteraction(fromToken) {
       const fx = e.clientX, fy = e.clientY;
       const forwardToCanvas = () => {
         if (floorPolyMode || _imgDoodleMode) return;
-        const floor = videoFloorObjects[fromToken];
-        if (floor && floor.container.hitArea) {
-          const vRect = v.getBoundingClientRect();
-          if (vRect.width > 0 && vRect.height > 0) {
-            const relX = (fx - vRect.left) / vRect.width;
-            const relY = (fy - vRect.top) / vRect.height;
-            _doStageTap(
-              floor.container.x + relX * floor.container.hitArea.width,
-              floor.container.y + relY * floor.container.hitArea.height
-            );
-            return;
-          }
-        }
         const cRect = myCanvas.getBoundingClientRect();
+        if (!_videoTransparentActive && (fx < cRect.left || fx > cRect.right || fy < cRect.top || fy > cRect.bottom)) return;
         const targetX = (fx - cRect.left) * (660 / cRect.width);
         const targetY = (fy - cRect.top) * (460 / cRect.height);
         _doStageTap(targetX, targetY);
