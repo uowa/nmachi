@@ -933,6 +933,7 @@ io.on('connection', socket => {
     // get send target
     if (data.sendto) {//sendtoの送り先
       const sendID = socketID[data.sendto];
+      console.log('[webRtcSignal]', data.type, 'from', token.slice(0,6), 'to', data.sendto.slice(0,6), 'sendID:', sendID || 'NONE');
       socket.to(sendID).emit("webRtcSignal", data);
     }
   });
