@@ -5099,7 +5099,8 @@ socket.on("logout", data => {
     avatarOekakiToken = false;
     switchDrawing();//部屋用お絵描きに切り替える
   }
-  stopConnection(data.token);
+  // 再接続による一時的な切断の場合にWebRTCを壊さないよう2秒遅延
+  setTimeout(() => stopConnection(data.token), 2000);
 });
 
 //再起動用メッセージ
