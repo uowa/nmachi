@@ -10759,7 +10759,10 @@ function prepareNewConnection(fromToken) {
       { "urls": "stun:stun1.l.google.com:19302" },
       { "urls": "stun:coturn.nuco.moe:50000" },
       { "urls": "turn:nuco.moe:50000?transport=udp", "username": "user", "credential": "password" },
-      { "urls": "turn:nuco.moe:50000?transport=tcp", "username": "user", "credential": "password" }
+      { "urls": "turn:nuco.moe:50000?transport=tcp", "username": "user", "credential": "password" },
+      { "urls": "turn:openrelay.metered.ca:80", "username": "openrelayproject", "credential": "openrelayproject" },
+      { "urls": "turn:openrelay.metered.ca:443", "username": "openrelayproject", "credential": "openrelayproject" },
+      { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" }
     ]
   };
   let peer = new RTCPeerConnection(pc_config);
