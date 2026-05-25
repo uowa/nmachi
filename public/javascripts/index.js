@@ -9131,17 +9131,7 @@ function _addVideoInteraction(fromToken) {
         const normY = (fy - vRect.top) / vRect.height;
         const targetX = Math.max(0, Math.min(660, normX * 660));
         const targetY = VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, normY * VIDEO_FLOOR_H));
-        if (avaP[myToken]) {
-          const ava = avaP[myToken];
-          gsap.killTweensOf(ava.container);
-          ava.isMoving = false;
-          ava.container.x = targetX;
-          ava.container.y = targetY;
-          AX = targetX;
-          AY = targetY;
-          ava.dropVelocity = 1;
-          ava.sendTransformData("ビデオフロア移動");
-        }
+        _doStageTap(targetX, targetY);
       };
       if (e.pointerType === 'mouse') {
         forwardToCanvas();
