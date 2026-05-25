@@ -10590,7 +10590,7 @@ function playMedia(element, stream) {//メディアの再生(要素,取得した
     element.src = window.URL.createObjectURL(stream);
   }
 
-  element.play();//メディアの再生
+  element.play().catch(() => {});//メディアの再生
   element.volume = 0;
 
   // startVoiceDetection(stream, function(val){
