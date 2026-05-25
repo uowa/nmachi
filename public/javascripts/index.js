@@ -2780,6 +2780,9 @@ class Avatar {
         // 静止した地面に着地した時だけ送信
         this.sendTransformData("着地");
       }
+    } else if (this.container.y >= VIDEO_FLOOR_Y) {
+      // ビデオフロア上は重力なし
+      this.dropVelocity = 1;
     } else {
       // 空中 → 落下
       if (this.dropVelocity <= 150) {
@@ -8896,9 +8899,11 @@ function _startAvaOverlay() {
           const vRect = vEl.getBoundingClientRect();
           const vsx = vRect.width / 660;
           const vsy = vRect.height / VIDEO_FLOOR_H;
+          const feetSX = vRect.left + ava.container.x * vsx;
+          const feetSY = vRect.top + (ava.container.y - VIDEO_FLOOR_Y) * vsy;
           _avaOverlayCtx.drawImage(extracted,
-            vRect.left + bounds.x * vsx,
-            vRect.top + (bounds.y - VIDEO_FLOOR_Y) * vsy,
+            feetSX + (bounds.x - ava.container.x) * sx,
+            feetSY + (bounds.y - ava.container.y) * sy,
             bounds.width * sx,
             bounds.height * sy
           );
@@ -9127,13 +9132,16 @@ function _addVideoInteraction(fromToken) {
         const targetX = Math.max(0, Math.min(660, normX * 660));
         const targetY = VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, normY * VIDEO_FLOOR_H));
         if (avaP[myToken]) {
-          avaP[myToken].container.x = targetX;
-          avaP[myToken].container.y = VIDEO_FLOOR_Y - 1;
+          const ava = avaP[myToken];
+          gsap.killTweensOf(ava.container);
+          ava.isMoving = false;
+          ava.container.x = targetX;
+          ava.container.y = targetY;
           AX = targetX;
-          AY = VIDEO_FLOOR_Y - 1;
-          avaP[myToken].dropVelocity = 0;
+          AY = targetY;
+          ava.dropVelocity = 1;
+          ava.sendTransformData("ビデオフロア移動");
         }
-        _doStageTap(targetX, targetY);
       };
       if (e.pointerType === 'mouse') {
         forwardToCanvas();
