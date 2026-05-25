@@ -149,6 +149,8 @@ let videoTransparentOpacity = Math.max(0.3, parseFloat(localStorage.getItem("vid
 let _videoTransparentActive = videoTransparentDefault;
 let _streamSurfaceAllowed = localStorage.getItem('streamSurfaceAllowed') !== 'false';
 const videoFloorObjects = {};
+const VIDEO_FLOOR_Y = 465;
+const VIDEO_FLOOR_H = 330;
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -8880,12 +8882,28 @@ function _startAvaOverlay() {
       const extracted = app.renderer.extract.canvas(_avaOverlayRT);
       _avaOverlayCtx.drawImage(extracted, cRect.left, cRect.top, cRect.width, cRect.height);
     }
-    // PIXIエリア外に完全にはみ出たアバターは個別extract（端を歩いた少数のみ）
+    // PIXIエリア外に完全にはみ出たアバターは個別extract（ビデオ床にいる場合はビデオDOM座標系で描画）
     for (const { ava, bounds } of extAvas) {
       ava.container.renderable = true;
       const extracted = app.renderer.extract.canvas(ava.container);
       ava.container.renderable = false;
       if (!extracted || bounds.width <= 0 || bounds.height <= 0) continue;
+      const floorEntry = Object.entries(videoFloorObjects).find(([t, f]) => hitAB(ava, f));
+      if (floorEntry) {
+        const vEl = videoArray[floorEntry[0]];
+        if (vEl) {
+          const vRect = vEl.getBoundingClientRect();
+          const vsx = vRect.width / 660;
+          const vsy = vRect.height / VIDEO_FLOOR_H;
+          _avaOverlayCtx.drawImage(extracted,
+            vRect.left + bounds.x * vsx,
+            vRect.top + (bounds.y - VIDEO_FLOOR_Y) * vsy,
+            bounds.width * vsx,
+            bounds.height * vsy
+          );
+          continue;
+        }
+      }
       _avaOverlayCtx.drawImage(extracted,
         cRect.left + bounds.x * sx,
         cRect.top + bounds.y * sy,
@@ -9090,13 +9108,30 @@ function _addVideoInteraction(fromToken) {
         if (floorPolyMode || _imgDoodleMode) return;
         const cRect = myCanvas.getBoundingClientRect();
         const withinBounds = fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom;
-        if (!withinBounds && Object.keys(videoFloorObjects).length === 0) return;
+        if (withinBounds) {
+          const targetX = (fx - cRect.left) * (660 / cRect.width);
+          const targetY = (fy - cRect.top) * (460 / cRect.height);
+          _doStageTap(targetX, targetY);
+          return;
+        }
+        if (!videoFloorObjects[fromToken]) return;
         if (_videoTransparentActive && !_overlayFloorSynced && videoArray[myToken]) {
           _overlayFloorSynced = true;
           _syncVideoFloor(myToken);
         }
-        const targetX = (fx - cRect.left) * (660 / cRect.width);
-        const targetY = (fy - cRect.top) * (460 / cRect.height);
+        const vRect = v.getBoundingClientRect();
+        if (vRect.width === 0 || vRect.height === 0) return;
+        const normX = (fx - vRect.left) / vRect.width;
+        const normY = (fy - vRect.top) / vRect.height;
+        const targetX = Math.max(0, Math.min(660, normX * 660));
+        const targetY = VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, normY * VIDEO_FLOOR_H));
+        if (avaP[myToken]) {
+          avaP[myToken].container.x = targetX;
+          avaP[myToken].container.y = VIDEO_FLOOR_Y - 1;
+          AX = targetX;
+          AY = VIDEO_FLOOR_Y - 1;
+          avaP[myToken].dropVelocity = 0;
+        }
         _doStageTap(targetX, targetY);
       };
       if (e.pointerType === 'mouse') {
@@ -9997,15 +10032,7 @@ function _isBaseVideoToken(tok) {
 }
 
 function _videoToPIXI(v) {
-  const vRect = v.getBoundingClientRect();
-  const cRect = myCanvas.getBoundingClientRect();
-  if (cRect.width === 0 || cRect.height === 0) return null;
-  return {
-    x: (vRect.left - cRect.left) * (660 / cRect.width),
-    y: (vRect.top - cRect.top) * (460 / cRect.height),
-    width: vRect.width * (660 / cRect.width),
-    height: vRect.height * (460 / cRect.height),
-  };
+  return { x: 0, y: VIDEO_FLOOR_Y, width: 660, height: VIDEO_FLOOR_H };
 }
 
 function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH) {
