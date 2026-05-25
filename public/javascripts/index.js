@@ -10755,6 +10755,8 @@ function createAudioButton(fromToken) {
 function prepareNewConnection(fromToken) {
   let pc_config = {
     "iceServers": [
+      { "urls": "stun:stun.l.google.com:19302" },
+      { "urls": "stun:stun1.l.google.com:19302" },
       { "urls": "stun:coturn.nuco.moe:50000" },
       { "urls": "turn:nuco.moe:50000?transport=udp", "username": "user", "credential": "password" },
       { "urls": "turn:nuco.moe:50000?transport=tcp", "username": "user", "credential": "password" }
@@ -10889,6 +10891,9 @@ function prepareNewConnection(fromToken) {
 
   peer.oniceconnectionstatechange = () => {
     console.log('[ICE]', fromToken.slice(0,6), peer.iceConnectionState);
+    if (peer.iceConnectionState === 'failed') {
+      console.warn('[ICE] failed - TURN server unreachable?');
+    }
     if (peer.iceConnectionState === 'disconnected') {
       stopConnection(fromToken);//相手が切断したときにこちらも切断する
 
