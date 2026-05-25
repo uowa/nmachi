@@ -8899,8 +8899,8 @@ function _startAvaOverlay() {
           _avaOverlayCtx.drawImage(extracted,
             vRect.left + bounds.x * vsx,
             vRect.top + (bounds.y - VIDEO_FLOOR_Y) * vsy,
-            bounds.width * vsx,
-            bounds.height * vsy
+            bounds.width * sx,
+            bounds.height * sy
           );
           continue;
         }
