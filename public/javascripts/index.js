@@ -10767,6 +10767,7 @@ function prepareNewConnection(fromToken) {
     peer.ontrack = (event) => {
       stream[fromToken] = event.streams[0];//追加の場合
       let track = event.track;
+      console.log('[ontrack]', fromToken.slice(0,6), track.kind, 'flag:', videoButtonFlag[fromToken], 'hasVideo:', !!videoArray[fromToken]);
       if (track.kind === 'video') {
         if (videoButtonFlag[fromToken] === true && !videoArray[fromToken]) {//videoButtonがonの時
           videoButton[fromToken].style.backgroundColor = 'skyblue';
@@ -10887,6 +10888,7 @@ function prepareNewConnection(fromToken) {
   };
 
   peer.oniceconnectionstatechange = () => {
+    console.log('[ICE]', fromToken.slice(0,6), peer.iceConnectionState);
     if (peer.iceConnectionState === 'disconnected') {
       stopConnection(fromToken);//相手が切断したときにこちらも切断する
 
