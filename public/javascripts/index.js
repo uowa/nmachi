@@ -9806,15 +9806,16 @@ socket.on("webRtcSignal", function (data) {
   let fromToken = data.from;
   // 動画接続要求
   if (data.type === 'call video') {
+    console.log('[webRtcSignal] call video from', fromToken, 'localStream:', !!localStream, 'peerConn:', !!peerConnections[fromToken]);
     if (!canConnectMore()) {
       // 接続数が多すぎる場合は無視
       console.warn('TOO MANY connections, so ignore');
     }
     else if (!localStream) {
-      // ローカルストリームが無い場合は無視
+      console.warn('[webRtcSignal] no localStream, ignored');
     }
     else if (peerConnections[fromToken]) {
-      // 既に接続済みなら無視
+      console.warn('[webRtcSignal] peerConnection already exists, ignored');
     }
     else {
       // 新規接続（動画のみ）
@@ -11229,14 +11230,19 @@ function addIceCandidate(fromToken, candidate) {
 
 // start PeerConnection
 function mediaConnect(fromToken, type) {
+  console.log('[mediaConnect]', type, 'mapPeer:', !!mapPeer.get(fromToken), 'dcOpen:', mapPeer.get(fromToken) ? isDataChannelOpen(mapPeer.get(fromToken).get("rtc")) : '-');
   if (!canConnectMore()) {
+    console.warn('[mediaConnect] canConnectMore=false');
   } else {
     if (mapPeer.get(fromToken)) {
       if (isDataChannelOpen(mapPeer.get(fromToken).get("rtc"))) {//接続済の場合
         mapPeer.get(fromToken).get("rtc").datachannel.send(JSON.stringify({ type: type }));
+      } else {
+        console.warn('[mediaConnect] mapPeer exists but dc not open, state:', mapPeer.get(fromToken).get("rtc")?.datachannel?.readyState);
       }
     } else {//まだ未接続の場合
       if (type == "call video and audio" || type == "call video" || type == "call audio") {
+        console.log('[mediaConnect] emit webRtcSignal', type);
         socket.emit("webRtcSignal", { sendto: fromToken, type: type, });
       }
     }
