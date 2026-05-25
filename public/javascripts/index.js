@@ -10757,12 +10757,12 @@ function prepareNewConnection(fromToken) {
     "iceServers": [
       { "urls": "stun:stun.l.google.com:19302" },
       { "urls": "stun:stun1.l.google.com:19302" },
-      { "urls": "stun:coturn.nuco.moe:50000" },
-      { "urls": "turn:nuco.moe:50000?transport=udp", "username": "user", "credential": "password" },
-      { "urls": "turn:nuco.moe:50000?transport=tcp", "username": "user", "credential": "password" },
+      { "urls": "turn:freestun.net:3479", "username": "free", "credential": "free" },
+      { "urls": "turns:freestun.net:5349", "username": "free", "credential": "free" },
       { "urls": "turn:openrelay.metered.ca:80", "username": "openrelayproject", "credential": "openrelayproject" },
       { "urls": "turn:openrelay.metered.ca:443", "username": "openrelayproject", "credential": "openrelayproject" },
-      { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" }
+      { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" },
+      { "urls": "turn:openrelay.metered.ca:3478", "username": "openrelayproject", "credential": "openrelayproject" }
     ]
   };
   let peer = new RTCPeerConnection(pc_config);
@@ -10856,6 +10856,8 @@ function prepareNewConnection(fromToken) {
   // --- on get local ICE candidate
   peer.onicecandidate = function (evt) {
     if (evt.candidate) {
+      const c = evt.candidate;
+      console.log('[ICEcand]', fromToken.slice(0,6), c.type, c.protocol, c.address, c.port, c.relatedAddress || '');
 
       // Trickle ICE の場合は、ICE candidateを相手に送る
 
@@ -10869,6 +10871,7 @@ function prepareNewConnection(fromToken) {
 
       // Vanilla ICE の場合には、何もしない
     } else {
+      console.log('[ICEcand] gathering complete for', fromToken.slice(0,6));
     }
   };
 
@@ -10904,6 +10907,7 @@ function prepareNewConnection(fromToken) {
   };
 
   peer.onicegatheringstatechange = () => {
+    console.log('[ICEgather]', fromToken.slice(0,6), peer.iceGatheringState);
   };
 
   // Data channel イベントが発生したときのイベントハンドラ
