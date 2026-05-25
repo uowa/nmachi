@@ -8,6 +8,17 @@
 
 ---
 
+## インフラ・運用メモ
+
+### TURNサーバー（WebRTC）
+- 自前 coturn: `turn:nuco.moe:50000` / `stun:coturn.nuco.moe:50000`（username: user / credential: password）
+- **2026-05-25 時点で nuco.moe coturn が停止中**。ICEがcheckingのまま止まり映像が映らない症状が出る。
+- 暫定対応: `openrelay.metered.ca` の無料公開TURNを追加済み（`prepareNewConnection` の `pc_config.iceServers`）。帯域制限あり。
+- nuco.moe が復活したら openrelay を外すこと。長期的には有料TURNサービスへの移行を検討。
+- ICEが繋がらない場合はまずTURNサーバーを疑うこと。
+
+---
+
 ## 機能リスト / Feature List
 ※ 上から優先順位が高い。開発都合で順番変更可だが、上位項目を大幅に下げるのはNG。
 ※ Priority order (top = highest). Reordering for dev convenience is OK, but don't push high-priority items too far down.
