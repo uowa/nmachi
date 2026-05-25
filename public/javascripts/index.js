@@ -10757,12 +10757,11 @@ function prepareNewConnection(fromToken) {
     "iceServers": [
       { "urls": "stun:stun.l.google.com:19302" },
       { "urls": "stun:stun1.l.google.com:19302" },
-      { "urls": "turn:freestun.net:3479", "username": "free", "credential": "free" },
-      { "urls": "turns:freestun.net:5349", "username": "free", "credential": "free" },
-      { "urls": "turn:openrelay.metered.ca:80", "username": "openrelayproject", "credential": "openrelayproject" },
-      { "urls": "turn:openrelay.metered.ca:443", "username": "openrelayproject", "credential": "openrelayproject" },
-      { "urls": "turn:openrelay.metered.ca:443?transport=tcp", "username": "openrelayproject", "credential": "openrelayproject" },
-      { "urls": "turn:openrelay.metered.ca:3478", "username": "openrelayproject", "credential": "openrelayproject" }
+      { "urls": "stun:stun.relay.metered.ca:80" },
+      { "urls": "turn:standard.relay.metered.ca:80", "username": "1de346abd63cffd84750fcc1", "credential": "aUFOMmZAGpxKtEHZ" },
+      { "urls": "turn:standard.relay.metered.ca:80?transport=tcp", "username": "1de346abd63cffd84750fcc1", "credential": "aUFOMmZAGpxKtEHZ" },
+      { "urls": "turn:standard.relay.metered.ca:443", "username": "1de346abd63cffd84750fcc1", "credential": "aUFOMmZAGpxKtEHZ" },
+      { "urls": "turns:standard.relay.metered.ca:443?transport=tcp", "username": "1de346abd63cffd84750fcc1", "credential": "aUFOMmZAGpxKtEHZ" }
     ]
   };
   let peer = new RTCPeerConnection(pc_config);
