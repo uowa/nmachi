@@ -11749,7 +11749,7 @@ if (window.innerWidth > 870 && localStorage.getItem("PMsize")) {
 //ウィンドウサイズ変更時の処理
 let windowWidth = window.innerWidth;
 
-windowResize();
+windowResize(true);
 
 let mainLogScrollHeight;
 let mainLogScrollTop;
@@ -11801,7 +11801,7 @@ window.addEventListener("resize", () => {
   }
 }, { passive: true });
 
-function windowResize() {
+function windowResize(isInitial = false) {
   if (windowWidth <= 870) {
     let PMscale = windowWidth / 660;
     let scale = "scale(" + PMscale + ")";
@@ -11833,10 +11833,14 @@ function windowResize() {
       mainLogResizeBar.style.display = "none";
     }
 
-    //画面chat
-    useOverlayChatButton.style.backgroundColor = "skyblue";
-    overlayChat.visible = true;
-    useOverlayChat = true;
+    if (isInitial) {
+      useOverlayChatButton.style.backgroundColor = "skyblue";
+      overlayChat.visible = true;
+      useOverlayChat = true;
+    } else {
+      overlayChat.visible = useOverlayChat;
+      useOverlayChatButton.style.backgroundColor = useOverlayChat ? 'skyblue' : 'red';
+    }
 
     // // mainLog.style.fontSize = "13px";
     // //IE11対策
