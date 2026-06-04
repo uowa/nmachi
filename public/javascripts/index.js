@@ -683,6 +683,7 @@ function updateScaleZoneList() {
 // むげんのGATE
 const MUGEN_GATE_TINTS = [0x444444, 0xaabbff, 0xffffff, 0xff2020]; // 上/下/左/右（リンク済み）
 const MUGEN_GATE_TINT_EMPTY = 0x888888;
+const _mugenGhostMap = new Map(); // token → [{container, sprite}, ...]
 
 async function loadMugenGates() {
   try {
@@ -707,6 +708,140 @@ function onMugenGateClick(gateIndex) {
   const spot = ['北の部屋Spot', '南の部屋Spot', '西の部屋Spot', '東の部屋Spot'];
   _prevRoomSpot = 'mugenMainSpot';
   goSelfToRoomSpot(spot[gateIndex]);
+}
+
+function _destroyMugenGhosts(token) {
+  const entry = _mugenGhostMap.get(token);
+  if (!entry) return;
+  for (const g of entry.ghosts) {
+    if (g.container.parent) g.container.parent.removeChild(g.container);
+    g.sprite.texture = PIXI.Texture.EMPTY;
+    g.container.destroy({ children: true });
+  }
+  _mugenGhostMap.delete(token);
+}
+
+function _destroyAllMugenGhosts() {
+  for (const token of [..._mugenGhostMap.keys()]) _destroyMugenGhosts(token);
+}
+
+function _replayOekakiOnGhost(g, ava) {
+  g.oekaki.clear();
+  const sk = ava.currentAvaStateKey;
+  for (const line of ava.drawHistory) {
+    if (line.type !== "line") continue;
+    if (oekakiPerStateMode && line.stateKey && line.stateKey !== sk) continue;
+    if (!line.pointer || line.pointer.length < 2) continue;
+    g.oekaki.lineStyle(2, line.color, line.alpha);
+    g.oekaki.moveTo(line.pointer[0].x, line.pointer[0].y);
+    for (let i = 1; i < line.pointer.length; i++) {
+      g.oekaki.lineTo(line.pointer[i].x, line.pointer[i].y);
+    }
+  }
+}
+
+function _updateMugenGhosts() {
+  if (!room || room.name !== 'むげん') {
+    if (_mugenGhostMap.size > 0) _destroyAllMugenGhosts();
+    return;
+  }
+  const W = 660;
+  const maxY = Object.keys(videoFloorObjects).length > 0 ? VIDEO_FLOOR_Y + VIDEO_FLOOR_H : 460;
+  const MX = 60, MY = 80;
+
+  for (const token of [..._mugenGhostMap.keys()]) {
+    if (!avaP[token] || !avaP[token].container.parent) _destroyMugenGhosts(token);
+  }
+
+  for (const ava of Object.values(avaP)) {
+    if (ava.abon || !ava.container.parent || !ava.avaC) continue;
+    const x = ava.container.x, y = ava.container.y;
+
+    const candidateOffsets = [
+      [W, 0], [-W, 0], [0, maxY], [0, -maxY],
+      [W, maxY], [W, -maxY], [-W, maxY], [-W, -maxY],
+    ];
+    const visibleOffsets = candidateOffsets.filter(([dx, dy]) => {
+      const gx = x + dx, gy = y + dy;
+      return gx > -MX && gx < W + MX && gy > -MY && gy < maxY + 20;
+    });
+
+    if (!_mugenGhostMap.has(ava.token)) {
+      const ghosts = [];
+      for (let i = 0; i < 3; i++) {
+        const c = new PIXI.Container();
+        c.eventMode = 'none';
+        c.sortableChildren = true;
+
+        const nt = new PIXI.Graphics();    // nameTag
+        nt.zIndex = 1;
+        const s = new PIXI.Sprite();       // avaC
+        s.anchor.set(0.5, 1);
+        s.zIndex = 2;
+        const o = new PIXI.Graphics();     // oekaki
+        o.zIndex = 10;
+        const ntxt = new PIXI.Text('', nameTextStyle); // nameText
+        ntxt.zIndex = 3;
+
+        c.addChild(nt);
+        c.addChild(s);
+        c.addChild(o);
+        c.addChild(ntxt);
+        c.visible = false;
+        room.container.addChild(c);
+        ghosts.push({ container: c, sprite: s, oekaki: o, nameTag: nt, nameText: ntxt });
+      }
+      _mugenGhostMap.set(ava.token, {
+        ghosts,
+        _oekakiLen: -1, _stateKey: '', _perStateMode: false,
+        _nameW: -1,
+      });
+    }
+
+    const entry = _mugenGhostMap.get(ava.token);
+    const { ghosts } = entry;
+
+    // oekaki dirty チェック
+    const oekakiDirty = ava.drawHistory.length !== entry._oekakiLen
+      || ava.currentAvaStateKey !== entry._stateKey
+      || oekakiPerStateMode !== entry._perStateMode;
+    if (oekakiDirty) {
+      entry._oekakiLen = ava.drawHistory.length;
+      entry._stateKey = ava.currentAvaStateKey;
+      entry._perStateMode = oekakiPerStateMode;
+      for (const g of ghosts) _replayOekakiOnGhost(g, ava);
+    }
+
+    // nameTag/nameText dirty チェック（名前幅が変わった時だけ再描画）
+    if (ava.nameText.width !== entry._nameW) {
+      entry._nameW = ava.nameText.width;
+      for (const g of ghosts) {
+        g.nameText.text = ava.nameText.text;
+        g.nameText.position.copyFrom(ava.nameText.position);
+        g.nameTag.clear();
+        g.nameTag.beginFill(0x000000, 0.5);
+        g.nameTag.drawRect(0, 0, ava.nameText.width, ava.nameText.height);
+        g.nameTag.endFill();
+        g.nameTag.position.copyFrom(ava.nameTag.position);
+      }
+    }
+
+    for (let i = 0; i < ghosts.length; i++) {
+      const g = ghosts[i];
+      const off = visibleOffsets[i];
+      if (!off) { g.container.visible = false; continue; }
+      g.sprite.texture = ava.avaC.texture;
+      g.sprite.tint = ava.avaC.tint;
+      g.sprite.scale.x = ava.avaC.scale.x;
+      g.nameTag.alpha = ava.nameTag.alpha;
+      g.container.x = x + off[0];
+      g.container.y = y + off[1];
+      g.container.scale.copyFrom(ava.container.scale);
+      g.container.alpha = ava.container.alpha;
+      g.container.zIndex = ava.container.zIndex;
+      g.container.visible = true;
+    }
+  }
 }
 
 async function showGateCreateDialog(gateIndex, prevRoom) {
@@ -1135,6 +1270,7 @@ app.ticker.add(() => {
       }
     }
   }
+  _updateMugenGhosts();
 }, null, -0.5);
 
 //スマホで画面に表示するテキスト
@@ -7665,6 +7801,15 @@ function startKeyMoveTicker() {
       AY = Math.max(0, Math.min(460, AY));
       ava.container.x = AX;
       ava.container.y = AY;
+    } else {
+      // むげん部屋: 画面端でループ（逆方向から出現）
+      const maxY = Object.keys(videoFloorObjects).length > 0 ? VIDEO_FLOOR_Y + VIDEO_FLOOR_H : 460;
+      if (AX < 0) AX += 660;
+      else if (AX > 660) AX -= 660;
+      if (AY < 0) AY += maxY;
+      else if (AY > maxY) AY -= maxY;
+      ava.container.x = AX;
+      ava.container.y = AY;
     }
 
     // 乗り物（雲など）に乗っている場合、ridingOffsetを更新して位置を維持
@@ -7776,6 +7921,7 @@ if (data.ridingOffsetX !== undefined) {
             ava.ridingOffset.y = (data.AY - (objContainer.y || 0)) / (sy || 1);
           }
           if (data.keyMove && KEY_WALK_DIR_FRAMES[data.DIR]) {
+            ava._animeRev = (ava._animeRev || 0) + 1; // 旧anime()の遅延コールバックをキャンセル
             ava._keyWalkFrame = data.keyFrame !== undefined ? data.keyFrame : ((ava._keyWalkFrame || 0) + 1) % 3;
             const spriteName = KEY_WALK_DIR_FRAMES[data.DIR][ava._keyWalkFrame];
             ava.container.removeChild(ava.avaC);
@@ -7799,6 +7945,7 @@ if (data.ridingOffsetX !== undefined) {
           ava._pendingTapMap = data;
         }
       } else if (data.keyMove && KEY_WALK_DIR_FRAMES[data.DIR]) {
+        ava._animeRev = (ava._animeRev || 0) + 1; // 旧anime()の遅延コールバックをキャンセル
         ava._keyWalkFrame = data.keyFrame !== undefined ? data.keyFrame : ((ava._keyWalkFrame || 0) + 1) % 3;
         const spriteName = KEY_WALK_DIR_FRAMES[data.DIR][ava._keyWalkFrame];
         ava.container.removeChild(ava.avaC);
