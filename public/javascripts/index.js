@@ -11475,6 +11475,7 @@ function _startAvaOverlay() {
           const vRect = vEl.getBoundingClientRect();
           if (vRect.width === 0 || vRect.height === 0) continue;
           const vsx = vRect.width / fW;
+          const vsy = vRect.height / fH;
           // フロアY境界より下の部分だけクロップして描画（ゲームエリアに頭が出ても顎が動画に出ない）
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           const dstH = Math.max(0, (bounds.y + bounds.height - floorY) * vsx);
@@ -11485,7 +11486,7 @@ function _startAvaOverlay() {
           const srcH = imgH - srcY;
           if (srcH <= 0) continue;
           const dstX = vRect.left + (bounds.x - floorX) * vsx;
-          const dstY = vRect.top + (ava.container.y - floorY) / fH * vRect.height - dstH;
+          const dstY = vRect.top + ly * vsy - ly * vsx;
           const dstW = bounds.width * vsx;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
@@ -12931,6 +12932,9 @@ function _recalcFloorPositions() {
       }
     }
   }
+  const domWidths = tokens.map(tok => videoArray[tok]?.clientWidth || 0);
+  const totalDOMW = domWidths.reduce((s, w) => s + w, 0);
+  const useDOM = totalDOMW > 0 && domWidths.every(w => w > 0);
   const slotW = Math.floor(660 / N);
   let pixiX = 0;
   tokens.forEach((tok, i) => {
@@ -12938,6 +12942,8 @@ function _recalcFloorPositions() {
     let w;
     if (i === N - 1) {
       w = 660 - pixiX;
+    } else if (useDOM) {
+      w = Math.round(660 * domWidths[i] / totalDOMW);
     } else {
       w = slotW;
     }
