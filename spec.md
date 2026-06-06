@@ -91,7 +91,6 @@
 | 16 | 配信音量可視化（音量に応じた色バー表示） | index.js |
 | 17 | 動画コメント機能（ニコニコ風、動画上に流れるコメント） | index.js |
 | 22 | YouTuberモード（人物切り抜き・右下表示） | index.js |
-| 23 | ボイスチェンジャー（配信中に使用可能） | index.js |
 | 41 | 東西南北部屋の大幅改修 | G |
 | 42 | 部屋作成UIの大規模改修（PLANモード必須） | index.js |
 | 37 | ロゴ名称変更（NecojectMachi → Necomachi） | J |
@@ -111,6 +110,7 @@
 | # | タスク | ブロック | 理由 |
 |---|---|---|---|
 | 3 | 読み上げ機能（TTS）続き | index.js | VoiceVox導入可否がサーバースペック次第。公開サーバー移行後に判断 |
+| 23 | ボイスチェンジャー（配信中に使用可能） | index.js | ピッチ変換はライブラリ or AudioWorklet必須で重め。公開後に要件確認 |
 | 4.6 | 時間帯フィルター（夕方・夜の色調） | index.js | 実装済みだが無効化中。再有効化は `skyTime: true` を戻すだけ |
 
 #### 別枠（最後・横断的調査が必要）
@@ -887,14 +887,77 @@ CREATE TABLE editing_sessions (
 | `_videoFloorCurrentLine` / `_videoFloorDrawingToken` | L12615 |
 | `_videoFloorSendCurrentLine` | L12618 |
 
+#### 複数動画フロア（2人以上配信）✅ (2026-06-06 実装中)
+
+**概要**: 2人以上が同時配信すると `videoFloorObjects` が複数できる。
+各フロアの PIXI 上の位置・幅は `_recalcFloorPositions()` が管理する。
+
+**`_recalcFloorPositions()` の設計**
+- `videoStartOrder[token]`（配信開始時刻、`Date.now()`）でソートして左から並べる
+- `videoStartOrder` は `createVideoButton` emit に `startTime` として含める。受信側は `data.startTime` があれば `videoStartOrder[fromToken]` にセット
+- `_pixiW` は DOM の実幅（`videoArray[tok].clientWidth`）に比例して割り当てる（全フロアの video 幅が取れる場合）。取れない場合は `660/N` 均等配分にフォールバック
+- `videoResize()` の末尾（`mediaContainer.style.height` を設定した直後）で自動的に `_recalcFloorPositions()` を呼ぶ。これにより `videoResize()` がかかるたびに PIXI 幅も同期される
+
+**スケール計算（vsx/vsy）**
+```js
+// 通常モード・アバター描画（_avaOverlayPostTicker 内）
+const vsx = vRect.width / fW;   // fW = floorObj._pixiW
+const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= VIDEO_FLOOR_H = 330）
+```
+- `setMax` モード（デフォルト）では `videoResize()` が全動画を等比で縮小するため、N が増えても `vsx = vRect.width / _pixiW` は一定に保たれる
+- `setWidth` モード（幅固定）では各動画が同じ幅を保つため、N が増えると `totalDOMW` が N 倍になり `vsx` も N 倍になる（意図的な仕様：各フロアが同じ「幅/PIXI幅」比率を保つ）
+
+**dstY の計算（アバター描画位置）**
+```js
+// ly = ava.container.y - floorY（フロア面からの深さ）
+// footVY = vRect.top + ly * vsy（足元の画面上Y座標）
+// アバター画像は floorY より下をクロップして描画（上部はゲームエリアに出ている）
+const dstY = vRect.top + ly * vsy - ly * vsx;
+```
+- `dstY + ly * vsx = footVY` が成立する（足元が正しい位置に来る）
+- 落書きが足元より下に伸びていても足元の位置がズレない
+
+**クロップ方式（ゲームエリアとの境界処理）**
+```js
+// フロアY境界（VIDEO_FLOOR_Y=460）より上の部分を srcY でクロップして除去
+const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
+const srcY = floorFrac * imgH;  // ここより上を捨てる
+// 描画高さは vsx 基準（x方向と同じスケールで avatar を等比描画）
+const dstH = (bounds.y + bounds.height - floorY) * vsx;
+```
+- `dstH` を `vsx` で計算することで avatar の縦横比が保たれる（vsy を使うと動画アスペクト比によって細長くなる）
+- vsx ≠ vsy の場合、avatar の足元位置は合うが床面（floorY）のズレは生じる（許容範囲）
+
+**非受信アバターの非表示**
+```js
+// 通常モード内で primaryEntry（アバターが実際に乗っているフロア）を探し、
+// その video が未受信なら描画しない
+const primaryEntry = Object.entries(videoFloorObjects).find(([, f]) => {
+  const lx = ava.container.x - f.container.x;
+  const fw = f._pixiW || 660;
+  const ly = ava.container.y - f.container.y;
+  return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) + 5 && lx >= 0 && lx < fw;
+});
+if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
+```
+- 隣のフロアの動画を受信していても「本来いるフロアの動画が未受信なら描画しない」
+
+**既知の課題・制限**
+- `videoSurface` イベントでフロア作成 → `_recalcFloorPositions()` が走るが、相手の動画が WebRTC でまだ届いていない場合は `videoArray[B]` が空のため `_pixiW_B = 0`（フォールバック: 均等配分）。この間、`vsx_A = oldDOMWidth / (660/N)` となり N 倍スケールになる。`playing` イベントで `videoResize()` → `_recalcFloorPositions()` が走ると解消する。
+
+**失敗したアプローチ・やってはいけないこと**
+
+| アプローチ | 結果 | 理由 |
+|---|---|---|
+| `dstH = ... * vsy` で描画高さを計算 | アバターが縦に細長くなる | vsy は動画アスペクト比依存。avatar は vsx で等比描画すべき |
+| `dstY = vRect.top + ly*vsy - dstH` | 足元が落書き含む bounds 底に吸着する | dstH に落書き分が含まれると足位置がズレる |
+| `_pixiW` を常に `660/N` 均等で固定 | setMax での異アスペクト動画でアバターサイズが揃わない | DOM 実幅比例でないと vsx が floor ごとにバラつく |
+| `_recalcFloorPositions()` 内で `videoResize()` を呼ぶ | 循環呼び出しになる危険 | `videoResize()` の末尾で `_recalcFloorPositions()` を呼んでいるため |
+| 透過モードで `vRect` 基準の座標系を使う | タップ位置・描画位置が完全にズレる | 透過モードは `cRect`（PIXIキャンバス矩形）基準が正しい |
+| 配信順の同期に受信順（insertionOrder）を使う | クライアントによって動画が逆順になる | `videoSurface` → `createVideoButton` の到着順は不定。`startTime` を emit してソートが必要 |
+
 #### 未決定事項・次の課題
 - なし（clear/undo/redo 対応済み）
-
-#### 追加実装予定（→ ブロック管理表 `24 (追加)` 参照）
-- 動画が2つ以上ある場合、MAP上での配置ルールを修正:
-  - その部屋で最初に配信を始めた人の動画が一番左（現在と同じ）
-  - 2番目以降は右下に追加（MAP上の座標で、見た目ではなくゲーム内座標）
-- 落書き・乗り上げをオフにしている配信者の動画はMAP上から除外
 
 ---
 
@@ -1111,6 +1174,7 @@ ridingObjectがない場合:
 **Fix: chat overlay auto-shows on window resize**
 - ウィンドウリサイズ時に画面チャットが勝手に出現する仕様を削除
 - 対象: `index.js` の resize イベントハンドラ付近
+`windowResize(isInitial)` に引数を追加。初回ロード時（`isInitial=true`）はモバイルで画面チャットを自動ON。リサイズ時は `useOverlayChat` の値を反映して表示/非表示を復元（870超えで非表示→870以下に戻した時にボタンONなら再表示）。
 
 ---
 
