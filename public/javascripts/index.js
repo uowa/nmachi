@@ -11475,18 +11475,23 @@ function _startAvaOverlay() {
           const vRect = vEl.getBoundingClientRect();
           if (vRect.width === 0 || vRect.height === 0) continue;
           const vsx = vRect.width / fW;
-          const footVX = vRect.left + (ava.container.x - floorX) * vsx;
-          const footVY = vRect.top + (ava.container.y - floorY) / fH * vRect.height;
-          const drawX = footVX + (bounds.x - ava.container.x) * vsx;
-          const drawY = footVY + (bounds.y - ava.container.y) * vsx;
-          const drawW = bounds.width * vsx;
-          const drawH = bounds.height * vsx;
+          // フロアY境界より下の部分だけクロップして描画（ゲームエリアに頭が出ても顎が動画に出ない）
+          const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
+          const dstH = Math.max(0, (bounds.y + bounds.height - floorY) * vsx);
+          if (dstH <= 0) continue;
           if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
+          const imgW = extracted.width, imgH = extracted.height;
+          const srcY = floorFrac * imgH;
+          const srcH = imgH - srcY;
+          if (srcH <= 0) continue;
+          const dstX = vRect.left + (bounds.x - floorX) * vsx;
+          const dstY = vRect.top + (ava.container.y - floorY) / fH * vRect.height - dstH;
+          const dstW = bounds.width * vsx;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
           _avaOverlayCtx.clip();
-          _avaOverlayCtx.drawImage(extracted, drawX, drawY, drawW, drawH);
+          _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
         }
       }
@@ -12926,25 +12931,15 @@ function _recalcFloorPositions() {
       }
     }
   }
-  // 動画DOM幅を基準にPIXI幅を比例計算（vsx = totalVW/660 で一定になる）
-  const vWidths = {};
-  let totalVW = 0;
-  tokens.forEach(tok => {
-    const vEl = videoArray[tok];
-    const vW = vEl ? Math.max(0, vEl.getBoundingClientRect().width) : 0;
-    vWidths[tok] = vW;
-    totalVW += vW;
-  });
+  const slotW = Math.floor(660 / N);
   let pixiX = 0;
   tokens.forEach((tok, i) => {
     const f = videoFloorObjects[tok];
     let w;
     if (i === N - 1) {
       w = 660 - pixiX;
-    } else if (totalVW > 0) {
-      w = Math.max(10, Math.round(vWidths[tok] / totalVW * 660));
     } else {
-      w = Math.floor(660 / N);
+      w = slotW;
     }
     const h = f._intrinsicH || VIDEO_FLOOR_H;
     f.container.x = pixiX;
