@@ -12915,39 +12915,42 @@ function _videoToPIXI(v) {
 }
 
 function _recalcFloorPositions() {
-  const tokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || 0) - (videoStartOrder[b] || 0));
-  const N = tokens.length;
-  if (N === 0) return;
+  const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || 0) - (videoStartOrder[b] || 0));
+  if (allTokens.length === 0) return;
+  // DOM幅が確定している（映像受信済み）フロアだけをPIXI空間に配置する。
+  // 未受信フロアはオフスクリーン(x=9999)に退避することで、
+  // 「相手の映像が届く前に自分の映像のvsx（スケール）が半減する」問題を防ぐ。
+  const loadedToks = allTokens.filter(tok => (videoArray[tok]?.clientWidth || 0) > 0);
+  const unloadedToks = allTokens.filter(tok => !(videoArray[tok]?.clientWidth > 0));
   const myAva = avaP[myToken];
   let selfFloorTok = null, selfRelX = 0;
   if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
-    for (const tok of tokens) {
+    for (const tok of loadedToks) {
       const f = videoFloorObjects[tok];
+      if (!f._pixiW) continue;
       const lx = myAva.container.x - f.container.x;
-      const fw = f._pixiW || 660;
-      if (lx >= -20 && lx < fw + 20) {
-        selfFloorTok = tok;
-        selfRelX = lx / fw;
-        break;
-      }
+      const fw = f._pixiW;
+      if (lx >= -20 && lx < fw + 20) { selfFloorTok = tok; selfRelX = lx / fw; break; }
     }
   }
-  const domWidths = tokens.map(tok => videoArray[tok]?.clientWidth || 0);
-  const totalDOMW = domWidths.reduce((s, w) => s + w, 0);
-  const useDOM = totalDOMW > 0 && domWidths.every(w => w > 0);
-  const slotW = Math.floor(660 / N);
-  let pixiX = 0;
-  tokens.forEach((tok, i) => {
+  // 未受信フロアをオフスクリーンへ退避（hitAreaを0にしてアバター判定から除外）
+  unloadedToks.forEach(tok => {
     const f = videoFloorObjects[tok];
-    let w;
-    if (i === N - 1) {
-      w = 660 - pixiX;
-    } else if (useDOM) {
-      w = Math.round(660 * domWidths[i] / totalDOMW);
-    } else {
-      w = slotW;
-    }
+    f.container.x = 9999;
+    f.container.y = VIDEO_FLOOR_Y;
+    f.container.hitArea = new PIXI.Rectangle(0, 0, 0, 0);
+    f._pixiW = 0;
+  });
+  const N = loadedToks.length;
+  if (N === 0) return;
+  // ロード済みフロアをDOM実幅比例でPIXI 0〜660に配置
+  const totalDOMW = loadedToks.reduce((s, tok) => s + videoArray[tok].clientWidth, 0);
+  let pixiX = 0;
+  loadedToks.forEach((tok, i) => {
+    const f = videoFloorObjects[tok];
     const h = f._intrinsicH || VIDEO_FLOOR_H;
+    const domW = videoArray[tok].clientWidth;
+    const w = i === N - 1 ? 660 - pixiX : Math.round(660 * domW / totalDOMW);
     f.container.x = pixiX;
     f.container.y = VIDEO_FLOOR_Y;
     f.container.hitArea = new PIXI.Rectangle(0, 0, w, h + 1);
@@ -12957,17 +12960,19 @@ function _recalcFloorPositions() {
   });
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
-    const newX = nf.container.x + selfRelX * nf._pixiW;
-    if (Math.abs(myAva.container.x - newX) > 1) {
-      gsap.killTweensOf(myAva.container);
-      myAva.isMoving = false;
-      AX = Math.max(0, Math.min(660, newX));
-      myAva.container.x = AX;
-      if (myAva.ridingObject === nf) {
-        const sx = nf.container.scale?.x ?? 1;
-        myAva.ridingOffset.x = (AX - nf.container.x) / (sx || 1);
+    if (nf._pixiW > 0) {
+      const newX = nf.container.x + selfRelX * nf._pixiW;
+      if (Math.abs(myAva.container.x - newX) > 1) {
+        gsap.killTweensOf(myAva.container);
+        myAva.isMoving = false;
+        AX = Math.max(0, Math.min(660, newX));
+        myAva.container.x = AX;
+        if (myAva.ridingObject === nf) {
+          const sx = nf.container.scale?.x ?? 1;
+          myAva.ridingOffset.x = (AX - nf.container.x) / (sx || 1);
+        }
+        myAva.sendTransformData("フロア再配置");
       }
-      myAva.sendTransformData("フロア再配置");
     }
   }
 }
