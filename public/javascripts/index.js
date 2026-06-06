@@ -157,6 +157,10 @@ let videoTransparentDefault = localStorage.getItem("videoTransparentDefault") ==
 let videoTransparentOpacity = Math.max(0.3, parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5"));
 let _videoTransparentActive = videoTransparentDefault;
 let _streamSurfaceAllowed = localStorage.getItem('streamSurfaceAllowed') !== 'false';
+let _videoAutoReset = localStorage.getItem('videoAutoReset') !== 'false';
+let _lastVideoCount = 0;
+const videoStartOrder = {};
+let _recalcRetryRaf = null;
 const videoFloorObjects = {};
 let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
@@ -11436,48 +11440,56 @@ function _startAvaOverlay() {
     for (const ava of overlayAvas) {
       const bounds = ava.container.getBounds();
       if (bounds.width <= 0 || bounds.height <= 0) continue;
-      let clipLeft, clipTop, clipW, clipH, drawX, drawY, drawW, drawH;
+      let extracted = null;
       if (_videoTransparentActive) {
-        clipLeft = cRect.left; clipTop = cRect.bottom;
-        clipW = cRect.width; clipH = VIDEO_FLOOR_H * sy;
-        drawX = cRect.left + bounds.x * sx;
-        drawY = cRect.top + bounds.y * sy;
-        drawW = bounds.width * sx; drawH = bounds.height * sy;
+        for (const [, floorObjF] of Object.entries(videoFloorObjects)) {
+          const floorX = floorObjF.container.x;
+          const fW = floorObjF._pixiW || 660;
+          if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
+          if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
+          _avaOverlayCtx.save();
+          _avaOverlayCtx.beginPath();
+          _avaOverlayCtx.rect(cRect.left + floorX * sx, cRect.bottom, fW * sx, (floorObjF._pixiH || VIDEO_FLOOR_H) * sy);
+          _avaOverlayCtx.clip();
+          _avaOverlayCtx.drawImage(extracted, cRect.left + bounds.x * sx, cRect.top + bounds.y * sy, bounds.width * sx, bounds.height * sy);
+          _avaOverlayCtx.restore();
+        }
       } else {
-        const floorToken = Object.keys(videoFloorObjects).find(t => {
-          const f = videoFloorObjects[t];
-          const ly = ava.container.y - f.container.y;
+        const primaryEntry = Object.entries(videoFloorObjects).find(([, f]) => {
           const lx = ava.container.x - f.container.x;
           const fw = f._pixiW || 660;
-          return ly > 0 && ly <= VIDEO_FLOOR_H && lx >= -20 && lx < fw + 20;
+          const ly = ava.container.y - f.container.y;
+          return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) + 5 && lx >= 0 && lx < fw;
         });
-        const floorObjF = floorToken && videoFloorObjects[floorToken];
-        const vEl = floorToken && videoArray[floorToken];
-        if (!vEl || !floorObjF) continue;
-        const vRect = vEl.getBoundingClientRect();
-        if (vRect.width === 0 || vRect.height === 0) continue;
-        const fW = floorObjF._pixiW || 660;
-        const fH = floorObjF._pixiH || VIDEO_FLOOR_H;
-        const vsx = vRect.width / fW;
-        const vsy = vRect.height / fH;
-        const floorX = floorObjF.container.x;
-        const floorY = floorObjF.container.y;
-        const footVX = vRect.left + (ava.container.x - floorX) * vsx;
-        const footVY = vRect.top + (ava.container.y - floorY) * vsy;
-        clipLeft = vRect.left; clipTop = vRect.top;
-        clipW = vRect.width; clipH = vRect.height;
-        drawX = footVX + (bounds.x - ava.container.x) * vsx;
-        drawY = footVY + (bounds.y - ava.container.y) * vsx;
-        drawW = bounds.width * vsx; drawH = bounds.height * vsx;
+        if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
+        for (const [floorToken, floorObjF] of Object.entries(videoFloorObjects)) {
+          const fW = floorObjF._pixiW || 660;
+          const fH = floorObjF._pixiH || VIDEO_FLOOR_H;
+          const floorX = floorObjF.container.x;
+          const floorY = floorObjF.container.y;
+          const ly = ava.container.y - floorY;
+          if (ly <= 0 || ly > fH + 5) continue;
+          if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
+          const vEl = videoArray[floorToken];
+          if (!vEl) continue;
+          const vRect = vEl.getBoundingClientRect();
+          if (vRect.width === 0 || vRect.height === 0) continue;
+          const vsx = vRect.width / fW;
+          const footVX = vRect.left + (ava.container.x - floorX) * vsx;
+          const footVY = vRect.top + (ava.container.y - floorY) / fH * vRect.height;
+          const drawX = footVX + (bounds.x - ava.container.x) * vsx;
+          const drawY = footVY + (bounds.y - ava.container.y) * vsx;
+          const drawW = bounds.width * vsx;
+          const drawH = bounds.height * vsx;
+          if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
+          _avaOverlayCtx.save();
+          _avaOverlayCtx.beginPath();
+          _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
+          _avaOverlayCtx.clip();
+          _avaOverlayCtx.drawImage(extracted, drawX, drawY, drawW, drawH);
+          _avaOverlayCtx.restore();
+        }
       }
-      const extracted = app.renderer.extract.canvas(ava.container);
-      if (!extracted) continue;
-      _avaOverlayCtx.save();
-      _avaOverlayCtx.beginPath();
-      _avaOverlayCtx.rect(clipLeft, clipTop, clipW, clipH);
-      _avaOverlayCtx.clip();
-      _avaOverlayCtx.drawImage(extracted, drawX, drawY, drawW, drawH);
-      _avaOverlayCtx.restore();
     }
     if (hasNonFloorOekaki) {
       for (const ava of Object.values(avaP)) {
@@ -12008,6 +12020,7 @@ document.getElementById('videoTransparentDefault').checked = videoTransparentDef
 document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
 if (videoTransparentDefault) _applyVideoTransparent();
 document.getElementById('streamSurfaceAllowed').checked = _streamSurfaceAllowed;
+document.getElementById('videoAutoReset').checked = _videoAutoReset;
 
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
@@ -12230,8 +12243,18 @@ function setVideoValue() {//値の表記を変更
   videoResize();
 }
 
+function _videoSortedKeys() {
+  const getBase = tok => tok.replace(/(Re|Inv|IR)$/, '');
+  return Object.keys(videoArray).sort((a, b) => (videoStartOrder[getBase(a)] || 0) - (videoStartOrder[getBase(b)] || 0));
+}
+
 function videoResize() {
   if (_videoTransparentActive) return;
+  const _curVideoCount = Object.keys(videoArray).length;
+  if (_videoAutoReset && _curVideoCount !== _lastVideoCount) {
+    Object.keys(videoArray).forEach(key => { videoArray[key].freeFloat = false; });
+  }
+  _lastVideoCount = _curVideoCount;
   if (Object.keys(videoArray).length) {
     let left = 0;
     let allWidth = 0;
@@ -12259,7 +12282,7 @@ function videoResize() {
         }
       });
 
-      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+      _videoSortedKeys().forEach(function (key) {//人の要素の高さを変更
         if (videoArray[key].freeFloat) {
           if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
           _syncHandle(key);
@@ -12353,7 +12376,7 @@ function videoResize() {
         }
       });
     } else if (selectVideoSize.videoSize.value === "setWidth") {//横の大きさで揃える
-      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+      _videoSortedKeys().forEach(function (key) {//人の要素の高さを変更
         if (videoArray[key].freeFloat) {
           if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
           _syncHandle(key);
@@ -12428,7 +12451,7 @@ function videoResize() {
       });
 
     } else if (selectVideoSize.videoSize.value === "setHeight") {//縦の大きさで揃える
-      Object.keys(videoArray).forEach(function (key) {//人の要素の高さを変更
+      _videoSortedKeys().forEach(function (key) {//人の要素の高さを変更
         if (videoArray[key].freeFloat) {
           if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
           _syncHandle(key);
@@ -12505,6 +12528,7 @@ function videoResize() {
     }
     mediaContainer.style.height = maxHeight + "px";
     Object.keys(videoArray).forEach(k => _syncHandle(k));
+    if (Object.keys(videoFloorObjects).length > 0) _recalcFloorPositions();
   } else {
     mediaContainer.style.height = 0 + "px";
   }
@@ -12586,7 +12610,7 @@ socket.on("mediaButton", data => {
   if (data.type === 'callMediaStatus') {
     // 動画配信中ならボタン作成通知
     if (videoStatus) {
-      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel });
+      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel, startTime: videoStartOrder[myToken] });
     }
     // 音声配信中ならボタン作成通知
     if (audioStatus) {
@@ -12595,6 +12619,10 @@ socket.on("mediaButton", data => {
   }
   // 動画受信ボタンの作成要求
   else if (data.type === 'createVideoButton') {
+    if (data.startTime) {
+      videoStartOrder[fromToken] = data.startTime;
+      if (videoFloorObjects[fromToken]) _recalcFloorPositions();
+    }
     if (!videoButton[fromToken] || videoButton[fromToken].style.visibility === "hidden") {
       createVideoButton(fromToken);
     }
@@ -12823,6 +12851,10 @@ function attachVideo(fromToken, stream) {
     }
     if (!_avaOverlayPostTicker && videoFloorObjects[fromToken]) _startAvaOverlay();
   }, { passive: true });
+  // playing時にvideoWidthが確定するため再計算（srcObjectはloadedmetadataでvideoWidth=0になる場合がある）
+  videoArray[fromToken].addEventListener('playing', () => {
+    if (Object.keys(videoFloorObjects).length > 0) videoResize();
+  }, { once: true, passive: true });
 }
 
 function attachAudio(fromToken, stream) {//remoteAudioの追加
@@ -12853,6 +12885,7 @@ function detachVideo(token) {//videoの削除
     if (v.parentNode) v.parentNode.removeChild(v);
     delete videoArray[token];
   }
+  if (!/Re$|Inv$|IR$/.test(token)) delete videoStartOrder[token];
   if (videoOverlays[token]) { videoOverlays[token].remove(); delete videoOverlays[token]; }
   if (videoHandles[token]) { delete videoHandles[token]; }
   if (_isBaseVideoToken(token)) {
@@ -12876,7 +12909,7 @@ function _videoToPIXI(v) {
 }
 
 function _recalcFloorPositions() {
-  const tokens = Object.keys(videoFloorObjects);
+  const tokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || 0) - (videoStartOrder[b] || 0));
   const N = tokens.length;
   if (N === 0) return;
   const myAva = avaP[myToken];
@@ -12893,16 +12926,33 @@ function _recalcFloorPositions() {
       }
     }
   }
-  const slotW = Math.floor(660 / N);
+  // 動画DOM幅を基準にPIXI幅を比例計算（vsx = totalVW/660 で一定になる）
+  const vWidths = {};
+  let totalVW = 0;
+  tokens.forEach(tok => {
+    const vEl = videoArray[tok];
+    const vW = vEl ? Math.max(0, vEl.getBoundingClientRect().width) : 0;
+    vWidths[tok] = vW;
+    totalVW += vW;
+  });
+  let pixiX = 0;
   tokens.forEach((tok, i) => {
     const f = videoFloorObjects[tok];
-    const w = (i === N - 1) ? 660 - i * slotW : slotW;
+    let w;
+    if (i === N - 1) {
+      w = 660 - pixiX;
+    } else if (totalVW > 0) {
+      w = Math.max(10, Math.round(vWidths[tok] / totalVW * 660));
+    } else {
+      w = Math.floor(660 / N);
+    }
     const h = f._intrinsicH || VIDEO_FLOOR_H;
-    f.container.x = i * slotW;
+    f.container.x = pixiX;
     f.container.y = VIDEO_FLOOR_Y;
     f.container.hitArea = new PIXI.Rectangle(0, 0, w, h + 1);
     f._pixiW = w;
     f._pixiH = h;
+    pixiX += w;
   });
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
@@ -12948,7 +12998,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
   }
   floorObj._intrinsicH = h;
   if (!_avaOverlayPostTicker) _startAvaOverlay();
-  _recalcFloorPositions();
+  if (!_videoTransparentActive) { videoResize(); } else { _recalcFloorPositions(); }
   // 新規フロア作成時: このフロアを待っていたアバターの乗車状態を復元
   if (!floorObj._wasResolved) {
     floorObj._wasResolved = true;
@@ -13096,6 +13146,11 @@ function changeStreamSurface() {
     _removeVideoFloor(myToken);
     socket.emit('videoSurface', { token: myToken, enabled: false });
   }
+}
+
+function changeVideoAutoReset() {
+  _videoAutoReset = document.getElementById('videoAutoReset').checked;
+  localStorage.setItem('videoAutoReset', _videoAutoReset);
 }
 
 function detachAudio(token) {//remoteAudioの削除
@@ -13395,6 +13450,7 @@ async function startVideo() {
         }
       });
 
+      videoStartOrder[myToken] = Date.now();
       attachVideo(myToken, stream);
       if (selectVideoReverse.checked) {//自分の左右反転にチェックが入ってたら
         attachVideo(myToken + "Re", stream);
@@ -13405,7 +13461,7 @@ async function startVideo() {
       if (selectVideoInverseAndReverse.checked) {//自分の上下左右反転にチェックが入ってたら
         attachVideo(myToken + "IR", stream);
       }
-      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel });
+      socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel, startTime: videoStartOrder[myToken] });
       socket.emit("stream", { format: "videoStart", });
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
