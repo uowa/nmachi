@@ -1003,6 +1003,7 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 | 配信順の同期に受信順（insertionOrder）を使う | クライアントによって動画が逆順になる | `videoSurface` → `createVideoButton` の到着順は不定。`startTime` を emit してソートが必要 |
 | 未受信フロアにも `660/N` で `_pixiW` を割り当てる | 映像到着前の間ずっと `vsx` が N 倍になる | 相手の WebRTC 映像が届く前に `videoArray[tok].clientWidth=0` なのに `_pixiW=330` になり、既存フロアの `vsx = oldWidth/330 = 2×` になる。未受信フロアはオフスクリーン（x=9999, hitArea=0）に退避してロード済みフロアのみで 0〜660 を割り当てるのが正しい |
 | `S = vRect.width/660` でサイズ統一、`dstY = footY - dstH`（dstH は落書き込み） | 落書きが足元より下に伸びると dstH が大きすぎて dstY が動画上端より上に出る | `dstH = (1-floorFrac)*bounds.height*S` に落書き分が含まれるため。`footToFloor = ly*S` を使って `dstY = footY - footToFloor` と分離する必要がある |
+| `dstY = footY - footToFloor`（footToFloor = ly*S） | 謎空間が再発する | `footToFloor = ly*S`、`footY = vRect.top + ly*posVsy` → `dstY = vRect.top + ly*(posVsy-S)`。S < posVsy のとき（N≥2 や小画面）dstY > vRect.top になり動画上端との間に空白が生まれる |
 
 #### 現状（2026-06-08 修正）
 - **サイズ倍率 `S = vRect.width / 660`**（各動画DOM幅÷660固定。N本で縮む・リサイズ追従）
