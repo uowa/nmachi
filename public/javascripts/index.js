@@ -11477,7 +11477,6 @@ function _startAvaOverlay() {
           const vRect = vEl.getBoundingClientRect();
           if (vRect.width === 0 || vRect.height === 0) continue;
           const posVsx = vRect.width / fW;
-          const posVsy = vRect.height / fH;
           const S = vRect.width / 660;
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           if (floorFrac >= 1) continue;
@@ -11491,8 +11490,7 @@ function _startAvaOverlay() {
           if (dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * S;
-          const footToFloor = (ava.container.y - Math.max(bounds.y, floorY)) * S;
-          const dstY = vRect.top + (ava.container.y - floorY) * posVsy - footToFloor;
+          const dstY = vRect.top;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
