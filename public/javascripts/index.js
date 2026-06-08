@@ -11491,7 +11491,8 @@ function _startAvaOverlay() {
           if (dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * S;
-          const dstY = vRect.top + (ava.container.y - floorY) * posVsy - dstH;
+          const footToFloor = (ava.container.y - Math.max(bounds.y, floorY)) * S;
+          const dstY = vRect.top + (ava.container.y - floorY) * posVsy - footToFloor;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
