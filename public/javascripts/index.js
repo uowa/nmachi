@@ -165,6 +165,7 @@ const videoFloorObjects = {};
 let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
 const VIDEO_FLOOR_H = 330;
+const ROOM_H = 460;
 let highlightToken = null;
 const msgSE = {};
 msgSE.loginRoom = {};
@@ -1216,10 +1217,17 @@ let app = new PIXI.Application({
   view: myCanvas,
   width: 660,
   height: 460,
+  transparent: true,
 });
 graphic.appendChild(myCanvas);
 app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 window.app = app;
+
+// Stage1: フロアアバターの二重描画防止マスク（Stage2で外す）
+const _stageMask = new PIXI.Graphics();
+_stageMask.beginFill(0xffffff).drawRect(0, 0, 660, ROOM_H).endFill();
+app.stage.addChild(_stageMask);
+app.stage.mask = _stageMask;
 
 // 全avaLoop完了後・PIXI描画前に他アバターに乗ってるアバターのzIndexを修正
 app.ticker.add(() => {
@@ -8410,7 +8418,7 @@ myCanvas.addEventListener('touchmove', e => {
   }
   if (_ocSwDir === 'v') {
     const rect = myCanvas.getBoundingClientRect();
-    const scale = 460 / rect.height;
+    const scale = _currentCanvasH() / rect.height;
     overlayChat.y = Math.min(0, overlayChat.y + (e.touches[0].clientY - _ocSwPrevY) * scale);
   }
   _ocSwPrevY = e.touches[0].clientY;
@@ -8440,7 +8448,7 @@ myCanvas.addEventListener('wheel', e => {
     });
   } else {
     const rect = myCanvas.getBoundingClientRect();
-    overlayChat.y = Math.min(0, overlayChat.y - e.deltaY * (460 / rect.height));
+    overlayChat.y = Math.min(0, overlayChat.y - e.deltaY * (_currentCanvasH() / rect.height));
   }
 }, { passive: false });
 
@@ -8486,7 +8494,7 @@ myCanvas.addEventListener('click', e => {
 
   const rect = myCanvas.getBoundingClientRect();
   const scaleX = 660 / rect.width;
-  const scaleY = 460 / rect.height;
+  const scaleY = _currentCanvasH() / rect.height;
   let x = Math.round((e.clientX - rect.left) * scaleX);
   let y = Math.round((e.clientY - rect.top) * scaleY);
 
@@ -9212,7 +9220,7 @@ function _getDoodlePos(e) {
   const rect = myCanvas.getBoundingClientRect();
   return {
     x: (e.clientX - rect.left) * (660 / rect.width),
-    y: (e.clientY - rect.top) * (460 / rect.height),
+    y: (e.clientY - rect.top) * (_currentCanvasH() / rect.height),
   };
 }
 
@@ -12916,13 +12924,20 @@ function _isBaseVideoToken(tok) {
   return !/Re$|Inv$|IR$/.test(tok);
 }
 
+function _currentCanvasH() {
+  const maxFloorH = Object.keys(videoFloorObjects).length > 0
+    ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || 0))
+    : 0;
+  return ROOM_H + maxFloorH;
+}
+
 function _videoToPIXI(v) {
   return { x: 0, y: VIDEO_FLOOR_Y, width: 660, height: VIDEO_FLOOR_H };
 }
 
 function _recalcFloorPositions() {
   const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || Infinity) - (videoStartOrder[b] || Infinity));
-  if (allTokens.length === 0) return;
+  if (allTokens.length === 0) { app.renderer.resize(660, ROOM_H); return; }
   const loadedToks = allTokens.filter(tok => (videoArray[tok]?.clientWidth || 0) > 0);
   const unloadedToks = allTokens.filter(tok => !(videoArray[tok]?.clientWidth > 0));
   const myAva = avaP[myToken];
@@ -12989,6 +13004,7 @@ function _recalcFloorPositions() {
       }
     }
   }
+  app.renderer.resize(660, _currentCanvasH());
 }
 
 function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
