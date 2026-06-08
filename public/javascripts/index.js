@@ -11607,6 +11607,7 @@ function _stopAvaOverlay() {
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
     // transform を持つ #main の外に出して fixed が viewport 基準になるようにする
+    _restoreMediaContainerFromFloor();
     _mcOriginalParent = mediaContainer.parentNode;
     _mcOriginalNextSibling = mediaContainer.nextSibling;
     document.body.appendChild(mediaContainer);
@@ -11720,7 +11721,8 @@ function _addVideoInteraction(fromToken) {
     if (!floorObj) return null;
     if (_videoTransparentActive) {
       const cRect = myCanvas.getBoundingClientRect();
-      return { x: (cx - cRect.left) * 660 / cRect.width, y: (cy - cRect.bottom) * 460 / cRect.height };
+      const pixiY = (cy - cRect.top) * _currentCanvasH() / cRect.height;
+      return { x: (cx - cRect.left) * 660 / cRect.width, y: pixiY - ROOM_H };
     }
     const vRect = v.getBoundingClientRect();
     if (vRect.width === 0 || vRect.height === 0) return null;
@@ -11936,7 +11938,7 @@ function _addVideoInteraction(fromToken) {
         const withinBounds = fx >= cRect.left && fx <= cRect.right && fy >= cRect.top && fy <= cRect.bottom;
         if (withinBounds) {
           const targetX = (fx - cRect.left) * (660 / cRect.width);
-          const targetY = (fy - cRect.top) * (460 / cRect.height);
+          const targetY = (fy - cRect.top) * (_currentCanvasH() / cRect.height);
           _doStageTap(targetX, targetY);
           return;
         }
@@ -11946,7 +11948,8 @@ function _addVideoInteraction(fromToken) {
           _syncVideoFloor(myToken);
         }
         const targetX = Math.max(0, Math.min(660, (fx - cRect.left) * 660 / cRect.width));
-        const targetY = VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, (fy - cRect.bottom) * 460 / cRect.height));
+        const floorPixiY = (fy - cRect.top) * _currentCanvasH() / cRect.height;
+        const targetY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + (_currentCanvasH() - ROOM_H), VIDEO_FLOOR_Y + (floorPixiY - ROOM_H)));
         _doStageTap(targetX, targetY);
       };
       if (e.pointerType === 'mouse') {
@@ -11967,6 +11970,8 @@ function _addVideoInteraction(fromToken) {
     }
     if (ptrs.size === 0) mode = null;
   });
+
+  v.addEventListener('dblclick', (e) => { e.preventDefault(); toggleVideoTransparent(); });
 
   v.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -12264,8 +12269,46 @@ function _videoSortedKeys() {
   return Object.keys(videoArray).sort((a, b) => (videoStartOrder[getBase(a)] || Infinity) - (videoStartOrder[getBase(b)] || Infinity));
 }
 
+function _positionMediaContainerForFloor() {
+  const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || Infinity) - (videoStartOrder[b] || Infinity));
+  const loadedToks = allTokens.filter(tok => (videoArray[tok]?.clientWidth || 0) > 0);
+  if (loadedToks.length === 0) return;
+  const cRect = myCanvas.getBoundingClientRect();
+  const canvasH = _currentCanvasH();
+  const scaleX = cRect.width / 660;
+  const scaleY = cRect.height / canvasH;
+  const floorTop = cRect.top + ROOM_H * scaleY;
+  const floorH = (canvasH - ROOM_H) * scaleY;
+  mediaContainer.style.position = 'fixed';
+  mediaContainer.style.top = floorTop + 'px';
+  mediaContainer.style.left = cRect.left + 'px';
+  mediaContainer.style.width = cRect.width + 'px';
+  mediaContainer.style.height = floorH + 'px';
+  loadedToks.forEach(tok => {
+    const v = videoArray[tok];
+    if (!v) return;
+    const f = videoFloorObjects[tok];
+    if (!f._pixiW) return;
+    v.style.position = 'absolute';
+    v.style.left = (f.container.x * scaleX) + 'px';
+    v.style.top = '0';
+    v.style.width = (f._pixiW * scaleX) + 'px';
+    v.style.height = (f._pixiH * scaleY) + 'px';
+    _syncHandle(tok);
+  });
+}
+
+function _restoreMediaContainerFromFloor() {
+  mediaContainer.style.position = '';
+  mediaContainer.style.top = '';
+  mediaContainer.style.left = '';
+  mediaContainer.style.width = '';
+  mediaContainer.style.height = '';
+}
+
 function videoResize() {
   if (_videoTransparentActive) return;
+  if (Object.keys(videoFloorObjects).length > 0) { _positionMediaContainerForFloor(); return; }
   const _curVideoCount = Object.keys(videoArray).length;
   if (_videoAutoReset && _curVideoCount !== _lastVideoCount) {
     Object.keys(videoArray).forEach(key => { videoArray[key].freeFloat = false; });
@@ -13001,6 +13044,7 @@ function _recalcFloorPositions() {
     }
   }
   app.renderer.resize(660, _currentCanvasH());
+  if (!_videoTransparentActive) _positionMediaContainerForFloor();
 }
 
 function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
@@ -13030,7 +13074,8 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
   }
   floorObj._intrinsicH = h;
   if (!_avaOverlayPostTicker) _startAvaOverlay();
-  if (!_videoTransparentActive) { videoResize(); } else { _recalcFloorPositions(); }
+  _recalcFloorPositions();
+  if (!_videoTransparentActive) videoResize();
   // 新規フロア作成時: このフロアを待っていたアバターの乗車状態を復元
   if (!floorObj._wasResolved) {
     floorObj._wasResolved = true;
@@ -13064,7 +13109,11 @@ function _removeVideoFloor(token) {
   delete videoFloorObjects[token];
   delete objMap['videoFloor:' + token];
   _recalcFloorPositions();
-  if (Object.keys(videoFloorObjects).length === 0) { _videoFloorFocused = false; _stopAvaOverlay(); }
+  if (Object.keys(videoFloorObjects).length === 0) {
+    if (!_videoTransparentActive) _restoreMediaContainerFromFloor();
+    _videoFloorFocused = false;
+    _stopAvaOverlay();
+  }
   switchDrawing(avatarOekakiToken);
 }
 
