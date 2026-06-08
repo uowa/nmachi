@@ -1223,11 +1223,6 @@ graphic.appendChild(myCanvas);
 app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 window.app = app;
 
-// Stage1: フロアアバターの二重描画防止マスク（Stage2で外す）
-const _stageMask = new PIXI.Graphics();
-_stageMask.beginFill(0xffffff).drawRect(0, 0, 660, ROOM_H).endFill();
-app.stage.addChild(_stageMask);
-app.stage.mask = _stageMask;
 
 // 全avaLoop完了後・PIXI描画前に他アバターに乗ってるアバターのzIndexを修正
 app.ticker.add(() => {
@@ -11389,6 +11384,7 @@ function _startAvaOverlay() {
       el.height = window.innerHeight;
     }
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
+    return; // Stage2: PIXIネイティブ描画に切り替え済み（Stage5で旧コードごと削除）
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     const hasDrawings = _videoFloorDrawingToken !== null || Object.values(videoFloorObjects).some(f => f.drawHistory && f.drawHistory.length > 0);
     const _isMugenVF = room && room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0;
