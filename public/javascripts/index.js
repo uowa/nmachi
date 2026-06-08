@@ -11347,6 +11347,7 @@ let _avaOverlayCtx = null;
 let _avaOverlayPreTicker = null;
 let _avaOverlayPostTicker = null;
 let _avaOverlayRT = null;
+let _vfMaskMap = new Map();
 let _overlayFloorSynced = false;
 
 function _startAvaOverlay() {
@@ -11356,6 +11357,7 @@ function _startAvaOverlay() {
   el.width = window.innerWidth;
   el.height = window.innerHeight;
   el.style.display = 'block';
+  el.style.zIndex = '13';
   _avaOverlayCtx = el.getContext('2d');
   if (!_avaOverlayRT) _avaOverlayRT = PIXI.RenderTexture.create({ width: 660, height: 460 });
 
@@ -11381,6 +11383,21 @@ function _startAvaOverlay() {
       el.height = window.innerHeight;
     }
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
+    for (const ava of Object.values(avaP)) {
+      if (!ava.container) continue;
+      if (_isOnVideoFloor(ava)) {
+        if (!_vfMaskMap.has(ava) && room) {
+          const m = new PIXI.Graphics();
+          room.container.addChild(m);
+          _vfMaskMap.set(ava, m);
+        }
+        const m = _vfMaskMap.get(ava);
+        if (m) { m.visible = true; ava.container.mask = m; }
+      } else {
+        const m = _vfMaskMap.get(ava);
+        if (m && ava.container.mask === m) { ava.container.mask = null; m.visible = false; }
+      }
+    }
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     const hasDrawings = _videoFloorDrawingToken !== null || Object.values(videoFloorObjects).some(f => f.drawHistory && f.drawHistory.length > 0);
     const _isMugenVF = room && room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0;
@@ -11443,6 +11460,7 @@ function _startAvaOverlay() {
       const bounds = ava.container.getBounds();
       if (bounds.width <= 0 || bounds.height <= 0) continue;
       let extracted = null;
+      let gameAreaDrawn = false;
       if (_videoTransparentActive) {
         for (const [, floorObjF] of Object.entries(videoFloorObjects)) {
           const floorX = floorObjF.container.x;
@@ -11479,27 +11497,39 @@ function _startAvaOverlay() {
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
           const S = vRect.width / 660;
-          const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
-          if (floorFrac >= 1) continue;
-          if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
+          const avaFootFrac = Math.min(1, (ava.container.y - bounds.y) / bounds.height);
+          const floorFrac = Math.max(0, Math.min(avaFootFrac, (floorY - bounds.y) / bounds.height));
+          if (floorFrac >= avaFootFrac) continue;
+          if (!extracted) { const sm = ava.container.mask; ava.container.mask = null; extracted = app.renderer.extract.canvas(ava.container); ava.container.mask = sm; if (!extracted) break; }
           const imgW = extracted.width, imgH = extracted.height;
-          const srcY = floorFrac * imgH;
-          const srcH = imgH - srcY;
-          if (srcH <= 0) continue;
           const dstW = bounds.width * S;
-          const dstH = srcH * S * bounds.height / imgH;
-          if (dstH <= 0) continue;
+          const dstH = bounds.height * S;
+          if (dstW <= 0 || dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * S;
           const footY = vRect.top + (ava.container.y - floorY) * posVsy;
-          const dstY = footY - dstH;
-          const clipTop = Math.min(dstY, vRect.top);
+          const dstY = footY - avaFootFrac * bounds.height * S;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
-          _avaOverlayCtx.rect(vRect.left, clipTop, vRect.width, vRect.bottom - clipTop);
+          _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
           _avaOverlayCtx.clip();
-          _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
+          _avaOverlayCtx.drawImage(extracted, 0, 0, imgW, imgH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
+          if (floorFrac > 0 && !gameAreaDrawn) {
+            gameAreaDrawn = true;
+            const splitFrac = Math.max(0, (vRect.top - dstY) / dstH);
+            const srcH_top = splitFrac * imgH;
+            const dstX_top = cRect.left + bounds.x * sx;
+            const dstW_top = bounds.width * sx;
+            const dstH_top = splitFrac * bounds.height * sy;
+            const dstY_top = cRect.bottom - dstH_top;
+            _avaOverlayCtx.save();
+            _avaOverlayCtx.beginPath();
+            _avaOverlayCtx.rect(0, 0, window.innerWidth, cRect.bottom);
+            _avaOverlayCtx.clip();
+            _avaOverlayCtx.drawImage(extracted, 0, 0, imgW, srcH_top, dstX_top, dstY_top, dstW_top, dstH_top);
+            _avaOverlayCtx.restore();
+          }
         }
       }
     }
@@ -11595,6 +11625,8 @@ function _stopAvaOverlay() {
   if (_avaOverlayPreTicker) { app.ticker.remove(_avaOverlayPreTicker); _avaOverlayPreTicker = null; }
   if (_avaOverlayPostTicker) { app.ticker.remove(_avaOverlayPostTicker); _avaOverlayPostTicker = null; }
   _avaOverlayCtx = null;
+  for (const [ava, m] of _vfMaskMap) { if (ava.container) ava.container.mask = null; m.destroy(); }
+  _vfMaskMap.clear();
   for (const ava of Object.values(avaP)) { if (ava.container) ava.container.renderable = true; }
   for (const [, entry] of _mugenGhostMap.entries()) { for (const g of entry.ghosts) g.container.renderable = true; }
   const el = document.getElementById('avaVideoOverlay');
@@ -11925,8 +11957,8 @@ function _addVideoInteraction(fromToken) {
             const pixiW = floorObj ? (floorObj._pixiW || 660) : 660;
             const pixiH = floorObj ? (floorObj._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H;
             const floorX = floorObj ? floorObj.container.x : 0;
-            _doStageTap(Math.max(0, Math.min(660, floorX + normX * pixiW)),
-                        VIDEO_FLOOR_Y + Math.max(0, Math.min(pixiH, normY * pixiH)));
+            const tapPixiY = VIDEO_FLOOR_Y + Math.max(0, Math.min(pixiH, normY * pixiH));
+            _doStageTap(Math.max(0, Math.min(660, floorX + normX * pixiW)), tapPixiY);
             return;
           }
         }
@@ -12937,6 +12969,20 @@ function _recalcFloorPositions() {
       if (lx >= -20 && lx < fw + 20) {
         selfFloorTok = tok;
         selfRelX = lx / fw;
+        const ly = myAva.container.y - VIDEO_FLOOR_Y;
+        selfRelY = Math.max(0, Math.min(1, ly / (f._pixiH || VIDEO_FLOOR_H)));
+        break;
+      }
+    }
+  }
+  if (!selfFloorTok && myAva && myAva.container.y >= VIDEO_FLOOR_Y && loadedToks.length > 0) {
+    for (const tok of unloadedToks) {
+      const f = videoFloorObjects[tok];
+      if (!f._pixiW) continue;
+      const lx = myAva.container.x - f.container.x;
+      if (lx >= -20 && lx < f._pixiW + 20) {
+        selfFloorTok = loadedToks[0];
+        selfRelX = 0;
         const ly = myAva.container.y - VIDEO_FLOOR_Y;
         selfRelY = Math.max(0, Math.min(1, ly / (f._pixiH || VIDEO_FLOOR_H)));
         break;
