@@ -1002,15 +1002,18 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 | 透過モードで `vRect` 基準の座標系を使う | タップ位置・描画位置が完全にズレる | 透過モードは `cRect`（PIXIキャンバス矩形）基準が正しい |
 | 配信順の同期に受信順（insertionOrder）を使う | クライアントによって動画が逆順になる | `videoSurface` → `createVideoButton` の到着順は不定。`startTime` を emit してソートが必要 |
 | 未受信フロアにも `660/N` で `_pixiW` を割り当てる | 映像到着前の間ずっと `vsx` が N 倍になる | 相手の WebRTC 映像が届く前に `videoArray[tok].clientWidth=0` なのに `_pixiW=330` になり、既存フロアの `vsx = oldWidth/330 = 2×` になる。未受信フロアはオフスクリーン（x=9999, hitArea=0）に退避してロード済みフロアのみで 0〜660 を割り当てるのが正しい |
+| `S = vRect.width/660` でサイズ統一、`dstY = footY - dstH`（dstH は落書き込み） | 落書きが足元より下に伸びると dstH が大きすぎて dstY が動画上端より上に出る | `dstH = (1-floorFrac)*bounds.height*S` に落書き分が含まれるため。`footToFloor = ly*S` を使って `dstY = footY - footToFloor` と分離する必要がある |
 
 #### 現状（2026-06-08 修正）
-- dstW/dstH/dstX に `drawScale = posVsy * _vScaleCorr` を使用
-- `_vScaleCorr`: Case2（totalVDomW≥window.innerWidth）では 1、Case1（totalVDomW < window.innerWidth）では window.innerWidth/totalVDomW
-- dstY は posVsy のまま（謎空間なし・足元精度維持）
-- これにより: リサイズ追従 ✓、謎空間なし ✓、1動画→2動画でスケール不変 ✓
+- **サイズ倍率 `S = vRect.width / 660`**（各動画DOM幅÷660固定。N本で縮む・リサイズ追従）
+- **位置倍率 `posVsx = vRect.width/fW`、`posVsy = vRect.height/fH`**（フロアPIXI幅高さ基準）
+- `dstW = bounds.width * S`、`dstH = srcH * S * bounds.height / imgH`（落書き込み全高）
+- `footToFloor = (ava.container.y - max(bounds.y, floorY)) * S`（フロア〜足元の高さ、S基準）
+- `dstY = vRect.top + ly * posVsy - footToFloor`（足元DOMy から逆算、落書きは下にはみ出す）
+- `dstX = centerDomX + (bounds.x - ava.container.x) * S`
 
 #### 未決定事項・次の課題
-- なし（clear/undo/redo 対応済み）
+- アバターオーバーレイ描画を根本から作り直し予定（いたちごっこ状態のため）
 
 ---
 
