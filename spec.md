@@ -776,18 +776,19 @@ CREATE TABLE editing_sessions (
 - **動画DOM要素**: PIXIキャンバスの下に並ぶ `<video>` 要素。実際の映像を表示
 
 **`#avaVideoOverlay` キャンバス**
-- `position:fixed; z-index:11; pointer-events:none` でフルスクリーンオーバーレイ
-- PIXIキャンバスの下（=動画フロアエリア）にいるアバターをここに描画する
-- `_startAvaOverlay()` / `_stopAvaOverlay()` で開始・停止（`index.js` L8831〜）
-- PIXIのポストティッカー（優先度 -50）で毎フレーム描画
+- `position:fixed; z-index:13; pointer-events:none` でフルスクリーンオーバーレイ
+- 動画フロアエリアにいるアバターの動画エリア部分をここに描画する
+- `_startAvaOverlay()` / `_stopAvaOverlay()` で開始・停止（`index.js` L11353〜）
+- PIXIのティッカー（優先度 50、PIXI描画前）で毎フレーム描画
 - `#Pmachi { z-index: 12 }` でゲームUIボタン類はオーバーレイより上（`style.css`）
 
-**オーバーレイ描画の仕組み**（`_avaOverlayPostTicker`、L8854〜）
-- `_isOnVideoFloor(ava)`: `ava.container.parent && ly > 0 && ly <= VIDEO_FLOOR_H` で判定（parentチェック必須：退室済みアバターを除外）
+**オーバーレイ描画の仕組み**（`_avaOverlayPostTicker`、L11379〜）
+- `_isOnVideoFloor(ava)`: `ava.container.parent && ly > 0 && ly <= VIDEO_FLOOR_H && lx >= -20 && lx < fw+20` で判定（parentチェック必須：退室済みアバターを除外）
 - アバターを `app.renderer.extract.canvas(ava.container)` で抽出
 - **透過モード** (`_videoTransparentActive=true`): `cRect`（PIXIキャンバス矩形）基準でクリップ・描画
 - **通常モード** (`_videoTransparentActive=false`): `vRect`（動画DOM要素矩形）基準でクリップ・描画（動画の移動・リサイズに追従）
 - クリップ領域: 透過モードは `cRect.bottom` から下方向、通常モードは `vRect.top` から下方向
+- **ゲームエリアはみ出し部分**（`floorFrac > 0`）: `_vfMaskMap` のGraphicsをゲームエリア部分の矩形に更新 → PIXIがmask付きで直接描画するためzIndexが正しく機能する。overlayは動画エリア部分のみ担当
 
 **タップ座標変換**（`forwardToCanvas`、L9095〜）
 - **元エリア内クリック**: `cRect` 基準で変換
@@ -985,19 +986,13 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 | 配信順の同期に受信順（insertionOrder）を使う | クライアントによって動画が逆順になる | `videoSurface` → `createVideoButton` の到着順は不定。`startTime` を emit してソートが必要 |
 | 未受信フロアにも `660/N` で `_pixiW` を割り当てる | 映像到着前の間ずっと `vsx` が N 倍になる | 未受信フロアはオフスクリーン（x=9999, hitArea=0）に退避してロード済みフロアのみで 0〜660 を割り当てること |
 
-#### 現状（2026-06-09 修正）
+#### 現状（2026-06-09 実装完了）✅
 - サイズスケール `S = vRect.width / 660`、位置スケール `posVsx = vRect.width/fW`、`posVsy = vRect.height/fH`
 - `dstW = bounds.width * S`、`dstH = bounds.height * S`
-- `dstX = centerDomX + (bounds.x - ava.container.x) * S`
-- `footY = vRect.top + ly * posVsy`、`dstY = footY - avaFootFrac * bounds.height * S`
-- clip = vRect矩形
-- `floorFrac > 0` 時: `splitFrac = (vRect.top - dstY) / dstH` でゲームエリアはみ出し部分を overlay に `sx`（PIXIスケール）で描画
-- **問題**: ゲームエリア部分が overlay（z-index:13）に描かれるため、PIXIキャンバス（z-index:12）のアバターの zIndex が機能しない
-
-#### 次の課題
-- ゲームエリアはみ出し部分を PIXI RenderTexture + Sprite として PIXI 内に統合する
-  - overlay の splitFrac 描画を廃止、代わりに Sprite を room.container に追加して zIndex を ava.container.zIndex に同期
-  - これにより zIndex 問題が根本解決される（実装中）
+- `dstX = centerDomX + (bounds.x - ava.container.x) * S`、`dstY = footY - avaFootFrac * bounds.height * S`
+- clip = vRect矩形（動画エリアのみ）
+- `floorFrac > 0`（ゲームエリアにはみ出し）時: `_vfMaskMap[ava]` の Graphics を `drawRect(bounds.x, bounds.y, bounds.width, clampH)` で更新 → PIXI が mask 付きでゲームエリア部分を直接描画 → zIndex 問題なし
+- overlay（z-index:13）は動画エリア部分のみを担当、ゲームエリア部分は PIXI（z-index:12）が担当
 
 ---
 

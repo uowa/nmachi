@@ -11517,18 +11517,11 @@ function _startAvaOverlay() {
           _avaOverlayCtx.restore();
           if (floorFrac > 0 && !gameAreaDrawn) {
             gameAreaDrawn = true;
-            const splitFrac = Math.max(0, (vRect.top - dstY) / dstH);
-            const srcH_top = splitFrac * imgH;
-            const dstX_top = cRect.left + bounds.x * sx;
-            const dstW_top = bounds.width * sx;
-            const dstH_top = splitFrac * bounds.height * sy;
-            const dstY_top = cRect.bottom - dstH_top;
-            _avaOverlayCtx.save();
-            _avaOverlayCtx.beginPath();
-            _avaOverlayCtx.rect(0, 0, window.innerWidth, cRect.bottom);
-            _avaOverlayCtx.clip();
-            _avaOverlayCtx.drawImage(extracted, 0, 0, imgW, srcH_top, dstX_top, dstY_top, dstW_top, dstH_top);
-            _avaOverlayCtx.restore();
+            const m = _vfMaskMap.get(ava);
+            if (m) {
+              const clampH = Math.max(0, VIDEO_FLOOR_Y - bounds.y);
+              m.clear().beginFill(0xffffff).drawRect(bounds.x, bounds.y, bounds.width, clampH).endFill();
+            }
           }
         }
       }
