@@ -11618,7 +11618,7 @@ function _startAvaOverlay() {
       }
     }
   };
-  app.ticker.add(_avaOverlayPostTicker, null, -50);
+  app.ticker.add(_avaOverlayPostTicker, null, 50);
 }
 
 function _stopAvaOverlay() {

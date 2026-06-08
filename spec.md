@@ -976,45 +976,28 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 **既知の課題・制限**
 - `videoSurface` イベントでフロア作成 → `_recalcFloorPositions()` が走るが、相手の動画が WebRTC でまだ届いていない場合は `videoArray[B]` が空のため `_pixiW_B = 0`（フォールバック: 均等配分）。この間、`vsx_A = oldDOMWidth / (660/N)` となり N 倍スケールになる。`playing` イベントで `videoResize()` → `_recalcFloorPositions()` が走ると解消する。
 
-**失敗したアプローチ・やってはいけないこと**
+**やってはいけないこと**
 
 | アプローチ | 結果 | 理由 |
 |---|---|---|
-| `dstH = ... * vsy` かつ `dstW = ... * vsx` で混在 | アバターが縦に細長くなる | vsy と vsx のどちらか一方だけでサイズを決めること。混在すると縦横比が崩れる |
-| `dstH = ... * vsy`、`dstW = ... * vsy`（vsy 統一）+ `dstX = (bounds.x - floorX) * vsx` | 動画1本で右ずれ、2本で左ずれ | dstX（vsx）と dstW（vsy）のスケール不一致→中心がずれる |
-| `dstH = ... * vsy`、`dstW = ... * vsy`（vsy 統一）+ `avaCenterX = bounds.x + bounds.width/2` で中心合わせ | クリック位置より右にアバターが出る | anchor(0.5,1)のスプライトは ava.container.x が中心。落書きが非対称だと bounds 中心と異なる |
-| `dstH/dstW/dstY = vsx 統一` | Y軸ずれ・N本で倍々スケール | vsx は setMax の Case1（innerWidth > naturalTotalW）でN本比例して増大。vsy は動画高さ不変なので一定。Y軸も vsx ≠ vsy ならずれる |
-| `dstH/dstW = vsy 統一`（N本スケール固定版）+ `dstY=vRect.top固定` | bounds.y > floorY のとき上ずれ | floorFrac=0 ケースで dstY = vRect.top + (bounds.y-floorY)*vsy が必要。`Math.max(0, bounds.y-floorY)*vsy` で対処 |
-| `dstH/dstW = sy（PIXIキャンバス倍率）統一` | リサイズ非同期・Y上ずれ | sy = cRect.height/460 は PIXI キャンバスサイズ依存で動画リサイズに追従しない。sy < vsy のとき足元が上にずれる |
-| `dstH/dstW = min(vsy, sy)` | Y座標が大幅にずれる・リサイズ非同期 | sy=1.0固定なので vsy>1（大動画）では k=1.0 になり、足元が vsy 基準より上にずれる（誤差 depth*(vsy-1)）。大動画ではリサイズハンドルでアバターサイズが変わらない |
-| `dstH/dstW = drawScale(vRect.width/660)統一` | 動画が非2:1アスペクト比のとき Y上ずれ | drawScale < vsy のとき feet = vRect.top + ly*drawScale (desired: vRect.top + ly*vsy)。誤差 = ly*(drawScale-vsy) が ly に比例して増大 |
-| `dstY = vRect.top + ly*vsy - dstH`（dstH = bounds.height*drawScale） | 落書き含めた bounds 底が足元扱いになりずれる | bounds.bottom > ava.container.y のとき（落書きが足元より下に伸びる）dstH が足元オフセットより大きくなる |
-| `dstY = vRect.top + ly*vsy - (ava.container.y - max(bounds.y,floorY))*drawScale`（全ケース統一） | floorFrac>0 で謎空間が発生 | ly*(vsy-drawScale)>0 → dstY > vRect.top。floorFrac>0 のとき dstY = vRect.top 固定、floorFrac=0 のときは `vRect.top + ly*vsy - (ava.container.y - bounds.y)*drawScale` と分岐すること |
-| `dstY = vRect.top + max(0, bounds.y-floorY) * drawScale`（drawScale 統一） | 深くなるほど上ずれが大きくなる | drawScale < vsy のとき feet = vRect.top + ly*drawScale (desired: vRect.top + ly*vsy)。誤差 = ly*(drawScale-vsy) が ly に比例して増大 |
-| `dstH = (bounds.bottom - floorY) * scale` | bounds.y > floorY のとき dstH が大きすぎてほぼクリッピングされる | 正しくは `(1 - floorFrac) * bounds.height * scale`（srcH に対応した高さ） |
-| `drawScale = min(vsx, vsy)` で dstY・dstH を drawScale 統一 | 1→2画面でスケール切り替わり（vsx→vsy）により「上ずれ」が発生 | dstY+dstH=drawScale基準の足元位置になるが、vsy基準の正確な足元より上になる。y方向は vsy で統一すること |
-| `dstY = vRect.top` 固定（vsy 統一時）| アバターが動画の中で少し上にずれる | bounds.y > floorY のとき dstY = vRect.top にしているが、正しくは `vRect.top + (bounds.y - floorY) * vsy`。動画の上端から離れた位置に描くべき |
-| `dstY = vRect.top + ly*vsy - dstH`（旧足元合わせ）| bounds.y > floorY で dstY が大幅に負になり全クリッピング | dstH = bounds.height * vsy（大）から ly*vsy（小）を引くと vRect.top より遥か上になる |
-| `dstW/dstH = sx（cRect.width/660）統一` | リサイズ非追従・謎空間 | sx は PIXI キャンバスサイズ依存で動画リサイズに追従しない（リサイズで posVsy は変わるが sx は不変）。dstY に sx を使うと posVsy > sx のとき dstY > vRect.top になり謎空間発生 |
-| `dstY = vRect.top + ly*vsy - ly*vsx` | 動画エリア上端に謎の空間が生まれる | vsy > vsx のとき dstY > vRect.top になり、vRect.top ～ dstY の間が空白になる |
-| `_pixiW` を常に `660/N` 均等で固定 | setMax での異アスペクト動画でアバターサイズが揃わない | DOM 実幅比例でないと vsx が floor ごとにバラつく |
 | `_recalcFloorPositions()` 内で `videoResize()` を呼ぶ | 循環呼び出しになる危険 | `videoResize()` の末尾で `_recalcFloorPositions()` を呼んでいるため |
 | 透過モードで `vRect` 基準の座標系を使う | タップ位置・描画位置が完全にズレる | 透過モードは `cRect`（PIXIキャンバス矩形）基準が正しい |
 | 配信順の同期に受信順（insertionOrder）を使う | クライアントによって動画が逆順になる | `videoSurface` → `createVideoButton` の到着順は不定。`startTime` を emit してソートが必要 |
-| 未受信フロアにも `660/N` で `_pixiW` を割り当てる | 映像到着前の間ずっと `vsx` が N 倍になる | 相手の WebRTC 映像が届く前に `videoArray[tok].clientWidth=0` なのに `_pixiW=330` になり、既存フロアの `vsx = oldWidth/330 = 2×` になる。未受信フロアはオフスクリーン（x=9999, hitArea=0）に退避してロード済みフロアのみで 0〜660 を割り当てるのが正しい |
-| `S = vRect.width/660` でサイズ統一、`dstY = footY - dstH`（dstH は落書き込み） | 落書きが足元より下に伸びると dstH が大きすぎて dstY が動画上端より上に出る | `dstH = (1-floorFrac)*bounds.height*S` に落書き分が含まれるため。`footToFloor = ly*S` を使って `dstY = footY - footToFloor` と分離する必要がある |
-| `dstY = footY - footToFloor`（footToFloor = ly*S） | 謎空間が再発する | `footToFloor = ly*S`、`footY = vRect.top + ly*posVsy` → `dstY = vRect.top + ly*(posVsy-S)`。S < posVsy のとき（N≥2 や小画面）dstY > vRect.top になり動画上端との間に空白が生まれる |
+| 未受信フロアにも `660/N` で `_pixiW` を割り当てる | 映像到着前の間ずっと `vsx` が N 倍になる | 未受信フロアはオフスクリーン（x=9999, hitArea=0）に退避してロード済みフロアのみで 0〜660 を割り当てること |
 
-#### 現状（2026-06-08 修正）
-- **サイズ倍率 `S = vRect.width / 660`**（各動画DOM幅÷660固定。N本で縮む・リサイズ追従）
-- **位置倍率 `posVsx = vRect.width/fW`、`posVsy = vRect.height/fH`**（フロアPIXI幅高さ基準）
-- `dstW = bounds.width * S`、`dstH = srcH * S * bounds.height / imgH`（落書き込み全高）
-- `footToFloor = (ava.container.y - max(bounds.y, floorY)) * S`（フロア〜足元の高さ、S基準）
-- `dstY = vRect.top + ly * posVsy - footToFloor`（足元DOMy から逆算、落書きは下にはみ出す）
+#### 現状（2026-06-09 修正）
+- サイズスケール `S = vRect.width / 660`、位置スケール `posVsx = vRect.width/fW`、`posVsy = vRect.height/fH`
+- `dstW = bounds.width * S`、`dstH = bounds.height * S`
 - `dstX = centerDomX + (bounds.x - ava.container.x) * S`
+- `footY = vRect.top + ly * posVsy`、`dstY = footY - avaFootFrac * bounds.height * S`
+- clip = vRect矩形
+- `floorFrac > 0` 時: `splitFrac = (vRect.top - dstY) / dstH` でゲームエリアはみ出し部分を overlay に `sx`（PIXIスケール）で描画
+- **問題**: ゲームエリア部分が overlay（z-index:13）に描かれるため、PIXIキャンバス（z-index:12）のアバターの zIndex が機能しない
 
-#### 未決定事項・次の課題
-- アバターオーバーレイ描画を根本から作り直し予定（いたちごっこ状態のため）
+#### 次の課題
+- ゲームエリアはみ出し部分を PIXI RenderTexture + Sprite として PIXI 内に統合する
+  - overlay の splitFrac 描画を廃止、代わりに Sprite を room.container に追加して zIndex を ava.container.zIndex に同期
+  - これにより zIndex 問題が根本解決される（実装中）
 
 ---
 
