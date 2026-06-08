@@ -3255,6 +3255,9 @@ class Avatar {
       sendData.ridingData = null;
     }
 
+    const _vfn = _getVideoFloorNorm(sendData.AX, sendData.AY);
+    if (_vfn) sendData.videoFloor = _vfn;
+
     socket.emit("transformData", sendData);
     if (_isKonaRoom() && _konaCurrentHostToken !== myToken && Date.now() - _konaLastHostChangeAt > 2000) {
       socket.emit("konaHostClaim");
@@ -3356,6 +3359,7 @@ gsap.killTweensOf(avatar.container);
     }
   } else {
     // 非乗車
+    if (data.videoFloor) data.AX = _resolveVideoFloorAX(data.AX, data.videoFloor);
     const wasRiding = !!avatar.ridingObject;
     if (avatar.ridingObject) avatar.stopRiding();
 
@@ -4667,6 +4671,7 @@ socket.on("userInit", data => {//Tokenを受け取ったら
             DIR = dir;
             const emitData = { DIR, moveType: "absolute", AX, AY, sit: ava.sit, riding: !!ava.ridingObject, keyMove: true, keyFrame: keyWalkFrame };
             if (ava.ridingObject) { emitData.ridingOffsetX = ava.ridingOffset.x; emitData.ridingOffsetY = ava.ridingOffset.y; }
+            const _vfnKD = _getVideoFloorNorm(AX, AY); if (_vfnKD) emitData.videoFloor = _vfnKD;
             socket.emit("tapMap", emitData);
             keySocketTimer = 0; // 即送りしたので次のticker送信を100ms後にリセット
           }
@@ -7593,6 +7598,23 @@ function checkColPoint(BX, BY, startX = AX, startY = AY) {
   }
 }
 
+function _getVideoFloorNorm(ax, ay) {
+  for (const [token, f] of Object.entries(videoFloorObjects)) {
+    const lx = ax - f.container.x;
+    const ly = ay - f.container.y;
+    const fw = f._pixiW || 660;
+    if (ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20) {
+      return { token, normX: lx / fw };
+    }
+  }
+  return null;
+}
+function _resolveVideoFloorAX(ax, vf) {
+  if (!vf) return ax;
+  const f = videoFloorObjects[vf.token];
+  return f ? f.container.x + vf.normX * (f._pixiW || 660) : ax;
+}
+
 //ステージをクリックしたときの移動処理
 function _doStageTap(targetX, targetY) {
   if (!avaP[myToken]) return;
@@ -7621,16 +7643,21 @@ function _doStageTap(targetX, targetY) {
   }
 
   const targetObject = findObjectAtPosition(targetX, targetY);
+  const _vfnTap = _getVideoFloorNorm(AX, AY);
   if (targetObject && targetObject.isMoving && targetObject.isMoving()) {
     const objectContainer = targetObject.container || targetObject;
     const relativeX = AX - (objectContainer.x || 0);
     const relativeY = AY - (objectContainer.y || 0);
     if (room.name !== "loginRoom" && !isReconnecting) {
-      socket.emit("tapMap", { DIR, moveType: "relative", targetObject: targetObject.name, relativeX, relativeY, sit: avaP[myToken].sit, AX, AY });
+      const _td = { DIR, moveType: "relative", targetObject: targetObject.name, relativeX, relativeY, sit: avaP[myToken].sit, AX, AY };
+      if (_vfnTap) _td.videoFloor = _vfnTap;
+      socket.emit("tapMap", _td);
     }
   } else {
     if (room.name !== "loginRoom" && !isReconnecting) {
-      socket.emit("tapMap", { DIR, moveType: "absolute", AX, AY, sit: avaP[myToken].sit, riding: false });
+      const _td = { DIR, moveType: "absolute", AX, AY, sit: avaP[myToken].sit, riding: false };
+      if (_vfnTap) _td.videoFloor = _vfnTap;
+      socket.emit("tapMap", _td);
     }
   }
   avaP[myToken].tappedMove(AX, AY, DIR, avaP[myToken].sit);
@@ -7858,6 +7885,7 @@ function startKeyMoveTicker() {
           emitData.ridingOffsetX = ava.ridingOffset.x;
           emitData.ridingOffsetY = ava.ridingOffset.y;
         }
+        const _vfnKM = _getVideoFloorNorm(AX, AY); if (_vfnKM) emitData.videoFloor = _vfnKM;
         socket.emit("tapMap", emitData);
       }
     }
@@ -7918,6 +7946,7 @@ socket.on("tapMap", data => {
       }
     } else {
       // ⭐ 絶対座標移動
+      if (data.videoFloor) data.AX = _resolveVideoFloorAX(data.AX, data.videoFloor);
       const ava = avaP[data.token];
       if (ava.ridingObject) {
         if (data.riding) {
