@@ -738,7 +738,7 @@ io.on('connection', socket => {
 
     // 境界制限
     const AX = data.fromCloud ? data.AX : Math.max(0, Math.min(660, data.AX));
-    const AY = data.fromCloud ? data.AY : Math.max(0, Math.min(460, data.AY));
+    const AY = data.fromCloud ? data.AY : Math.max(0, Math.min(800, data.AY));
 
     user[token].AX = AX;
     user[token].AY = AY;

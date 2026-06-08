@@ -7807,13 +7807,15 @@ function startKeyMoveTicker() {
     // むげん以外: キーボード移動で画面外に出ないようクランプ
     if (room.name !== "むげん") {
       AX = Math.max(0, Math.min(660, AX));
-      const _maxAY = Object.keys(videoFloorObjects).length > 0 ? VIDEO_FLOOR_Y + VIDEO_FLOOR_H : VIDEO_FLOOR_Y;
+      const _maxFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+      const _maxAY = _maxFloorH > 0 ? VIDEO_FLOOR_Y + _maxFloorH : VIDEO_FLOOR_Y;
       AY = Math.max(0, Math.min(_maxAY, AY));
       ava.container.x = AX;
       ava.container.y = AY;
     } else {
       // むげん部屋: 画面端でループ（逆方向から出現）
-      const maxY = Object.keys(videoFloorObjects).length > 0 ? VIDEO_FLOOR_Y + VIDEO_FLOOR_H : 460;
+      const _mugenFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+      const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
       if (AX < 0) AX += 660;
       else if (AX > 660) AX -= 660;
       if (AY < 0) AY += maxY;
@@ -11361,7 +11363,7 @@ function _startAvaOverlay() {
     const ly = ava.container.y - f.container.y;
     const lx = ava.container.x - f.container.x;
     const fw = f._pixiW || 660;
-    return ly > 0 && ly <= VIDEO_FLOOR_H && lx >= -20 && lx < fw + 20;
+    return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20;
   });
 
   // プリティッカー不要: PIXIが通常描画し、オーバーレイはcRect.bottom以下のみ担当
@@ -11474,20 +11476,21 @@ function _startAvaOverlay() {
           if (!vEl) continue;
           const vRect = vEl.getBoundingClientRect();
           if (vRect.width === 0 || vRect.height === 0) continue;
-          const vsx = vRect.width / fW;
-          const vsy = vRect.height / fH;
-          // フロアY境界より下の部分だけクロップして描画（ゲームエリアに頭が出ても顎が動画に出ない）
+          const posVsx = vRect.width / fW;
+          const posVsy = vRect.height / fH;
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
-          const dstH = Math.max(0, (bounds.y + bounds.height - floorY) * vsx);
-          if (dstH <= 0) continue;
+          if (floorFrac >= 1) continue;
           if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
           const imgW = extracted.width, imgH = extracted.height;
           const srcY = floorFrac * imgH;
           const srcH = imgH - srcY;
           if (srcH <= 0) continue;
-          const dstX = vRect.left + (bounds.x - floorX) * vsx;
-          const dstY = vRect.top + ly * vsy - ly * vsx;
-          const dstW = bounds.width * vsx;
+          const dstW = bounds.width * posVsy;
+          const dstH = srcH * posVsy * bounds.height / imgH;
+          if (dstH <= 0) continue;
+          const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
+          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
@@ -11715,7 +11718,7 @@ function _addVideoInteraction(fromToken) {
     }
     const vRect = v.getBoundingClientRect();
     if (vRect.width === 0 || vRect.height === 0) return null;
-    return { x: (cx - vRect.left) / vRect.width * 660, y: (cy - vRect.top) / vRect.height * VIDEO_FLOOR_H };
+    return { x: (cx - vRect.left) / vRect.width * (floorObj._pixiW || 660), y: (cy - vRect.top) / vRect.height * (floorObj._pixiH || VIDEO_FLOOR_H) };
   };
 
   v.style.touchAction = 'none';
@@ -11917,9 +11920,10 @@ function _addVideoInteraction(fromToken) {
             const normY = (fy - vRect.top) / vRect.height;
             const floorObj = videoFloorObjects[fromToken];
             const pixiW = floorObj ? (floorObj._pixiW || 660) : 660;
+            const pixiH = floorObj ? (floorObj._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H;
             const floorX = floorObj ? floorObj.container.x : 0;
             _doStageTap(Math.max(0, Math.min(660, floorX + normX * pixiW)),
-                        VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, normY * VIDEO_FLOOR_H)));
+                        VIDEO_FLOOR_Y + Math.max(0, Math.min(pixiH, normY * pixiH)));
             return;
           }
         }
@@ -12251,7 +12255,7 @@ function setVideoValue() {//値の表記を変更
 
 function _videoSortedKeys() {
   const getBase = tok => tok.replace(/(Re|Inv|IR)$/, '');
-  return Object.keys(videoArray).sort((a, b) => (videoStartOrder[getBase(a)] || 0) - (videoStartOrder[getBase(b)] || 0));
+  return Object.keys(videoArray).sort((a, b) => (videoStartOrder[getBase(a)] || Infinity) - (videoStartOrder[getBase(b)] || Infinity));
 }
 
 function videoResize() {
@@ -12915,25 +12919,27 @@ function _videoToPIXI(v) {
 }
 
 function _recalcFloorPositions() {
-  const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || 0) - (videoStartOrder[b] || 0));
+  const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || Infinity) - (videoStartOrder[b] || Infinity));
   if (allTokens.length === 0) return;
-  // DOM幅が確定している（映像受信済み）フロアだけをPIXI空間に配置する。
-  // 未受信フロアはオフスクリーン(x=9999)に退避することで、
-  // 「相手の映像が届く前に自分の映像のvsx（スケール）が半減する」問題を防ぐ。
   const loadedToks = allTokens.filter(tok => (videoArray[tok]?.clientWidth || 0) > 0);
   const unloadedToks = allTokens.filter(tok => !(videoArray[tok]?.clientWidth > 0));
   const myAva = avaP[myToken];
-  let selfFloorTok = null, selfRelX = 0;
+  let selfFloorTok = null, selfRelX = 0, selfRelY = 0;
   if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
     for (const tok of loadedToks) {
       const f = videoFloorObjects[tok];
       if (!f._pixiW) continue;
       const lx = myAva.container.x - f.container.x;
       const fw = f._pixiW;
-      if (lx >= -20 && lx < fw + 20) { selfFloorTok = tok; selfRelX = lx / fw; break; }
+      if (lx >= -20 && lx < fw + 20) {
+        selfFloorTok = tok;
+        selfRelX = lx / fw;
+        const ly = myAva.container.y - VIDEO_FLOOR_Y;
+        selfRelY = Math.max(0, Math.min(1, ly / (f._pixiH || VIDEO_FLOOR_H)));
+        break;
+      }
     }
   }
-  // 未受信フロアをオフスクリーンへ退避（hitAreaを0にしてアバター判定から除外）
   unloadedToks.forEach(tok => {
     const f = videoFloorObjects[tok];
     f.container.x = 9999;
@@ -12943,14 +12949,14 @@ function _recalcFloorPositions() {
   });
   const N = loadedToks.length;
   if (N === 0) return;
-  // ロード済みフロアをDOM実幅比例でPIXI 0〜660に配置
   const totalDOMW = loadedToks.reduce((s, tok) => s + videoArray[tok].clientWidth, 0);
   let pixiX = 0;
   loadedToks.forEach((tok, i) => {
     const f = videoFloorObjects[tok];
-    const h = f._intrinsicH || VIDEO_FLOOR_H;
     const domW = videoArray[tok].clientWidth;
+    const domH = videoArray[tok].clientHeight;
     const w = i === N - 1 ? 660 - pixiX : Math.round(660 * domW / totalDOMW);
+    const h = (domH > 0 && domW > 0) ? Math.round(w * domH / domW) : (f._intrinsicH || VIDEO_FLOOR_H);
     f.container.x = pixiX;
     f.container.y = VIDEO_FLOOR_Y;
     f.container.hitArea = new PIXI.Rectangle(0, 0, w, h + 1);
@@ -12961,15 +12967,21 @@ function _recalcFloorPositions() {
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
     if (nf._pixiW > 0) {
+      const newFH = nf._pixiH || VIDEO_FLOOR_H;
       const newX = nf.container.x + selfRelX * nf._pixiW;
-      if (Math.abs(myAva.container.x - newX) > 1) {
+      const newY = VIDEO_FLOOR_Y + selfRelY * newFH;
+      if (Math.abs(myAva.container.x - newX) > 1 || Math.abs(myAva.container.y - newY) > 1) {
         gsap.killTweensOf(myAva.container);
         myAva.isMoving = false;
         AX = Math.max(0, Math.min(660, newX));
+        AY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + newFH, newY));
         myAva.container.x = AX;
+        myAva.container.y = AY;
         if (myAva.ridingObject === nf) {
           const sx = nf.container.scale?.x ?? 1;
+          const sy = nf.container.scale?.y ?? 1;
           myAva.ridingOffset.x = (AX - nf.container.x) / (sx || 1);
+          myAva.ridingOffset.y = (AY - nf.container.y) / (sy || 1);
         }
         myAva.sendTransformData("フロア再配置");
       }
