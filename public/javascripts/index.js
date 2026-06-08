@@ -11478,6 +11478,7 @@ function _startAvaOverlay() {
           if (vRect.width === 0 || vRect.height === 0) continue;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
+          const S = vRect.width / 660;
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           if (floorFrac >= 1) continue;
           if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
@@ -11485,15 +11486,17 @@ function _startAvaOverlay() {
           const srcY = floorFrac * imgH;
           const srcH = imgH - srcY;
           if (srcH <= 0) continue;
-          const dstW = bounds.width * posVsy;
-          const dstH = srcH * posVsy * bounds.height / imgH;
+          const dstW = bounds.width * S;
+          const dstH = srcH * S * bounds.height / imgH;
           if (dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
-          const dstY = vRect.top;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * S;
+          const footY = vRect.top + (ava.container.y - floorY) * posVsy;
+          const dstY = footY - dstH;
+          const clipTop = Math.min(dstY, vRect.top);
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
-          _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
+          _avaOverlayCtx.rect(vRect.left, clipTop, vRect.width, vRect.bottom - clipTop);
           _avaOverlayCtx.clip();
           _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
