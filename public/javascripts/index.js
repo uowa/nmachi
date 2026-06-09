@@ -11526,18 +11526,19 @@ function _startAvaOverlay() {
           if (vRect.width === 0 || vRect.height === 0) continue;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
+          const drawS = vRect.width / 660;
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           if (!extracted) { const sm = ava.container.mask; ava.container.mask = null; extracted = app.renderer.extract.canvas(ava.container); ava.container.mask = sm; if (!extracted) break; }
           const imgW = extracted.width, imgH = extracted.height;
           const srcY = floorFrac * imgH;
           const srcH = imgH - srcY;
           if (srcH <= 0) continue;
-          const dstW = bounds.width * posVsy;
-          const dstH = (1 - floorFrac) * bounds.height * posVsy;
+          const dstW = bounds.width * drawS;
+          const dstH = (1 - floorFrac) * bounds.height * drawS;
           if (dstW <= 0 || dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
-          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
+          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * drawS;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
@@ -11578,16 +11579,17 @@ function _startAvaOverlay() {
           const eW = extracted.width, eH = extracted.height;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
+          const drawS = vRect.width / 660;
           const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bH));
           const srcY = floorFrac * eH;
           const srcH = eH - srcY;
           if (srcH <= 0) continue;
-          const dstW = bW * posVsy;
-          const dstH = (1 - floorFrac) * bH * posVsy;
+          const dstW = bW * drawS;
+          const dstH = (1 - floorFrac) * bH * drawS;
           if (dstW <= 0 || dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
-          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
+          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * drawS;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
@@ -11983,7 +11985,7 @@ function _addVideoInteraction(fromToken) {
             const pixiW = floorObj ? (floorObj._pixiW || 660) : 660;
             const pixiH = floorObj ? (floorObj._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H;
             const floorX = floorObj ? floorObj.container.x : 0;
-            const tapPixiY = VIDEO_FLOOR_Y + Math.max(0, Math.min(pixiH, normY * pixiH));
+            const tapPixiY = VIDEO_FLOOR_Y + Math.max(0, Math.min(pixiH, (fy - vRect.top) * 660 / vRect.width));
             _doStageTap(Math.max(0, Math.min(660, floorX + normX * pixiW)), tapPixiY);
             return;
           }
