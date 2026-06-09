@@ -163,6 +163,7 @@ const videoStartOrder = {};
 let _recalcRetryRaf = null;
 const videoFloorObjects = {};
 const videoFloorIntrinsic = {};
+const _videoFloorZOrder = []; // 奥→手前順のトークン配列（末尾が最前面）
 let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
 const VIDEO_FLOOR_H = 330;
@@ -11384,6 +11385,7 @@ let _avaOverlayPreTicker = null;
 let _avaOverlayPostTicker = null;
 let _avaOverlayRT = null;
 let _vfMaskMap = new Map();
+const _vfHiddenAvas = new Set();
 let _overlayFloorSynced = false;
 
 function _startAvaOverlay() {
@@ -11419,6 +11421,8 @@ function _startAvaOverlay() {
       el.height = window.innerHeight;
     }
     _avaOverlayCtx.clearRect(0, 0, el.width, el.height);
+    for (const ava of _vfHiddenAvas) { if (ava.container) ava.container.renderable = true; }
+    _vfHiddenAvas.clear();
     for (const ava of Object.values(avaP)) {
       if (!ava.container) continue;
       if (_isOnVideoFloor(ava)) {
@@ -11443,98 +11447,139 @@ function _startAvaOverlay() {
     if (overlayAvas.length === 0 && !hasDrawings && !_isMugenVF && !hasNonFloorOekaki) return;
     const cRect = myCanvas.getBoundingClientRect();
     const sx = cRect.width / 660, sy = cRect.height / 460;
-    // 落書き描画（drawHistoryからHTML Canvas 2D APIで直接描画。PIXI extractは viewport外Graphicsに非対応）
-    for (const [token, floorObj] of Object.entries(videoFloorObjects)) {
-      const drawingNow = _videoFloorDrawingToken === token && _videoFloorCurrentLine && _videoFloorCurrentLine.pointer.length >= 2;
-      if (!floorObj.drawHistory.length && !drawingNow) continue;
-      let clipLeft, clipTop, clipW, clipH, toScreen;
+    // 落書き＋アバターをz-order順（奥→手前）に描画
+    const _sortedOverlayAvas = [...overlayAvas].sort((a, b) => a.container.y - b.container.y);
+    const _extractedAvas = new Map();
+    const _getExtracted = (ava) => {
+      if (_extractedAvas.has(ava)) return _extractedAvas.get(ava);
+      let ext;
+      const _savedRenderable = ava.container.renderable;
+      ava.container.renderable = true;
       if (_videoTransparentActive) {
-        clipLeft = cRect.left + floorObj.container.x * sx; clipTop = cRect.bottom;
-        clipW = (floorObj._pixiW || 660) * sx; clipH = (floorObj._pixiH || VIDEO_FLOOR_H) * sy;
-        toScreen = (lx, ly) => ({ x: cRect.left + (floorObj.container.x + lx) * sx, y: cRect.top + (floorObj.container.y + ly) * sy });
+        ext = app.renderer.extract.canvas(ava.container);
       } else {
-        const vEl = videoArray[token];
-        if (!vEl) continue;
-        const vRect = vEl.getBoundingClientRect();
-        if (vRect.width === 0 || vRect.height === 0) continue;
-        const vsx = vRect.width / (floorObj._pixiW || 660), vsy = vRect.height / (floorObj._pixiH || VIDEO_FLOOR_H);
-        clipLeft = vRect.left; clipTop = vRect.top;
-        clipW = vRect.width; clipH = vRect.height;
-        toScreen = (lx, ly) => ({ x: vRect.left + lx * vsx, y: vRect.top + ly * vsy });
+        const sm = ava.container.mask; ava.container.mask = null;
+        ext = app.renderer.extract.canvas(ava.container);
+        ava.container.mask = sm;
       }
-      const lw = 2 * (clipW / 660);
-      _avaOverlayCtx.save();
-      _avaOverlayCtx.beginPath();
-      _avaOverlayCtx.rect(clipLeft, clipTop, clipW, clipH);
-      _avaOverlayCtx.clip();
-      _avaOverlayCtx.lineCap = 'round';
-      _avaOverlayCtx.lineJoin = 'round';
-      const drawLines = (lines) => {
-        for (const line of lines) {
-          if (line.type !== 'line' || line.pointer.length < 2) continue;
-          const r = (line.color >> 16) & 0xff, g = (line.color >> 8) & 0xff, b = line.color & 0xff;
-          _avaOverlayCtx.strokeStyle = `rgba(${r},${g},${b},${line.alpha})`;
-          _avaOverlayCtx.lineWidth = lw;
-          _avaOverlayCtx.beginPath();
-          const p0 = toScreen(line.pointer[0].x, line.pointer[0].y);
-          _avaOverlayCtx.moveTo(p0.x, p0.y);
-          for (let i = 1; i < line.pointer.length; i++) {
-            const p = toScreen(line.pointer[i].x, line.pointer[i].y);
-            _avaOverlayCtx.lineTo(p.x, p.y);
-          }
-          _avaOverlayCtx.stroke();
+      ava.container.renderable = _savedRenderable;
+      _extractedAvas.set(ava, ext || null);
+      return ext || null;
+    };
+    const _maskedAvas = new Set();
+    for (let _zi = 0; _zi < _videoFloorZOrder.length; _zi++) {
+      const zToken = _videoFloorZOrder[_zi];
+      const floorObj = videoFloorObjects[zToken];
+      if (!floorObj) continue;
+      // 前面フロアの矩形（穴として使う）
+      const _frontHoles = [];
+      for (let _fj = _zi + 1; _fj < _videoFloorZOrder.length; _fj++) {
+        const _ft = _videoFloorZOrder[_fj];
+        if (_videoTransparentActive) {
+          const _fObjH = videoFloorObjects[_ft];
+          if (_fObjH) _frontHoles.push({ left: cRect.left + _fObjH.container.x * sx, top: cRect.bottom, width: (_fObjH._pixiW || 660) * sx, height: (_fObjH._pixiH || VIDEO_FLOOR_H) * sy });
+        } else {
+          const _fv = videoArray[_ft];
+          if (_fv) { const _fr = _fv.getBoundingClientRect(); if (_fr.width > 0 && _fr.height > 0) _frontHoles.push(_fr); }
         }
-      };
-      drawLines(floorObj.drawHistory);
-      if (drawingNow) drawLines([_videoFloorCurrentLine]);
-      _avaOverlayCtx.restore();
-    }
-    // アバター描画（y座標順、アバター乗り時は乗り物の後に描画）
-    const _overlaySortKey = (a) => a.container.y;
-    overlayAvas.sort((a, b) => _overlaySortKey(a) - _overlaySortKey(b));
-    for (const ava of overlayAvas) {
-      const bounds = ava.container.getBounds();
-      if (bounds.width <= 0 || bounds.height <= 0) continue;
-      let extracted = null;
-      let gameAreaDrawn = false;
-      if (_videoTransparentActive) {
-        for (const [, floorObjF] of Object.entries(videoFloorObjects)) {
-          const floorX = floorObjF.container.x;
-          const fW = floorObjF._pixiW || 660;
-          if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
-          if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted) break; }
+      }
+      // --- 落書き ---
+      const drawingNow = _videoFloorDrawingToken === zToken && _videoFloorCurrentLine && _videoFloorCurrentLine.pointer.length >= 2;
+      if (floorObj.drawHistory.length || drawingNow) {
+        let clipLeft, clipTop, clipW, clipH, toScreen;
+        if (_videoTransparentActive) {
+          clipLeft = cRect.left + floorObj.container.x * sx; clipTop = cRect.bottom;
+          clipW = (floorObj._pixiW || 660) * sx; clipH = (floorObj._pixiH || VIDEO_FLOOR_H) * sy;
+          toScreen = (lx, ly) => ({ x: cRect.left + (floorObj.container.x + lx) * sx, y: cRect.top + (floorObj.container.y + ly) * sy });
+        } else {
+          const vEl = videoArray[zToken];
+          if (vEl) {
+            const vRect = vEl.getBoundingClientRect();
+            if (vRect.width > 0 && vRect.height > 0) {
+              clipLeft = vRect.left; clipTop = vRect.top;
+              clipW = vRect.width; clipH = vRect.height;
+              toScreen = (lx, ly) => ({ x: vRect.left + lx * vRect.width, y: vRect.top + ly * vRect.height });
+            }
+          }
+        }
+        if (toScreen) {
+          const lw = 2 * (clipW / 660);
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
-          _avaOverlayCtx.rect(cRect.left + floorX * sx, cRect.bottom, fW * sx, (floorObjF._pixiH || VIDEO_FLOOR_H) * sy);
-          _avaOverlayCtx.clip();
+          _avaOverlayCtx.rect(clipLeft, clipTop, clipW, clipH);
+          for (const _h of _frontHoles) _avaOverlayCtx.rect(_h.left, _h.top, _h.width, _h.height);
+          _avaOverlayCtx.clip(_frontHoles.length ? 'evenodd' : 'nonzero');
+          _avaOverlayCtx.lineCap = 'round';
+          _avaOverlayCtx.lineJoin = 'round';
+          const drawLines = (lines) => {
+            for (const line of lines) {
+              if (line.type !== 'line' || line.pointer.length < 2) continue;
+              const r = (line.color >> 16) & 0xff, g = (line.color >> 8) & 0xff, b = line.color & 0xff;
+              _avaOverlayCtx.strokeStyle = `rgba(${r},${g},${b},${line.alpha})`;
+              _avaOverlayCtx.lineWidth = lw;
+              _avaOverlayCtx.beginPath();
+              const p0 = toScreen(line.pointer[0].x, line.pointer[0].y);
+              _avaOverlayCtx.moveTo(p0.x, p0.y);
+              for (let i = 1; i < line.pointer.length; i++) {
+                const p = toScreen(line.pointer[i].x, line.pointer[i].y);
+                _avaOverlayCtx.lineTo(p.x, p.y);
+              }
+              _avaOverlayCtx.stroke();
+            }
+          };
+          drawLines(floorObj.drawHistory);
+          if (drawingNow) drawLines([_videoFloorCurrentLine]);
+          _avaOverlayCtx.restore();
+        }
+      }
+      // --- アバター ---
+      if (_videoTransparentActive) {
+        const floorX = floorObj.container.x;
+        const fW = floorObj._pixiW || 660;
+        for (const ava of _sortedOverlayAvas) {
+          const bounds = ava.container.getBounds();
+          if (bounds.width <= 0 || bounds.height <= 0) continue;
+          if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
+          const extracted = _getExtracted(ava);
+          if (!extracted) continue;
+          _avaOverlayCtx.save();
+          _avaOverlayCtx.beginPath();
+          _avaOverlayCtx.rect(cRect.left + floorX * sx, cRect.bottom, fW * sx, (floorObj._pixiH || VIDEO_FLOOR_H) * sy);
+          for (const _h of _frontHoles) _avaOverlayCtx.rect(_h.left, _h.top, _h.width, _h.height);
+          _avaOverlayCtx.clip(_frontHoles.length ? 'evenodd' : 'nonzero');
           _avaOverlayCtx.drawImage(extracted, cRect.left + bounds.x * sx, cRect.top + bounds.y * sy, bounds.width * sx, bounds.height * sy);
           _avaOverlayCtx.restore();
         }
       } else {
-        const primaryEntry = Object.entries(videoFloorObjects).find(([, f]) => {
-          const lx = ava.container.x - f.container.x;
-          const fw = f._pixiW || 660;
-          const ly = ava.container.y - f.container.y;
-          return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) + 5 && lx >= 0 && lx < fw;
-        });
-        if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
-        for (const [floorToken, floorObjF] of Object.entries(videoFloorObjects)) {
-          const fW = floorObjF._pixiW || 660;
-          const fH = floorObjF._pixiH || VIDEO_FLOOR_H;
-          const floorX = floorObjF.container.x;
-          const floorY = floorObjF.container.y;
+        const vEl = videoArray[zToken];
+        if (!vEl) continue;
+        const vRect = vEl.getBoundingClientRect();
+        if (vRect.width === 0 || vRect.height === 0) continue;
+        const fW = floorObj._pixiW || 660;
+        const fH = floorObj._pixiH || VIDEO_FLOOR_H;
+        const floorX = floorObj.container.x;
+        const floorY = floorObj.container.y;
+        for (const ava of _sortedOverlayAvas) {
+          const bounds = ava.container.getBounds();
+          if (bounds.width <= 0 || bounds.height <= 0) continue;
           const ly = ava.container.y - floorY;
           if (ly <= 0 || ly > fH + 5) continue;
           if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
-          const vEl = videoArray[floorToken];
-          if (!vEl) continue;
-          const vRect = vEl.getBoundingClientRect();
-          if (vRect.width === 0 || vRect.height === 0) continue;
+          const primaryFloor = Object.entries(videoFloorObjects).find(([, f]) => {
+            const plx = ava.container.x - f.container.x;
+            const ply = ava.container.y - f.container.y;
+            return ply > 0 && ply <= (f._pixiH || VIDEO_FLOOR_H) + 5 && plx >= 0 && plx < (f._pixiW || 660);
+          });
+          if (primaryFloor && !videoArray[primaryFloor[0]]) continue;
+          const isFf = !!(vEl && vEl.freeFloat);
+          // プライマリフロアが現在フロアと一致するか（freeFloat時のrenderable=false対象判定に使用）
+          const _isMyPrimary = !primaryFloor || primaryFloor[0] === zToken;
+          const extracted = _getExtracted(ava);
+          if (!extracted) continue;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
           const drawS = vRect.width / 660;
-          const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
-          if (!extracted) { const sm = ava.container.mask; ava.container.mask = null; extracted = app.renderer.extract.canvas(ava.container); ava.container.mask = sm; if (!extracted) break; }
+          const floorFrac = (isFf && _isMyPrimary) ? 0 : Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           const imgW = extracted.width, imgH = extracted.height;
           const srcY = floorFrac * imgH;
           const srcH = imgH - srcY;
@@ -11545,19 +11590,30 @@ function _startAvaOverlay() {
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
           const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
-          const dstY = bounds.y >= floorY
+          const dstY = ((isFf && _isMyPrimary) || bounds.y >= floorY)
             ? avaDomFeetY - (ava.container.y - bounds.y) * drawS
             : vRect.top;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
+          for (const _h of _frontHoles) {
+            const iL = Math.max(vRect.left, _h.left), iT = Math.max(vRect.top, _h.top);
+            const iR = Math.min(vRect.left + vRect.width, _h.left + _h.width), iB = Math.min(vRect.top + vRect.height, _h.top + _h.height);
+            if (iR > iL && iB > iT) { _avaOverlayCtx.moveTo(iL, iT); _avaOverlayCtx.lineTo(iL, iB); _avaOverlayCtx.lineTo(iR, iB); _avaOverlayCtx.lineTo(iR, iT); _avaOverlayCtx.closePath(); }
+          }
           _avaOverlayCtx.clip();
           _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
-          if (floorFrac > 0 && !gameAreaDrawn) {
-            gameAreaDrawn = true;
+          if (isFf && _isMyPrimary) {
             const m = _vfMaskMap.get(ava);
-            if (m) {
+            if (m) m.clear();
+            ava.container.renderable = false;
+            _vfHiddenAvas.add(ava);
+            _maskedAvas.add(ava);
+          } else if (!_maskedAvas.has(ava)) {
+            _maskedAvas.add(ava);
+            const m = _vfMaskMap.get(ava);
+            if (m && floorFrac > 0) {
               const clampH = Math.max(0, floorY - bounds.y);
               m.clear().beginFill(0xffffff).drawRect(bounds.x, bounds.y, bounds.width, clampH).endFill();
             }
@@ -11790,7 +11846,7 @@ function _addVideoInteraction(fromToken) {
     }
     const vRect = v.getBoundingClientRect();
     if (vRect.width === 0 || vRect.height === 0) return null;
-    return { x: (cx - vRect.left) / vRect.width * (floorObj._pixiW || 660), y: (cy - vRect.top) / vRect.height * (floorObj._pixiH || VIDEO_FLOOR_H) };
+    return { x: (cx - vRect.left) / vRect.width, y: (cy - vRect.top) / vRect.height };
   };
 
   v.style.touchAction = 'none';
@@ -11800,6 +11856,7 @@ function _addVideoInteraction(fromToken) {
     e.preventDefault();
     v.setPointerCapture(e.pointerId);
 
+    _bringVideoFloorToFront(fromToken);
     if (videoFloorObjects[fromToken] && !_videoFloorFocused) {
       _videoFloorFocused = true;
       switchDrawing(avatarOekakiToken);
@@ -11823,7 +11880,11 @@ function _addVideoInteraction(fromToken) {
       if (ava.container.y >= VIDEO_FLOOR_Y) {
         const pos = _vfLocalCoords(e.clientX, e.clientY);
         if (pos) {
-          const globalPt = new PIXI.Point(pos.x, VIDEO_FLOOR_Y + pos.y);
+          const _fvf = videoFloorObjects[fromToken];
+          const globalPt = new PIXI.Point(
+            (_fvf ? _fvf.container.x + pos.x * (_fvf._pixiW || 660) : pos.x * 660),
+            VIDEO_FLOOR_Y + pos.y * (_fvf ? (_fvf._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H)
+          );
           const localPt = ava.container.worldTransform.applyInverse(globalPt);
           ava.container.addChild(room.drawingGraphics);
           room.drawingGraphics.clear();
@@ -11916,7 +11977,11 @@ function _addVideoInteraction(fromToken) {
       else {
         const pos = _vfLocalCoords(e.clientX, e.clientY);
         if (pos) {
-          const globalPt = new PIXI.Point(pos.x, VIDEO_FLOOR_Y + pos.y);
+          const _fvf2 = videoFloorObjects[fromToken];
+          const globalPt = new PIXI.Point(
+            (_fvf2 ? _fvf2.container.x + pos.x * (_fvf2._pixiW || 660) : pos.x * 660),
+            VIDEO_FLOOR_Y + pos.y * (_fvf2 ? (_fvf2._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H)
+          );
           const localPt = ava.container.worldTransform.applyInverse(globalPt);
           room.draw(localPt.x, localPt.y);
           moved = true;
@@ -12975,7 +13040,7 @@ function detachVideo(token) {//videoの削除
     if (v.parentNode) v.parentNode.removeChild(v);
     delete videoArray[token];
   }
-  if (!/Re$|Inv$|IR$/.test(token)) delete videoStartOrder[token];
+  if (!/Re$|Inv$|IR$/.test(token) && !videoFloorObjects[token]) delete videoStartOrder[token];
   if (videoOverlays[token]) { videoOverlays[token].remove(); delete videoOverlays[token]; }
   if (videoHandles[token]) { delete videoHandles[token]; }
   if (_isBaseVideoToken(token)) {
@@ -13012,7 +13077,7 @@ function _recalcFloorPositions() {
 
   const myAva = avaP[myToken];
   let selfFloorTok = null, selfRelX = 0, selfRelY = 0;
-  if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
+  if (myAva && myAva.container.y > VIDEO_FLOOR_Y) {
     for (const tok of allTokens) {
       const f = videoFloorObjects[tok];
       if (!f._pixiW) continue;
@@ -13072,6 +13137,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
     floorObj = { container, oekakiGraphics, previewGraphics, drawHistory: [], redoStack: [], tags: ['standable'], name: 'videoFloor:' + token, oekakiAllowed: true };
     videoFloorObjects[token] = floorObj;
     objMap['videoFloor:' + token] = floorObj;
+    if (!_videoFloorZOrder.includes(token)) { _videoFloorZOrder.push(token); _updateVideoZIndices(); }
   }
   if (room && room.container && !floorObj.container.parent) {
     room.container.addChild(floorObj.container);
@@ -13101,13 +13167,13 @@ function _removeVideoFloor(token) {
   const fw = floorObj._pixiW || 660;
   for (const ava of Object.values(avaP)) {
     if (ava.ridingObject === floorObj) ava.stopRiding();
-    if (ava.container.y >= VIDEO_FLOOR_Y && ava !== avaP[myToken]) {
+    if (ava.container.y > VIDEO_FLOOR_Y && ava !== avaP[myToken]) {
       const lx = ava.container.x - floorObj.container.x;
       if (lx >= -20 && lx < fw + 20) ava.container.y = 400;
     }
   }
   const myAva = avaP[myToken];
-  if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
+  if (myAva && myAva.container.y > VIDEO_FLOOR_Y) {
     const lx = myAva.container.x - floorObj.container.x;
     if (lx >= -20 && lx < fw + 20) {
       gsap.killTweensOf(myAva.container);
@@ -13115,6 +13181,7 @@ function _removeVideoFloor(token) {
       if (AX < 0) AX = 10;
       if (AX > 660) AX = 650;
       myAva.container.x = AX;
+      myAva.dropVelocity = 1;
       AY = 50;
       myAva.container.y = AY;
       myAva.sendTransformData("フロア消滅");
@@ -13125,9 +13192,34 @@ function _removeVideoFloor(token) {
   delete videoFloorObjects[token];
   delete videoFloorIntrinsic[token];
   delete objMap['videoFloor:' + token];
+  const _zi = _videoFloorZOrder.indexOf(token);
+  if (_zi >= 0) _videoFloorZOrder.splice(_zi, 1);
+  _updateVideoZIndices();
   _recalcFloorPositions();
   if (Object.keys(videoFloorObjects).length === 0) { _videoFloorFocused = false; _stopAvaOverlay(); }
   switchDrawing(avatarOekakiToken);
+}
+
+function _updateVideoZIndices() {
+  _videoFloorZOrder.forEach((tok, i) => {
+    const v = videoArray[tok];
+    if (v) v.style.zIndex = (i + 1) * 2 - 1;
+    const ov = videoOverlays[tok];
+    if (ov) ov.style.zIndex = (i + 1) * 2;
+  });
+}
+
+function _bringVideoFloorToFront(token) {
+  const i = _videoFloorZOrder.indexOf(token);
+  if (i < 0 || i === _videoFloorZOrder.length - 1) return;
+  _videoFloorZOrder.splice(i, 1);
+  _videoFloorZOrder.push(token);
+  _updateVideoZIndices();
+  // DOMを末尾に移動して確実に最前面にする
+  const _fv = videoArray[token];
+  if (_fv && _fv.parentNode === mediaContainer) mediaContainer.appendChild(_fv);
+  const _fo = videoOverlays[token];
+  if (_fo && _fo.parentNode === mediaContainer) mediaContainer.appendChild(_fo);
 }
 
 function _syncVideoFloor(fromToken) {
@@ -13139,7 +13231,7 @@ function _syncVideoFloor(fromToken) {
   if (videoW > 0 && videoH > 0) videoFloorIntrinsic[fromToken] = { w: videoW, h: videoH };
   const raw = _videoToPIXI(v);
   const coords = raw || { x: 0, y: 0, width: 660, height: VIDEO_FLOOR_H };
-  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, videoW, videoH, enabled: _streamSurfaceAllowed });
+  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, videoW, videoH, enabled: _streamSurfaceAllowed, startTime: videoStartOrder[fromToken] || Date.now() });
   if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width, coords.height);
 }
 
@@ -13147,6 +13239,7 @@ socket.on('videoSurface', data => {
   if (!data.enabled) {
     _removeVideoFloor(data.token);
   } else {
+    if (data.startTime && !videoStartOrder[data.token]) videoStartOrder[data.token] = data.startTime;
     if (data.videoW > 0 && data.videoH > 0) videoFloorIntrinsic[data.token] = { w: data.videoW, h: data.videoH };
     _updateVideoFloor(data.token, data.x, data.y, data.width, data.height, data.drawHistory);
   }
@@ -13403,6 +13496,12 @@ function onSettingPreviewCheckChange(checkbox) {
 }
 
 async function stopSettingPreview() {
+  if (!_settingPreviewActive) {
+    _settingPreviewCurrentDeviceId = '';
+    const _chk = document.getElementById('settingPreviewCheck');
+    if (_chk) _chk.checked = false;
+    return;
+  }
   const previewedId = _settingPreviewCurrentDeviceId;
   let previewedLabel = '';
   let keepPreviewCamera = false;

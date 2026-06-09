@@ -990,6 +990,44 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 **既知の課題・制限**
 - `videoSurface` イベントでフロア作成 → 相手の動画が WebRTC でまだ届いていない場合は `videoArray[B]` が空のため `_pixiW_B = 0`（均等配分フォールバック）。`playing` イベントで `videoResize()` → `_recalcFloorPositions()` が走ると解消する。
 
+**freeFloat 時のオーバーレイ描画アーキテクチャ（2026-06-10 修正）**
+
+動画を freeFloat（ドラッグ移動）すると `vEl.freeFloat = true` になる。
+フロアAのアバターCの落書きがフロアBの PIXI 領域にはみ出している場合、フロアB の overlay に描画する必要がある（Part F：B に追従）。
+同時にフロアAの overlay には**フロアAに属する部分のみ**描画されなければならない（Part E の除去）。
+
+Part E の根本原因：`_frontHoles` を `evenodd` でクリップすると、隣接する（重ならない）矩形が canvas の nonzero/evenodd ルールで「両方とも描画可能」と判定されてしまい、フロアAのループがフロアBのエリアにまではみ出す。
+
+修正方針：`_frontHoles` を **vRect との交差矩形に限定** し、CCW 方向で path に追加してから `clip()`（nonzero）を使う。
+- 非重複（隣接）：交差なし → 穴なし → フロアAの clip は自 vRect のみ → Part E 消滅
+- 重複（freeFloat が乗っかった場合）：重なり部分だけ CCW 穴 → 奥フロアのアバターが前面動画の裏に正しく隠れる
+
+```js
+// _frontHoles を正しく使う（非重複時に隣接エリアが visible にならないように）
+_avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height); // CW（外側）
+for (const _h of _frontHoles) {
+  const iL = Math.max(vRect.left, _h.left), iT = Math.max(vRect.top, _h.top);
+  const iR = Math.min(vRect.left + vRect.width, _h.left + _h.width), iB = Math.min(vRect.top + vRect.height, _h.top + _h.height);
+  if (iR > iL && iB > iT) {
+    // CCW（穴）：moveTo TL → BL → BR → TR（y-down 座標系で CCW）
+    _avaOverlayCtx.moveTo(iL, iT); _avaOverlayCtx.lineTo(iL, iB);
+    _avaOverlayCtx.lineTo(iR, iB); _avaOverlayCtx.lineTo(iR, iT);
+    _avaOverlayCtx.closePath();
+  }
+}
+_avaOverlayCtx.clip(); // nonzero: CW=外→fill, CCW=穴
+```
+
+**isFf && _isMyPrimary（プライマリfreeFloatフロア）の扱い**
+- `isFf = true`（当該フロアが freeFloat）かつ `_isMyPrimary = true`（そのアバターのプライマリフロアが当該フロア）のとき
+- `floorFrac = 0`（全身を overlay に描画）、`ava.container.renderable = false`（PIXI 側の描画を抑制）
+- `_vfHiddenAvas` に追加 → 次フレーム先頭で `renderable = true` に復元
+
+**z-order 管理**
+- `_videoFloorZOrder[]`：配信開始順に追加、タッチで最前面に移動（`_bringVideoFloorToFront`）
+- `_updateVideoZIndices()`：`_videoFloorZOrder` に従い video/overlay の CSS z-index を更新
+- overlay ループも `_videoFloorZOrder` 順（奥→手前）で描画することで z-order が正しく合成される
+
 **やってはいけないこと**
 
 | アプローチ | 結果 | 理由 |
@@ -999,12 +1037,15 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 | 配信順の同期に受信順を使う | クライアントによって動画が逆順になる | `videoSurface` の到着順は不定。`startTime` を emit してソートが必要 |
 | `posVsy` 以外（`posVsx`、`S = vRect.width/660`、`posVsy * _vScaleCorr`）をサイズに使う | 足元 Y がズレる | `_vScaleCorr > 1` だと ly に比例して下にズレる。posVsy 統一が正しい |
 | `dstY` を足元から逆算する（`footY - dstH`） | 接合ラインがズレる | `dstY = vRect.top` でないと overlay 先頭がフロア境界に来ない |
+| `_frontHoles` を `evenodd` で clip する | 隣接フロアのエリアも描画可能になり Part E が発生 | evenodd は非重複矩形を両方 visible にする。CCW 交差穴 + nonzero が正解 |
+| アバター描画に `dstW = bounds.width * posVsx` を使う | アバターが横に伸びる | `posVsx = vRect.width/fW` は位置計算専用。サイズは `drawS = vRect.width/660` が正しい |
 
-#### 現状（2026-06-09 実装完了）✅
+#### 現状（2026-06-10 実装完了）✅
 - overlay（z-index:13）はフロア以下部分のみ担当、ゲームエリア部分は PIXI（z-index:12）が mask 付きで担当
 - サイズ・位置ともに `posVsy = vRect.height / fH` に統一（`_vScaleCorr` 廃止）
 - 動画フロア消滅時に乗っていた他クライアントのアバターも y=400 にスナップしてゲームエリアに戻す（`_removeVideoFloor` 修正）
 - `videoFloorObjects` の `tags` から `moving` を削除 → `updateRiding` によるY座標の上書きがなくなり、フロア内を下方向に自由移動できるようになった（重力は `y >= VIDEO_FLOOR_Y` で停止させているため `moving` タグは不要だった）
+- freeFloat 時のアバターオーバーレイ描画：パーツE（フロアB移動時に動かずフロアBに残るゴースト）を修正（`_frontHoles` CCW交差穴方式）
 - カメラ固定（`cameraSelectMode: 'fixed'`）の `OverconstrainedError` ハンドラを修正: deviceId 起因（`error.constraint === 'deviceId'` または `NotFoundError`）の場合のみ保存済み ID をクリア。品質制約（width/height/frameRate）起因のエラーでは ID を保持する
 
 ---

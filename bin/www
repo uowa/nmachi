@@ -1163,7 +1163,7 @@ io.on('connection', socket => {
     if (!rooms[room].videoSurfaces) rooms[room].videoSurfaces = {};
     if (data.enabled) {
       const existing = rooms[room].videoSurfaces[data.token] || {};
-      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height, videoW: data.videoW || 0, videoH: data.videoH || 0, drawHistory: existing.drawHistory || [] };
+      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height, videoW: data.videoW || 0, videoH: data.videoH || 0, drawHistory: existing.drawHistory || [], startTime: data.startTime || existing.startTime || Date.now() };
     } else {
       delete rooms[room].videoSurfaces[data.token];
     }
@@ -1233,6 +1233,9 @@ io.on('connection', socket => {
         konaPersistTimers[_dcRoom] = setTimeout(() => { delete konaPersistedStates[_dcRoom]; delete konaPersistTimers[_dcRoom]; }, KONA_PERSIST_MS);
       }
       if (rooms[_dcRoom].videoSurfaces) {
+        if (rooms[_dcRoom].videoSurfaces[token]) {
+          socket.broadcast.to(_dcRoom).emit('videoSurface', { token, enabled: false });
+        }
         delete rooms[_dcRoom].videoSurfaces[token];
       }
       io.to(_dcRoom).emit("logout", {
