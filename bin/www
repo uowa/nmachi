@@ -728,6 +728,7 @@ io.on('connection', socket => {
       keyFrame: data.keyFrame,
       ridingOffsetX: data.ridingOffsetX,
       ridingOffsetY: data.ridingOffsetY,
+      videoFloor: data.videoFloor,
     });
   });
 
@@ -768,6 +769,7 @@ io.on('connection', socket => {
         offsetX: user[token].ridingOffsetX,
         offsetY: user[token].ridingOffsetY,
       } : null,
+      videoFloor: data.videoFloor,
     });
   });
 

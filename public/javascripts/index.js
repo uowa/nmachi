@@ -3245,7 +3245,8 @@ class Avatar {
       is2F: entranceIs2F,
     };
 
-    if (this.ridingObject) {
+    const _isVFRiding = this.ridingObject && Object.values(videoFloorObjects).includes(this.ridingObject);
+    if (this.ridingObject && !_isVFRiding) {
       sendData.ridingData = {
         objectName: this.ridingObject.token || this.ridingObject.name,
         offsetX: Math.round(this.ridingOffset.x * 100) / 100,
@@ -3359,7 +3360,7 @@ gsap.killTweensOf(avatar.container);
     }
   } else {
     // 非乗車
-    if (data.videoFloor) data.AX = _resolveVideoFloorAX(data.AX, data.videoFloor);
+    if (data.videoFloor) { const r = _resolveVideoFloor(data.AX, data.AY, data.videoFloor); data.AX = r.ax; data.AY = r.ay; }
     const wasRiding = !!avatar.ridingObject;
     if (avatar.ridingObject) avatar.stopRiding();
 
@@ -3376,13 +3377,15 @@ gsap.killTweensOf(avatar.container);
       const dx = data.AX - avatar.container.x;
       const dy = data.AY - avatar.container.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (data.forceCorrection || dist > 80) {
+      // sender がゲームエリア移動中 (videoFloor なし) に receiver 側アバターがフロア上にいる場合はスナップしない
+      const noFloorSnap = !data.videoFloor && avatar.container.y >= VIDEO_FLOOR_Y && Object.keys(videoFloorObjects).length > 0;
+      const tapMapFresh = avatar._lastTapMapAt && (Date.now() - avatar._lastTapMapAt) < 500;
+      if (data.forceCorrection || (!noFloorSnap && dist > 80)) {
         gsap.killTweensOf(avatar.container);
         avatar.container.position.set(data.AX, data.AY);
-      } else if (data.isFalling) {
-        // 落下中: overwrite:"auto"+0.04s → 50ms周期で正確に着地位置に収束（kill→halfwayのズレなし）
+      } else if (!noFloorSnap && !tapMapFresh && data.isFalling) {
         gsap.to(avatar.container, { duration: 0.04, x: data.AX, y: data.AY, ease: "none", overwrite: "auto" });
-      } else if (dist > 5) {
+      } else if (!noFloorSnap && !tapMapFresh && dist > 5) {
         gsap.to(avatar.container, { duration: 0.2, x: data.AX, y: data.AY, ease: "none" });
       }
     }
@@ -7600,19 +7603,25 @@ function checkColPoint(BX, BY, startX = AX, startY = AY) {
 
 function _getVideoFloorNorm(ax, ay) {
   for (const [token, f] of Object.entries(videoFloorObjects)) {
+    if (!f._pixiW) continue;
     const lx = ax - f.container.x;
     const ly = ay - f.container.y;
-    const fw = f._pixiW || 660;
-    if (ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20) {
-      return { token, normX: lx / fw };
+    const fw = f._pixiW;
+    const fh = f._pixiH || VIDEO_FLOOR_H;
+    if (ly >= 0 && ly <= fh && lx >= -20 && lx < fw + 20) {
+      return { token, normX: lx / fw, normY: ly / fh };
     }
   }
   return null;
 }
-function _resolveVideoFloorAX(ax, vf) {
-  if (!vf) return ax;
+function _resolveVideoFloor(ax, ay, vf) {
+  if (!vf) return { ax, ay };
   const f = videoFloorObjects[vf.token];
-  return f ? f.container.x + vf.normX * (f._pixiW || 660) : ax;
+  const fw = (f && f._pixiW > 0) ? f._pixiW : 660;
+  const fh = (f && f._pixiH > 0) ? f._pixiH : VIDEO_FLOOR_H;
+  const resolvedX = (f && f._pixiW > 0) ? f.container.x + vf.normX * fw : vf.normX * 660;
+  const resolvedY = vf.normY != null ? VIDEO_FLOOR_Y + vf.normY * fh : ay;
+  return { ax: resolvedX, ay: resolvedY };
 }
 
 //ステージをクリックしたときの移動処理
@@ -7946,7 +7955,7 @@ socket.on("tapMap", data => {
       }
     } else {
       // ⭐ 絶対座標移動
-      if (data.videoFloor) data.AX = _resolveVideoFloorAX(data.AX, data.videoFloor);
+      if (data.videoFloor) { const r = _resolveVideoFloor(data.AX, data.AY, data.videoFloor); data.AX = r.ax; data.AY = r.ay; }
       const ava = avaP[data.token];
       if (ava.ridingObject) {
         if (data.riding) {
@@ -7999,6 +8008,7 @@ if (data.ridingOffsetX !== undefined) {
         gsap.killTweensOf(ava.container);
         gsap.to(ava.container, { duration: 0.12, x: data.AX, y: data.AY, ease: "none" });
       } else {
+        ava._lastTapMapAt = Date.now();
         ava.tappedMove(data.AX, data.AY, data.DIR, data.sit);
       }
     }
@@ -11394,7 +11404,7 @@ function _startAvaOverlay() {
     const ly = ava.container.y - f.container.y;
     const lx = ava.container.x - f.container.x;
     const fw = f._pixiW || 660;
-    return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20;
+    return ly >= 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20;
   });
 
   // プリティッカー不要: PIXIが通常描画し、オーバーレイはcRect.bottom以下のみ担当
@@ -12348,6 +12358,7 @@ function videoResize() {
           used += videoArray[key].clientWidth;
         }
       });
+      const containerW = mediaContainer.clientWidth || window.innerWidth;
 
       _videoSortedKeys().forEach(function (key) {//人の要素の高さを変更
         if (videoArray[key].freeFloat) {
@@ -12359,7 +12370,7 @@ function videoResize() {
           videoArray[key].style.width = containerH / orgR[key] / allWidth * 100 + "%";
           videoArray[key].style.height = 100 + "%";
 
-          if (window.innerWidth > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
+          if (containerW > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
             videoArray[key].style.left = left + "px";//横の位置を指定
             left += (allWidth - used) / remain * containerH / orgR[key];//横の隙間を入れなおして、ビデオの幅を追加
             videoArray[key].style.width = (allWidth - used) / remain * containerH / orgR[key] + "px";//横の位置を指定
@@ -12367,10 +12378,10 @@ function videoResize() {
 
           } else {//縦を調整しないと行けない時
             //残ってる割合を分け合って、比率の分だけわけた割合
-            videoArray[key].style.width = (window.innerWidth - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
+            videoArray[key].style.width = (containerW - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
             videoArray[key].style.left = left + "px";//横の位置を指定
-            left += (window.innerWidth - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
-            videoArray[key].style.height = (window.innerWidth - used) / remain * containerH + "px";//高さを指定
+            left += (containerW - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
+            videoArray[key].style.height = (containerW - used) / remain * containerH + "px";//高さを指定
           }
         } else {
           videoArray[key].style.left = left + "px";
@@ -12427,13 +12438,13 @@ function videoResize() {
         };
 
         if (!videoArray[key].fixFlag) {
-          if (window.innerWidth > allWidth) {
+          if (containerW > allWidth) {
             if (containerH > maxHeight) {
               maxHeight = containerH;
             }
           } else {
-            if (window.innerWidth * containerH / allWidth > maxHeight) {
-              maxHeight = (window.innerWidth - used) / remain * containerH;
+            if (containerW * containerH / allWidth > maxHeight) {
+              maxHeight = (containerW - used) / remain * containerH;
             }
           }
         } else {
