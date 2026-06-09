@@ -162,6 +162,7 @@ let _lastVideoCount = 0;
 const videoStartOrder = {};
 let _recalcRetryRaf = null;
 const videoFloorObjects = {};
+const videoFloorIntrinsic = {};
 let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
 const VIDEO_FLOOR_H = 330;
@@ -3256,9 +3257,6 @@ class Avatar {
       sendData.ridingData = null;
     }
 
-    const _vfn = _getVideoFloorNorm(sendData.AX, sendData.AY);
-    if (_vfn) sendData.videoFloor = _vfn;
-
     socket.emit("transformData", sendData);
     if (_isKonaRoom() && _konaCurrentHostToken !== myToken && Date.now() - _konaLastHostChangeAt > 2000) {
       socket.emit("konaHostClaim");
@@ -3360,7 +3358,6 @@ gsap.killTweensOf(avatar.container);
     }
   } else {
     // 非乗車
-    if (data.videoFloor) { const r = _resolveVideoFloor(data.AX, data.AY, data.videoFloor); data.AX = r.ax; data.AY = r.ay; }
     const wasRiding = !!avatar.ridingObject;
     if (avatar.ridingObject) avatar.stopRiding();
 
@@ -3378,7 +3375,7 @@ gsap.killTweensOf(avatar.container);
       const dy = data.AY - avatar.container.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       // sender がゲームエリア移動中 (videoFloor なし) に receiver 側アバターがフロア上にいる場合はスナップしない
-      const noFloorSnap = !data.videoFloor && avatar.container.y >= VIDEO_FLOOR_Y && Object.keys(videoFloorObjects).length > 0;
+      const noFloorSnap = data.AY < VIDEO_FLOOR_Y && avatar.container.y >= VIDEO_FLOOR_Y && Object.keys(videoFloorObjects).length > 0;
       const tapMapFresh = avatar._lastTapMapAt && (Date.now() - avatar._lastTapMapAt) < 500;
       if (data.forceCorrection || (!noFloorSnap && dist > 80)) {
         gsap.killTweensOf(avatar.container);
@@ -4674,7 +4671,6 @@ socket.on("userInit", data => {//Tokenを受け取ったら
             DIR = dir;
             const emitData = { DIR, moveType: "absolute", AX, AY, sit: ava.sit, riding: !!ava.ridingObject, keyMove: true, keyFrame: keyWalkFrame };
             if (ava.ridingObject) { emitData.ridingOffsetX = ava.ridingOffset.x; emitData.ridingOffsetY = ava.ridingOffset.y; }
-            const _vfnKD = _getVideoFloorNorm(AX, AY); if (_vfnKD) emitData.videoFloor = _vfnKD;
             socket.emit("tapMap", emitData);
             keySocketTimer = 0; // 即送りしたので次のticker送信を100ms後にリセット
           }
@@ -5522,6 +5518,10 @@ socket.on("joineRoom", data => {
   }
 
   updateRoomLinkDisplay();
+  // 自分が配信中なら videoSurface を再送信（サーバー再起動後の状態回復）
+  if (_streamSurfaceAllowed && videoArray[myToken]) {
+    requestAnimationFrame(() => _syncVideoFloor(myToken));
+  }
   _inRoomTransition = false;
 });
 
@@ -7607,9 +7607,8 @@ function _getVideoFloorNorm(ax, ay) {
     const lx = ax - f.container.x;
     const ly = ay - f.container.y;
     const fw = f._pixiW;
-    const fh = f._pixiH || VIDEO_FLOOR_H;
-    if (ly >= 0 && ly <= fh && lx >= -20 && lx < fw + 20) {
-      return { token, normX: lx / fw, normY: ly / fh };
+    if (ly >= 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) && lx >= -20 && lx < fw + 20) {
+      return { token, normX: lx / fw, normY: ly / VIDEO_FLOOR_H };
     }
   }
   return null;
@@ -7618,9 +7617,8 @@ function _resolveVideoFloor(ax, ay, vf) {
   if (!vf) return { ax, ay };
   const f = videoFloorObjects[vf.token];
   const fw = (f && f._pixiW > 0) ? f._pixiW : 660;
-  const fh = (f && f._pixiH > 0) ? f._pixiH : VIDEO_FLOOR_H;
-  const resolvedX = (f && f._pixiW > 0) ? f.container.x + vf.normX * fw : vf.normX * 660;
-  const resolvedY = vf.normY != null ? VIDEO_FLOOR_Y + vf.normY * fh : ay;
+  const resolvedX = (f && f._pixiW > 0) ? f.container.x + vf.normX * fw : ax;
+  const resolvedY = vf.normY != null ? VIDEO_FLOOR_Y + vf.normY * VIDEO_FLOOR_H : ay;
   return { ax: resolvedX, ay: resolvedY };
 }
 
@@ -7652,21 +7650,16 @@ function _doStageTap(targetX, targetY) {
   }
 
   const targetObject = findObjectAtPosition(targetX, targetY);
-  const _vfnTap = _getVideoFloorNorm(AX, AY);
   if (targetObject && targetObject.isMoving && targetObject.isMoving()) {
     const objectContainer = targetObject.container || targetObject;
     const relativeX = AX - (objectContainer.x || 0);
     const relativeY = AY - (objectContainer.y || 0);
     if (room.name !== "loginRoom" && !isReconnecting) {
-      const _td = { DIR, moveType: "relative", targetObject: targetObject.name, relativeX, relativeY, sit: avaP[myToken].sit, AX, AY };
-      if (_vfnTap) _td.videoFloor = _vfnTap;
-      socket.emit("tapMap", _td);
+      socket.emit("tapMap", { DIR, moveType: "relative", targetObject: targetObject.name, relativeX, relativeY, sit: avaP[myToken].sit, AX, AY });
     }
   } else {
     if (room.name !== "loginRoom" && !isReconnecting) {
-      const _td = { DIR, moveType: "absolute", AX, AY, sit: avaP[myToken].sit, riding: false };
-      if (_vfnTap) _td.videoFloor = _vfnTap;
-      socket.emit("tapMap", _td);
+      socket.emit("tapMap", { DIR, moveType: "absolute", AX, AY, sit: avaP[myToken].sit, riding: false });
     }
   }
   avaP[myToken].tappedMove(AX, AY, DIR, avaP[myToken].sit);
@@ -7894,7 +7887,6 @@ function startKeyMoveTicker() {
           emitData.ridingOffsetX = ava.ridingOffset.x;
           emitData.ridingOffsetY = ava.ridingOffset.y;
         }
-        const _vfnKM = _getVideoFloorNorm(AX, AY); if (_vfnKM) emitData.videoFloor = _vfnKM;
         socket.emit("tapMap", emitData);
       }
     }
@@ -7955,7 +7947,6 @@ socket.on("tapMap", data => {
       }
     } else {
       // ⭐ 絶対座標移動
-      if (data.videoFloor) { const r = _resolveVideoFloor(data.AX, data.AY, data.videoFloor); data.AX = r.ax; data.AY = r.ay; }
       const ava = avaP[data.token];
       if (ava.ridingObject) {
         if (data.riding) {
@@ -11535,30 +11526,29 @@ function _startAvaOverlay() {
           if (vRect.width === 0 || vRect.height === 0) continue;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
-          const S = vRect.width / 660;
-          const avaFootFrac = Math.min(1, (ava.container.y - bounds.y) / bounds.height);
-          const floorFrac = Math.max(0, Math.min(avaFootFrac, (floorY - bounds.y) / bounds.height));
-          if (floorFrac >= avaFootFrac) continue;
+          const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           if (!extracted) { const sm = ava.container.mask; ava.container.mask = null; extracted = app.renderer.extract.canvas(ava.container); ava.container.mask = sm; if (!extracted) break; }
           const imgW = extracted.width, imgH = extracted.height;
-          const dstW = bounds.width * S;
-          const dstH = bounds.height * S;
+          const srcY = floorFrac * imgH;
+          const srcH = imgH - srcY;
+          if (srcH <= 0) continue;
+          const dstW = bounds.width * posVsy;
+          const dstH = (1 - floorFrac) * bounds.height * posVsy;
           if (dstW <= 0 || dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-          const dstX = centerDomX + (bounds.x - ava.container.x) * S;
-          const footY = vRect.top + (ava.container.y - floorY) * posVsy;
-          const dstY = footY - avaFootFrac * bounds.height * S;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
+          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
           _avaOverlayCtx.clip();
-          _avaOverlayCtx.drawImage(extracted, 0, 0, imgW, imgH, dstX, dstY, dstW, dstH);
+          _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
           if (floorFrac > 0 && !gameAreaDrawn) {
             gameAreaDrawn = true;
             const m = _vfMaskMap.get(ava);
             if (m) {
-              const clampH = Math.max(0, VIDEO_FLOOR_Y - bounds.y);
+              const clampH = Math.max(0, floorY - bounds.y);
               m.clear().beginFill(0xffffff).drawRect(bounds.x, bounds.y, bounds.width, clampH).endFill();
             }
           }
@@ -11576,6 +11566,7 @@ function _startAvaOverlay() {
         let extracted = null;
         for (const [t, f] of Object.entries(videoFloorObjects)) {
           const fW = f._pixiW || 660;
+          const fH = f._pixiH || VIDEO_FLOOR_H;
           const floorX = f.container.x, floorY = f.container.y;
           if (bounds.y + bH <= floorY) continue;
           if (bounds.x + bW <= floorX || bounds.x >= floorX + fW) continue;
@@ -11585,20 +11576,23 @@ function _startAvaOverlay() {
           if (vRect.width === 0 || vRect.height === 0) continue;
           if (!extracted) { extracted = app.renderer.extract.canvas(ava.container); if (!extracted || !extracted.width || !extracted.height) break; }
           const eW = extracted.width, eH = extracted.height;
-          const fH_nf = f._pixiH || VIDEO_FLOOR_H;
-          const vsx_nf = vRect.width / fW;
-          const vsy_nf = vRect.height / fH_nf;
-          const dstX = vRect.left + (bounds.x - floorX) * vsx_nf;
-          const dstY = vRect.top + (bounds.y - floorY) * vsy_nf;
-          const dstW = bW * vsx_nf;
-          const dstH = bH * vsy_nf;
-          if (dstX + dstW <= vRect.left || dstX >= vRect.left + vRect.width) continue;
-          if (dstY + dstH <= vRect.top || dstY >= vRect.top + vRect.height) continue;
+          const posVsx = vRect.width / fW;
+          const posVsy = vRect.height / fH;
+          const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bH));
+          const srcY = floorFrac * eH;
+          const srcH = eH - srcY;
+          if (srcH <= 0) continue;
+          const dstW = bW * posVsy;
+          const dstH = (1 - floorFrac) * bH * posVsy;
+          if (dstW <= 0 || dstH <= 0) continue;
+          const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
+          const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
+          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
           _avaOverlayCtx.clip();
-          _avaOverlayCtx.drawImage(extracted, 0, 0, eW, eH, dstX, dstY, dstW, dstH);
+          _avaOverlayCtx.drawImage(extracted, 0, srcY, eW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
         }
       }
@@ -12335,7 +12329,15 @@ function videoResize() {
   if (Object.keys(videoArray).length) {
     let left = 0;
     let allWidth = 0;
-    let containerH = window.innerHeight - mainLogFrame.clientHeight - titleBar.clientHeight;
+    let effectiveW, containerH;
+    if (windowWidth <= 870) {
+      const PMscale = windowWidth / 660;
+      effectiveW = 660;
+      containerH = window.innerHeight / PMscale - mainLogFrame.clientHeight - titleBar.clientHeight;
+    } else {
+      effectiveW = window.innerWidth;
+      containerH = window.innerHeight - mainLogFrame.clientHeight - titleBar.clientHeight;
+    }
     let orgR = [];
     let maxHeight = 0;
 
@@ -12368,7 +12370,7 @@ function videoResize() {
           videoArray[key].style.width = containerH / orgR[key] / allWidth * 100 + "%";
           videoArray[key].style.height = 100 + "%";
 
-          if (window.innerWidth > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
+          if (effectiveW > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
             videoArray[key].style.left = left + "px";//横の位置を指定
             left += (allWidth - used) / remain * containerH / orgR[key];//横の隙間を入れなおして、ビデオの幅を追加
             videoArray[key].style.width = (allWidth - used) / remain * containerH / orgR[key] + "px";//横の位置を指定
@@ -12376,10 +12378,10 @@ function videoResize() {
 
           } else {//縦を調整しないと行けない時
             //残ってる割合を分け合って、比率の分だけわけた割合
-            videoArray[key].style.width = (window.innerWidth - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
+            videoArray[key].style.width = (effectiveW - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
             videoArray[key].style.left = left + "px";//横の位置を指定
-            left += (window.innerWidth - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
-            videoArray[key].style.height = (window.innerWidth - used) / remain * containerH + "px";//高さを指定
+            left += (effectiveW - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
+            videoArray[key].style.height = (effectiveW - used) / remain * containerH + "px";//高さを指定
           }
         } else {
           videoArray[key].style.left = left + "px";
@@ -12436,13 +12438,13 @@ function videoResize() {
         };
 
         if (!videoArray[key].fixFlag) {
-          if (window.innerWidth > allWidth) {
+          if (effectiveW > allWidth) {
             if (containerH > maxHeight) {
               maxHeight = containerH;
             }
           } else {
-            if (window.innerWidth * containerH / allWidth > maxHeight) {
-              maxHeight = (window.innerWidth - used) / remain * containerH;
+            if (effectiveW * containerH / allWidth > maxHeight) {
+              maxHeight = (effectiveW - used) / remain * containerH;
             }
           }
         } else {
@@ -12987,85 +12989,61 @@ function _videoToPIXI(v) {
 
 function _recalcFloorPositions() {
   const allTokens = Object.keys(videoFloorObjects).sort((a, b) => (videoStartOrder[a] || Infinity) - (videoStartOrder[b] || Infinity));
-  if (allTokens.length === 0) return;
-  const loadedToks = allTokens.filter(tok => (videoArray[tok]?.clientWidth || 0) > 0);
-  const unloadedToks = allTokens.filter(tok => !(videoArray[tok]?.clientWidth > 0));
+  const N = allTokens.length;
+  if (N === 0) return;
+
+  const ars = allTokens.map(tok => {
+    const intr = videoFloorIntrinsic[tok];
+    return (intr && intr.w > 0 && intr.h > 0) ? intr.w / intr.h : 16 / 9;
+  });
+  const totalAR = ars.reduce((s, ar) => s + ar, 0);
+
   const myAva = avaP[myToken];
   let selfFloorTok = null, selfRelX = 0, selfRelY = 0;
   if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
-    for (const tok of loadedToks) {
-      const f = videoFloorObjects[tok];
-      if (!f._pixiW) continue;
-      const lx = myAva.container.x - f.container.x;
-      const fw = f._pixiW;
-      if (lx >= -20 && lx < fw + 20) {
-        selfFloorTok = tok;
-        selfRelX = lx / fw;
-        const ly = myAva.container.y - VIDEO_FLOOR_Y;
-        selfRelY = Math.max(0, Math.min(1, ly / (f._pixiH || VIDEO_FLOOR_H)));
-        break;
-      }
-    }
-  }
-  if (!selfFloorTok && myAva && myAva.container.y >= VIDEO_FLOOR_Y && loadedToks.length > 0) {
-    for (const tok of unloadedToks) {
+    for (const tok of allTokens) {
       const f = videoFloorObjects[tok];
       if (!f._pixiW) continue;
       const lx = myAva.container.x - f.container.x;
       if (lx >= -20 && lx < f._pixiW + 20) {
-        selfFloorTok = loadedToks[0];
-        selfRelX = 0;
-        const ly = myAva.container.y - VIDEO_FLOOR_Y;
-        selfRelY = Math.max(0, Math.min(1, ly / (f._pixiH || VIDEO_FLOOR_H)));
+        selfFloorTok = tok;
+        selfRelX = lx / f._pixiW;
+        selfRelY = Math.max(0, Math.min(1, (myAva.container.y - VIDEO_FLOOR_Y) / VIDEO_FLOOR_H));
         break;
       }
     }
   }
-  unloadedToks.forEach(tok => {
-    const f = videoFloorObjects[tok];
-    f.container.x = 9999;
-    f.container.y = VIDEO_FLOOR_Y;
-    f.container.hitArea = new PIXI.Rectangle(0, 0, 0, 0);
-    f._pixiW = 0;
-  });
-  const N = loadedToks.length;
-  if (N === 0) return;
-  const totalDOMW = loadedToks.reduce((s, tok) => s + videoArray[tok].clientWidth, 0);
+
   let pixiX = 0;
-  loadedToks.forEach((tok, i) => {
+  allTokens.forEach((tok, i) => {
     const f = videoFloorObjects[tok];
-    const domW = videoArray[tok].clientWidth;
-    const domH = videoArray[tok].clientHeight;
-    const w = i === N - 1 ? 660 - pixiX : Math.round(660 * domW / totalDOMW);
-    const h = (domH > 0 && domW > 0) ? Math.round(w * domH / domW) : (f._intrinsicH || VIDEO_FLOOR_H);
+    const w = i === N - 1 ? 660 - pixiX : Math.round(660 * ars[i] / totalAR);
     f.container.x = pixiX;
     f.container.y = VIDEO_FLOOR_Y;
-    f.container.hitArea = new PIXI.Rectangle(0, 0, w, h + 1);
+    f.container.hitArea = new PIXI.Rectangle(0, 0, w, VIDEO_FLOOR_H + 1);
     f._pixiW = w;
-    f._pixiH = h;
+    f._pixiH = VIDEO_FLOOR_H;
     pixiX += w;
   });
+
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
-    if (nf._pixiW > 0) {
-      const newFH = nf._pixiH || VIDEO_FLOOR_H;
-      const newX = nf.container.x + selfRelX * nf._pixiW;
-      const newY = VIDEO_FLOOR_Y + selfRelY * newFH;
-      if (Math.abs(myAva.container.x - newX) > 1 || Math.abs(myAva.container.y - newY) > 1) {
-        gsap.killTweensOf(myAva.container);
-        myAva.isMoving = false;
-        AX = Math.max(0, Math.min(660, newX));
-        AY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + newFH, newY));
-        myAva.container.x = AX;
-        myAva.container.y = AY;
-        if (myAva.ridingObject === nf) {
-          const sx = nf.container.scale?.x ?? 1;
-          const sy = nf.container.scale?.y ?? 1;
-          myAva.ridingOffset.x = (AX - nf.container.x) / (sx || 1);
-          myAva.ridingOffset.y = (AY - nf.container.y) / (sy || 1);
-        }
-        myAva.sendTransformData("フロア再配置");
+    const newX = nf.container.x + selfRelX * nf._pixiW;
+    const newY = VIDEO_FLOOR_Y + selfRelY * VIDEO_FLOOR_H;
+    if (Math.abs(myAva.container.x - newX) > 1 || Math.abs(myAva.container.y - newY) > 1) {
+      gsap.killTweensOf(myAva.container);
+      myAva.isMoving = false;
+      AX = Math.max(0, Math.min(660, newX));
+      AY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + VIDEO_FLOOR_H, newY));
+      myAva.container.x = AX;
+      myAva.container.y = AY;
+      if (myAva.ridingObject === nf) {
+        const sx = nf.container.scale?.x ?? 1;
+        const sy = nf.container.scale?.y ?? 1;
+        myAva.ridingOffset.x = (AX - nf.container.x) / (sx || 1);
+        myAva.ridingOffset.y = (AY - nf.container.y) / (sy || 1);
       }
+      myAva.sendTransformData("フロア再配置");
     }
   }
 }
@@ -13129,6 +13107,7 @@ function _removeVideoFloor(token) {
   if (_videoFloorDrawingToken === token) { _videoFloorCurrentLine = null; _videoFloorDrawingToken = null; }
   if (floorObj.container.parent) floorObj.container.parent.removeChild(floorObj.container);
   delete videoFloorObjects[token];
+  delete videoFloorIntrinsic[token];
   delete objMap['videoFloor:' + token];
   _recalcFloorPositions();
   if (Object.keys(videoFloorObjects).length === 0) { _videoFloorFocused = false; _stopAvaOverlay(); }
@@ -13139,9 +13118,12 @@ function _syncVideoFloor(fromToken) {
   if (!_isBaseVideoToken(fromToken)) return;
   const v = videoArray[fromToken];
   if (!v) return;
+  const videoW = v.videoWidth || 0;
+  const videoH = v.videoHeight || 0;
+  if (videoW > 0 && videoH > 0) videoFloorIntrinsic[fromToken] = { w: videoW, h: videoH };
   const raw = _videoToPIXI(v);
-  const coords = raw || { x: 0, y: 0, width: 660, height: 460 };
-  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, enabled: _streamSurfaceAllowed });
+  const coords = raw || { x: 0, y: 0, width: 660, height: VIDEO_FLOOR_H };
+  socket.emit('videoSurface', { token: fromToken, x: coords.x, y: coords.y, width: coords.width, height: coords.height, videoW, videoH, enabled: _streamSurfaceAllowed });
   if (_streamSurfaceAllowed) _updateVideoFloor(fromToken, coords.x, coords.y, coords.width, coords.height);
 }
 
@@ -13149,6 +13131,7 @@ socket.on('videoSurface', data => {
   if (!data.enabled) {
     _removeVideoFloor(data.token);
   } else {
+    if (data.videoW > 0 && data.videoH > 0) videoFloorIntrinsic[data.token] = { w: data.videoW, h: data.videoH };
     _updateVideoFloor(data.token, data.x, data.y, data.width, data.height, data.drawHistory);
   }
 });

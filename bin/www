@@ -599,7 +599,7 @@ io.on('connection', socket => {
     // 入室時に既存のビデオ足場と落書き履歴を送信
     const vSurfaces = rooms[data.toRoom].videoSurfaces || {};
     for (const [surfToken, surf] of Object.entries(vSurfaces)) {
-      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, enabled: true, drawHistory: surf.drawHistory || [] });
+      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, videoW: surf.videoW || 0, videoH: surf.videoH || 0, enabled: true, drawHistory: surf.drawHistory || [] });
     }
 
     socket.broadcast.to(data.toRoom).emit("otherJoined", {
@@ -1163,7 +1163,7 @@ io.on('connection', socket => {
     if (!rooms[room].videoSurfaces) rooms[room].videoSurfaces = {};
     if (data.enabled) {
       const existing = rooms[room].videoSurfaces[data.token] || {};
-      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height, drawHistory: existing.drawHistory || [] };
+      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height, videoW: data.videoW || 0, videoH: data.videoH || 0, drawHistory: existing.drawHistory || [] };
     } else {
       delete rooms[room].videoSurfaces[data.token];
     }
@@ -1207,7 +1207,7 @@ io.on('connection', socket => {
     if (!rooms[room] || !rooms[room].videoSurfaces) return;
     const surf = rooms[room].videoSurfaces[data.floorToken];
     if (!surf) return;
-    io.to(socket.id).emit('videoSurface', { token: data.floorToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, enabled: true, drawHistory: surf.drawHistory || [] });
+    io.to(socket.id).emit('videoSurface', { token: data.floorToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, videoW: surf.videoW || 0, videoH: surf.videoH || 0, enabled: true, drawHistory: surf.drawHistory || [] });
   });
 
   socket.on("disconnect", () => {
