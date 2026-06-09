@@ -895,7 +895,7 @@ CREATE TABLE editing_sessions (
 | 軸 | 仕様 |
 |---|---|
 | MAP X（横）| 全動画合計で常に 660 固定。複数動画なら DOM 幅比率に応じて各フロアに分配（例: 2動画同サイズなら各 330） |
-| MAP Y（縦）| 全フロアで共通（同じ Y 範囲）。`pixiH = Math.round(660 / totalAR)` で決まる（totalAR = 全フロアのアスペクト比の和）。16:9 動画1本: pixiH=371、2本: pixiH=186 |
+| MAP Y（縦）| 全フロアで共通（同じ Y 範囲）。`pixiH = Math.round(660 * N / totalAR)` で決まる（N=動画本数、totalAR = 全フロアのアスペクト比の和）。16:9 動画1本: pixiH=371、2本: pixiH=371（動画追加で縮小しない） |
 | リサイズ | リサイズハンドル・動画サイズ設定は DOM 表示サイズのみ変更。MAP サイズ（fW/fH）は変わらない |
 | 動画増減時 | `_recalcFloorPositions()` がアバターの相対 MAP 位置（selfRelX/Y）を保持しつつ再配置する |
 
@@ -912,7 +912,7 @@ CREATE TABLE editing_sessions (
 ```js
 // 通常モード・アバター描画（_avaOverlayPostTicker 内）
 const vsx = vRect.width / fW;   // fW = floorObj._pixiW（アスペクト比比例で各フロアに分配）
-const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= Math.round(660/totalAR)、動画増加で縮小）
+const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= Math.round(660*N/totalAR)、動画本数に関係なく同じ高さ）
 ```
 - `setMax` モード（デフォルト）では `videoResize()` が全動画を等比で縮小するため、N が増えても `vsx = vRect.width / _pixiW` は一定に保たれる
 - `setWidth` モード（幅固定）では各動画が同じ幅を保つため、N が増えると `totalDOMW` が N 倍になり `vsx` も N 倍になる（意図的な仕様：各フロアが同じ「幅/PIXI幅」比率を保つ）

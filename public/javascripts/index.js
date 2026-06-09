@@ -13002,7 +13002,7 @@ function _recalcFloorPositions() {
     return (intr && intr.w > 0 && intr.h > 0) ? intr.w / intr.h : 16 / 9;
   });
   const totalAR = ars.reduce((s, ar) => s + ar, 0);
-  const pixiH = Math.max(50, Math.round(660 / totalAR));
+  const pixiH = Math.max(50, Math.round(660 * N / totalAR));
 
   const myAva = avaP[myToken];
   let selfFloorTok = null, selfRelX = 0, selfRelY = 0;
