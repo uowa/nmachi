@@ -11538,7 +11538,10 @@ function _startAvaOverlay() {
           if (dstW <= 0 || dstH <= 0) continue;
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
-          const dstY = vRect.top + Math.max(0, bounds.y - floorY) * drawS;
+          const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
+          const dstY = bounds.y >= floorY
+            ? avaDomFeetY - (ava.container.y - bounds.y) * drawS
+            : vRect.top;
           _avaOverlayCtx.save();
           _avaOverlayCtx.beginPath();
           _avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height);
@@ -12999,6 +13002,7 @@ function _recalcFloorPositions() {
     return (intr && intr.w > 0 && intr.h > 0) ? intr.w / intr.h : 16 / 9;
   });
   const totalAR = ars.reduce((s, ar) => s + ar, 0);
+  const pixiH = Math.max(50, Math.round(660 / totalAR));
 
   const myAva = avaP[myToken];
   let selfFloorTok = null, selfRelX = 0, selfRelY = 0;
@@ -13010,7 +13014,7 @@ function _recalcFloorPositions() {
       if (lx >= -20 && lx < f._pixiW + 20) {
         selfFloorTok = tok;
         selfRelX = lx / f._pixiW;
-        selfRelY = Math.max(0, Math.min(1, (myAva.container.y - VIDEO_FLOOR_Y) / VIDEO_FLOOR_H));
+        selfRelY = Math.max(0, Math.min(1, (myAva.container.y - VIDEO_FLOOR_Y) / pixiH));
         break;
       }
     }
@@ -13022,21 +13026,21 @@ function _recalcFloorPositions() {
     const w = i === N - 1 ? 660 - pixiX : Math.round(660 * ars[i] / totalAR);
     f.container.x = pixiX;
     f.container.y = VIDEO_FLOOR_Y;
-    f.container.hitArea = new PIXI.Rectangle(0, 0, w, VIDEO_FLOOR_H + 1);
+    f.container.hitArea = new PIXI.Rectangle(0, 0, w, pixiH + 1);
     f._pixiW = w;
-    f._pixiH = VIDEO_FLOOR_H;
+    f._pixiH = pixiH;
     pixiX += w;
   });
 
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
     const newX = nf.container.x + selfRelX * nf._pixiW;
-    const newY = VIDEO_FLOOR_Y + selfRelY * VIDEO_FLOOR_H;
+    const newY = VIDEO_FLOOR_Y + selfRelY * pixiH;
     if (Math.abs(myAva.container.x - newX) > 1 || Math.abs(myAva.container.y - newY) > 1) {
       gsap.killTweensOf(myAva.container);
       myAva.isMoving = false;
       AX = Math.max(0, Math.min(660, newX));
-      AY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + VIDEO_FLOOR_H, newY));
+      AY = Math.max(VIDEO_FLOOR_Y, Math.min(VIDEO_FLOOR_Y + pixiH, newY));
       myAva.container.x = AX;
       myAva.container.y = AY;
       if (myAva.ridingObject === nf) {

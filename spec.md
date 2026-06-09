@@ -895,7 +895,7 @@ CREATE TABLE editing_sessions (
 | 軸 | 仕様 |
 |---|---|
 | MAP X（横）| 全動画合計で常に 660 固定。複数動画なら DOM 幅比率に応じて各フロアに分配（例: 2動画同サイズなら各 330） |
-| MAP Y（縦）| 全フロアで共通（同じ Y 範囲）。動画のアスペクト比に依存して決まり、動画が増えると縮小する（同サイズ動画2本 → fH が約半分） |
+| MAP Y（縦）| 全フロアで共通（同じ Y 範囲）。`pixiH = Math.round(660 / totalAR)` で決まる（totalAR = 全フロアのアスペクト比の和）。16:9 動画1本: pixiH=371、2本: pixiH=186 |
 | リサイズ | リサイズハンドル・動画サイズ設定は DOM 表示サイズのみ変更。MAP サイズ（fW/fH）は変わらない |
 | 動画増減時 | `_recalcFloorPositions()` がアバターの相対 MAP 位置（selfRelX/Y）を保持しつつ再配置する |
 
@@ -911,8 +911,8 @@ CREATE TABLE editing_sessions (
 **スケール計算（vsx/vsy）**
 ```js
 // 通常モード・アバター描画（_avaOverlayPostTicker 内）
-const vsx = vRect.width / fW;   // fW = floorObj._pixiW
-const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= VIDEO_FLOOR_H = 330）
+const vsx = vRect.width / fW;   // fW = floorObj._pixiW（アスペクト比比例で各フロアに分配）
+const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= Math.round(660/totalAR)、動画増加で縮小）
 ```
 - `setMax` モード（デフォルト）では `videoResize()` が全動画を等比で縮小するため、N が増えても `vsx = vRect.width / _pixiW` は一定に保たれる
 - `setWidth` モード（幅固定）では各動画が同じ幅を保つため、N が増えると `totalDOMW` が N 倍になり `vsx` も N 倍になる（意図的な仕様：各フロアが同じ「幅/PIXI幅」比率を保つ）
@@ -942,17 +942,22 @@ const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
 ```js
 // アバターごと・フロアごと
 const posVsx = vRect.width / fW;   // X方向スケール（アバター中心位置の計算に使用）
-const posVsy = vRect.height / fH;  // Y方向・サイズスケール（足元座標・dstY・dstH すべてに使用）
+const posVsy = vRect.height / fH;  // Y方向位置スケール（足元 DOM 座標の計算に使用）
+const drawS = vRect.width / 660;   // アバターサイズスケール（動画増加時に縮小）
 
 const srcY = floorFrac * imgH;  // floor 以上をクロップ（overlay には floor 以下だけ描画）
 const srcH = imgH - srcY;
 
-const dstW = bounds.width * posVsy;
-const dstH = (1 - floorFrac) * bounds.height * posVsy;
+const dstW = bounds.width * drawS;
+const dstH = (1 - floorFrac) * bounds.height * drawS;
 const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-const dstX = centerDomX + (bounds.x - ava.container.x) * posVsy;
-const dstY = vRect.top + Math.max(0, bounds.y - floorY) * posVsy;
-// floorFrac > 0 のとき dstY = vRect.top（接合ライン）、0 のとき Avatar が完全にフロア内
+const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
+
+// Y位置: 足元を posVsy で正確に配置し、そこから上方向に drawS で描画
+const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
+const dstY = bounds.y >= floorY
+  ? avaDomFeetY - (ava.container.y - bounds.y) * drawS  // 完全にフロア内
+  : vRect.top;  // 上半身がゲームエリアにはみ出している場合は vRect.top から描画
 
 _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
 ```
