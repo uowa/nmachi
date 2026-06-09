@@ -12358,8 +12358,6 @@ function videoResize() {
           used += videoArray[key].clientWidth;
         }
       });
-      const containerW = mediaContainer.clientWidth || window.innerWidth;
-
       _videoSortedKeys().forEach(function (key) {//人の要素の高さを変更
         if (videoArray[key].freeFloat) {
           if (videoArray[key].clientHeight > maxHeight) maxHeight = videoArray[key].clientHeight;
@@ -12370,7 +12368,7 @@ function videoResize() {
           videoArray[key].style.width = containerH / orgR[key] / allWidth * 100 + "%";
           videoArray[key].style.height = 100 + "%";
 
-          if (containerW > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
+          if (window.innerWidth > allWidth) {//確保できてる立幅/窓の横幅<一番大きい映像の立幅/映像の合計値//横を調整しないといけない時
             videoArray[key].style.left = left + "px";//横の位置を指定
             left += (allWidth - used) / remain * containerH / orgR[key];//横の隙間を入れなおして、ビデオの幅を追加
             videoArray[key].style.width = (allWidth - used) / remain * containerH / orgR[key] + "px";//横の位置を指定
@@ -12378,10 +12376,10 @@ function videoResize() {
 
           } else {//縦を調整しないと行けない時
             //残ってる割合を分け合って、比率の分だけわけた割合
-            videoArray[key].style.width = (containerW - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
+            videoArray[key].style.width = (window.innerWidth - used) / remain * containerH / orgR[key] + "px";//横の幅を指定
             videoArray[key].style.left = left + "px";//横の位置を指定
-            left += (containerW - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
-            videoArray[key].style.height = (containerW - used) / remain * containerH + "px";//高さを指定
+            left += (window.innerWidth - used) / remain * containerH / orgR[key];  //要素が占領している幅を足す
+            videoArray[key].style.height = (window.innerWidth - used) / remain * containerH + "px";//高さを指定
           }
         } else {
           videoArray[key].style.left = left + "px";
@@ -12438,13 +12436,13 @@ function videoResize() {
         };
 
         if (!videoArray[key].fixFlag) {
-          if (containerW > allWidth) {
+          if (window.innerWidth > allWidth) {
             if (containerH > maxHeight) {
               maxHeight = containerH;
             }
           } else {
-            if (containerW * containerH / allWidth > maxHeight) {
-              maxHeight = (containerW - used) / remain * containerH;
+            if (window.innerWidth * containerH / allWidth > maxHeight) {
+              maxHeight = (window.innerWidth - used) / remain * containerH;
             }
           }
         } else {
@@ -12611,6 +12609,7 @@ function videoResize() {
     mediaContainer.style.height = 0 + "px";
   }
 }
+window.addEventListener('resize', videoResize);
 
 sizeSelecter.onchange = function () {
   let scale = "scale(" + this.value + ")";
