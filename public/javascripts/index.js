@@ -3170,8 +3170,12 @@ class Avatar {
     } else if (standingOn && standingOn.token && !wasFlying && this.isStandingOnObject(this, true)) {
       // 別アバターと重なっているが飛行中でない、かつ床オブジェクトがある → 落下させない
       this.dropVelocity = 1;
-    } else if (this.container.y >= VIDEO_FLOOR_Y && Object.keys(videoFloorObjects).length > 0) {
-      // ビデオフロア上は重力なし（配信中のみ）
+    } else if (Object.values(videoFloorObjects).some(f => {
+      const dy = this.container.y - f.container.y;
+      const dx = this.container.x - f.container.x;
+      return dy > 0 && dy <= (f._pixiH || VIDEO_FLOOR_H) && dx >= -20 && dx < (f._pixiW || 660) + 20;
+    })) {
+      // ビデオフロア上は重力なし（x/y範囲内のフロアに限定）
       this.dropVelocity = 1;
     } else {
       // 空中 → 落下
