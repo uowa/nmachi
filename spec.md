@@ -758,295 +758,128 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 24. 配信画面の足場化（アバター乗り上げ）✅ (2026-05-19 実装、2026-05-30 大幅改修)
-**Avatars can stand on the streaming video screen**
+### 24. 配信画面の足場化（アバター乗り上げ）✅ (2026-06-10 実装完了)
 
 #### 概要
 - 配信中の動画画面（`#mediaContainer` 内の `<video>` 要素）を「乗れる足場」として扱う
-- 乗っているアバターの足元部分はオーバーレイcanvas（`#avaVideoOverlay`）に描画される
-- 乗っているアバターの位置・状態は他の全ユーザーにリアルタイム同期される
-- 配信者は設定で「画面への乗り上げを禁止」できる
+- アバターが乗ると位置・状態が全ユーザーにリアルタイム同期される
+- 動画フロア上での落書きも可能（Ctrl+ドラッグ or wa-i!ボタンON）
+- 2人以上配信時は動画を横に並べて複数フロアを作成
+- 配信者は設定で乗り上げ・落書きを一括禁止できる（localStorage: `streamSurfaceAllowed`）
 
-#### アーキテクチャ（重要）
+#### 座標系とレイヤー構造
 
-**座標系の3層構造**
-- **PIXIステージ座標**: 660×790（横660、上460がメインエリア、下330が動画フロアエリア）
-- **動画フロアエリア**: PIXIステージy=460〜790。ここに `videoFloorObjects[token]` が配置される
-- **PIXIキャンバス**: ステージ上460ぶん（y=0〜460）のみを画面に描画。y>460はPIXI画面に映らない
-- **動画DOM要素**: PIXIキャンバスの下に並ぶ `<video>` 要素。実際の映像を表示
+```
+PIXIステージ y=0〜460  → PIXIキャンバスに描画（z-index:12）
+──────────────────── VIDEO_FLOOR_Y=460 ────────────────────
+PIXIステージ y=460〜790 → PIXIキャンバス外。videoFloorObjects がここに配置される
+動画DOM要素（<video>）  → PIXIキャンバス直下に並ぶ
+#avaVideoOverlay canvas → z-index:13、フルスクリーン、pointer-events:none
+```
 
-**`#avaVideoOverlay` キャンバス**
-- `position:fixed; z-index:13; pointer-events:none` でフルスクリーンオーバーレイ
-- 動画フロアエリアにいるアバターの動画エリア部分をここに描画する
-- `_startAvaOverlay()` / `_stopAvaOverlay()` で開始・停止（`index.js` L11353〜）
-- PIXIのティッカー（優先度 50、PIXI描画前）で毎フレーム描画
-- `#Pmachi { z-index: 12 }` でゲームUIボタン類はオーバーレイより上（`style.css`）
+- アバターが y > 460 に入ると、上半身（y<460）は PIXI のマスク付き描画、足元（y>=460）は overlay canvas に描画
+- `videoFloorObjects` が存在する間だけ重力キャンセル（配信がなければ落下）
+- `#Pmachi { z-index:12 }` で overlay(13) より上にゲームUIを配置（`style.css`）
 
-**オーバーレイ描画の仕組み**（`_avaOverlayPostTicker`、L11379〜）
-- `_isOnVideoFloor(ava)`: `ava.container.parent && ly > 0 && ly <= VIDEO_FLOOR_H && lx >= -20 && lx < fw+20` で判定（parentチェック必須：退室済みアバターを除外）
-- アバターを `app.renderer.extract.canvas(ava.container)` で抽出
-- **透過モード** (`_videoTransparentActive=true`): `cRect`（PIXIキャンバス矩形）基準でクリップ・描画
-- **通常モード** (`_videoTransparentActive=false`): `vRect`（動画DOM要素矩形）基準でクリップ・描画（動画の移動・リサイズに追従）
-- クリップ領域: 透過モードは `cRect.bottom` から下方向、通常モードは `vRect.top` から下方向
-- **ゲームエリアはみ出し部分**（`floorFrac > 0`）: `_vfMaskMap` のGraphicsをゲームエリア部分の矩形に更新 → PIXIがmask付きで直接描画するためzIndexが正しく機能する。overlayは動画エリア部分のみ担当
+#### overlay 描画（`_avaOverlayPostTicker`）
 
-**タップ座標変換**（`forwardToCanvas`、L9095〜）
-- **元エリア内クリック**: `cRect` 基準で変換
-- **動画DOM要素内クリック**（通常モード優先）: `vRect` 基準で変換（元エリアと重なっていても動画フロアタップが優先）
-- **透過モード内の動画フロアクリック**: `cRect` 基準で変換
+**3つのスケール変数**
+```js
+const posVsx = vRect.width / fW;   // X位置スケール（アバター中心の DOM X 計算専用）
+const posVsy = vRect.height / fH;  // Y位置スケール（足元 DOM Y 計算に使用）
+const drawS  = vRect.width / 660;  // サイズスケール（アバター表示サイズ、動画増加で縮小）
+```
 
-#### 動作仕様
+**描画座標計算**
+```js
+// floorFrac: ゲームエリアにはみ出してる割合（0=全て動画エリア、1=全てゲームエリア）
+const floorFrac = (isFf && _isMyPrimary) ? 0
+  : Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
 
-**乗り上げ**
-- タップで動画フロア座標（y: 460〜790）に移動すると乗れる
-- 通常のアバターはPIXI上には描画されず（y>460はPIXIキャンバス外）、オーバーレイcanvasに描画
-- `videoFloorObjects` が存在する時のみ重力キャンセル（L2783）。配信がない時は重力で落下する
+const srcY = floorFrac * imgH;          // floor 以上をクロップ
+const dstW = bounds.width * drawS;
+const dstH = (1 - floorFrac) * bounds.height * drawS;
+const dstX = vRect.left + (ava.container.x - floorX) * posVsx
+           + (bounds.x - ava.container.x) * drawS;
+const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
+const dstY = ((isFf && _isMyPrimary) || bounds.y >= floorY)
+  ? avaDomFeetY - (ava.container.y - bounds.y) * drawS
+  : vRect.top;
+```
 
-**動画移動・リサイズへの追従**
-- 通常モードのオーバーレイは `vRect` 基準なので動画が移動・リサイズしても自動追従
-- タップ座標変換も `vRect` 基準なので移動後も正確にタップできる
+**clip（_frontHoles の正しい使い方）**
+- `_frontHoles`：自フロアより前面にあるフロアの vRect 一覧
+- `evenodd` で使うと隣接（非重複）矩形が両方 visible になるバグ（Part E）が発生する
+- 正解：vRect との **交差矩形を CCW 方向** で path に追加してから `clip()`（nonzero）
 
-**配信画面消滅時の追い出し**
-- `_removeVideoFloor(token)` が呼ばれる（`detachVideo` → `_removeVideoFloor`）
-- 自分のアバターが乗っていた場合: `AY = VIDEO_FLOOR_Y - 20` にリセットしてメインエリアに戻す
+```js
+_avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height); // CW（外側）
+for (const _h of _frontHoles) {
+  const iL = Math.max(vRect.left, _h.left),  iT = Math.max(vRect.top, _h.top);
+  const iR = Math.min(vRect.left + vRect.width, _h.left + _h.width);
+  const iB = Math.min(vRect.top + vRect.height, _h.top + _h.height);
+  if (iR > iL && iB > iT) {          // 交差がある時だけ穴を開ける
+    _avaOverlayCtx.moveTo(iL, iT); _avaOverlayCtx.lineTo(iL, iB);
+    _avaOverlayCtx.lineTo(iR, iB);   _avaOverlayCtx.lineTo(iR, iT);
+    _avaOverlayCtx.closePath();       // CCW → nonzero で穴になる
+  }
+}
+_avaOverlayCtx.clip();
+```
 
-**入室時・既存配信への追従**
-- `joineRoom` 時はすべての `videoFloorObjects` を一旦クリアし、`callMediaStatus` で再確立
-- 入室時にアバターが動画フロアに乗っていた場合: サーバーがAYを460にクランプするため、`ridingData` で `resolveRiding` が復元する
-  - `resolveRiding` は対象オブジェクトが未作成の場合 `pendingRidingData` を保持（クリアしない）
-  - `_updateVideoFloor` 実行時（新規フロア作成時）に全アバターの `resolveRiding` を再試行
-  - `tappedMove` 実行時は `pendingRidingData` をクリア（移動後は古いriding不要）
+**PIXI マスク（ゲームエリア部分）**
+```js
+// floorFrac > 0 のとき _vfMaskMap の Graphics をゲームエリア矩形に更新
+m.clear().beginFill(0xffffff).drawRect(bounds.x, bounds.y, bounds.width, clampH).endFill();
+```
 
-**受信者（他人の配信を見ている側）**
-- `videoSurface` サーバーイベントで `_updateVideoFloor` が呼ばれ、フロアオブジェクトを作成
-- `attachVideo` 実行時（映像受信時）に `videoFloorObjects[token]` があれば `_startAvaOverlay` を呼ぶ
+**freeFloat（動画ドラッグ移動）時の扱い**
+- `isFf && _isMyPrimary`（そのアバターのプライマリフロアが freeFloat）のとき
+  - `floorFrac = 0`（全身を overlay に描画）、`renderable = false`（PIXI 描画を抑制）
+  - `_vfHiddenAvas` に追加 → 次フレーム先頭で `renderable = true` に復元
 
-**配信者の許可/拒否設定**
-- 設定パネルに「配信画面に乗ることを許可」チェックボックスあり（デフォルト ON）
-- OFF にすると `_syncVideoFloor` が無効化され、足場が作られない
-- 設定変更は Socket.io で部屋内全員に即時反映（`streamSurfaceAllowed` イベント）
-- localStorage キー: `streamSurfaceAllowed`（bool）
+**z-order 管理**
+- `_videoFloorZOrder[]`：配信開始順で追加、タッチ時に最前面に移動（`_bringVideoFloorToFront`）
+- `_updateVideoZIndices()`：`_videoFloorZOrder` 順に video/overlay の CSS z-index を設定
+- overlay ループも `_videoFloorZOrder` 順（奥→手前）で描画
 
-#### 関連コード箇所（index.js）
-| 処理 | 場所 |
-|---|---|
-| `_startAvaOverlay` / `_stopAvaOverlay` | L8831〜8913 |
-| `_updateVideoFloor` / `_removeVideoFloor` | L10029〜10066 |
-| `_syncVideoFloor` / `videoSurface` 受信 | L10068〜10084 |
-| `detachVideo` | L10009（DOMからの削除も行う） |
-| ビデオフロアのタップ処理 | L9095〜9124（`forwardToCanvas`） |
-| `resolveRiding` | L2330（失敗時はpendingRidingDataを保持） |
-| `tappedMove` | L2441（pendingRidingDataをクリア） |
-| videoフロア上の重力キャンセル | L2783 |
-
-#### 注意点・落とし穴
-- `detachVideo` では `pauseMedia` だけでなく `v.parentNode.removeChild(v)` でDOMから削除必須。しないとpointer-events:autoの残骸がクリックを吸収する
-- `_isOnVideoFloor` には `ava.container.parent` チェックが必須。退室済みアバターはcontainerがroomから外れているが y>460 のままなのでチェックなしだと描画しようとする
-- `#avaVideoOverlay` は `pointer-events:none` だが、`#Pmachi` に `z-index:12` がないと動画配信ボタン等のゲームUIがオーバーレイの下に隠れる
-
-#### 配信画面への落書き ✅ (2026-06-04 実装完了)
-
-**概要**: 動画フロア上でCtrl押しドラッグ または wa-i!ボタンONでドラッグすると、配信映像の上に落書きできる。
-
-**描画の仕組み**
-- 入力: `forwardToCanvas` の pointerdown/move/up ハンドラ内（L11336〜L11580）
-- `ava.container.y >= VIDEO_FLOOR_Y` のとき描画モードが有効
-- `_vfLocalCoords(clientX, clientY)` → フロアコンテナ内ローカル座標に変換（L11336〜）
-- 線データ: `{ type: 'line', color: oekakiColor, alpha: oekakiAlpha, pointer: [{x,y},...] }`（既存の oekakiColor/Alpha を共用）
-- pointerup 時に `_videoFloorSendCurrentLine()` → `socket.emit('videoFloorOekaki', { floorToken, line })`（L12618〜）
-
-**レンダリング**
-- `oekakiGraphics`（PIXI.Graphics）: videoFloor コンテナの子。PIXI ステージ上に描画（L12573 `_redrawVideoFloorOekaki`）
-- `previewGraphics`: ドラッグ中のプレビュー表示用（L12505）
-- `#avaVideoOverlay`（HTML Canvas 2D）: drawHistory を 2D API で再描画（L11143〜L11186）。PIXI extract は viewport 外 Graphics に非対応のため Canvas 2D を使用
-- 線太さは固定 2px
-
-**サーバー側の保存・同期**
-- サーバーは `rooms[room].videoSurfaces[token].drawHistory[]` に追記
-- 他メンバーへ `videoFloorOekaki` をブロードキャスト（`bin/www` L1170〜）
-- 入室時に `videoSurface` イベントで `drawHistory` を新規入室者に送信（L599〜）
-
-**クリア・アンドゥ・リドゥ**: 元エリアと同仕様。動画パネルをタップ/クリックするとボタンがオレンジになりビデオフロアが対象、元エリアをタップ/クリックすると通常モードに戻る（`_videoFloorFocused` フラグで管理）。
-- clear: `{ type:'clear', backup, roomMemberToken }` を drawHistory に積む形式。clear 時に部屋にいたメンバーは undo で復元可能
-- undo: 自分の最後の線を削除、または自分が関与した clear エントリを復元（backup 展開）
-- redo: redoStack からポップして `videoFloorOekaki` emit
-- 動画が閉じられると `_videoFloorFocused = false` にリセット
-
-**設定**: 設定パネルの「配信画面への乗上げとラクガキ」チェックボックス（`streamSurfaceAllowed`）で乗り上げと落書きを一括ON/OFF
-
-**関連関数・行番号**
-
-| 関数/変数 | 行 |
-|---|---|
-| `_vfLocalCoords` / 描画入力ハンドラ | L11336〜（`forwardToCanvas` 内） |
-| オーバーレイ落書き描画 | L11143〜L11186（`_avaOverlayPostTicker` 内） |
-| `_updateVideoFloor` | L12499 |
-| `_redrawVideoFloorOekaki` | L12573 |
-| `socket.on('videoFloorOekaki')` 受信 | L12588 |
-| `socket.on('videoFloorOekakiClear')` 受信 | L12601 |
-| `socket.on('videoFloorUndo')` 受信 | L12608 |
-| `_videoFloorCurrentLine` / `_videoFloorDrawingToken` | L12615 |
-| `_videoFloorSendCurrentLine` | L12618 |
-
-#### 複数動画フロア（2人以上配信）✅ (2026-06-07 実装完了)
-
-**MAP座標系の仕様（重要）**
+#### 複数動画フロア（MAP 座標）
 
 | 軸 | 仕様 |
 |---|---|
-| MAP X（横）| 全動画合計で常に 660 固定。複数動画なら DOM 幅比率に応じて各フロアに分配（例: 2動画同サイズなら各 330） |
-| MAP Y（縦）| 全フロアで共通（同じ Y 範囲）。`pixiH = Math.round(660 * N / totalAR)` で決まる（N=動画本数、totalAR = 全フロアのアスペクト比の和）。16:9 動画1本: pixiH=371、2本: pixiH=371（動画追加で縮小しない） |
-| リサイズ | リサイズハンドル・動画サイズ設定は DOM 表示サイズのみ変更。MAP サイズ（fW/fH）は変わらない |
-| 動画増減時 | `_recalcFloorPositions()` がアバターの相対 MAP 位置（selfRelX/Y）を保持しつつ再配置する |
+| MAP X | 全動画合計で 660 固定。DOM 幅比率に応じて各フロアに分配（2動画同サイズなら各 330） |
+| MAP Y | 全フロア共通。`pixiH = Math.round(660 * N / totalAR)`（16:9 動画1本=371、2本=371） |
+| リサイズ | DOM 表示サイズのみ変更。MAP サイズ（_pixiW/_pixiH）は変わらない |
 
-**概要**: 2人以上が同時配信すると `videoFloorObjects` が複数できる。
-各フロアの PIXI 上の位置・幅は `_recalcFloorPositions()` が管理する。
+- `_recalcFloorPositions()`：`videoStartOrder` でソートして左から配置、自アバターの相対位置を保持
+- `videoResize()` 末尾で自動呼び出し（循環させないこと）
 
-**`_recalcFloorPositions()` の設計**
-- `videoStartOrder[token]`（配信開始時刻、`Date.now()`）でソートして左から並べる
-- `videoStartOrder` は `createVideoButton` emit に `startTime` として含める。受信側は `data.startTime` があれば `videoStartOrder[fromToken]` にセット
-- `_pixiW` は DOM の実幅（`videoArray[tok].clientWidth`）に比例して割り当てる（全フロアの video 幅が取れる場合）。取れない場合は `660/N` 均等配分にフォールバック
-- `videoResize()` の末尾（`mediaContainer.style.height` を設定した直後）で自動的に `_recalcFloorPositions()` を呼ぶ。これにより `videoResize()` がかかるたびに PIXI 幅も同期される
+#### 落書き
 
-**スケール計算（vsx/vsy）**
-```js
-// 通常モード・アバター描画（_avaOverlayPostTicker 内）
-const vsx = vRect.width / fW;   // fW = floorObj._pixiW（アスペクト比比例で各フロアに分配）
-const vsy = vRect.height / fH;  // fH = floorObj._pixiH（= Math.round(660*N/totalAR)、動画本数に関係なく同じ高さ）
-```
-- `setMax` モード（デフォルト）では `videoResize()` が全動画を等比で縮小するため、N が増えても `vsx = vRect.width / _pixiW` は一定に保たれる
-- `setWidth` モード（幅固定）では各動画が同じ幅を保つため、N が増えると `totalDOMW` が N 倍になり `vsx` も N 倍になる（意図的な仕様：各フロアが同じ「幅/PIXI幅」比率を保つ）
+- Ctrl+ドラッグ or wa-i!ボタンON でフロア上に落書き
+- `oekakiGraphics`（PIXI.Graphics）：PIXI ステージ上に描画
+- `#avaVideoOverlay`（HTML Canvas 2D）：drawHistory を 2D API で再描画（PIXI extract は viewport 外 Graphics に非対応）
+- サーバーが `rooms[room].videoSurfaces[token].drawHistory[]` に追記・入室者に送信
+- クリア/アンドゥ/リドゥは通常お絵かきと同仕様。`_videoFloorFocused` フラグで対象を切り替え
 
-**アバターのゴースト描画アーキテクチャ（通常モード）**
+#### 動作仕様（その他）
 
-アバターが動画フロアに乗ると y > VIDEO_FLOOR_Y(460) になり、上半身がゲームエリアにはみ出す。
-この「はみ出し部分」を PIXI のマスクでゲームエリアに表示し、「フロア以下の部分」は overlay canvas（HTML Canvas 2D）で動画の上に重ねる。
+- タップ座標変換（`forwardToCanvas`）：透過モード = `cRect` 基準、通常モード = `vRect` 基準
+- `_isOnVideoFloor` には `ava.container.parent` チェック必須（退室済みアバターが y>460 のまま残るため）
+- `detachVideo` では `v.parentNode.removeChild(v)` でDOM削除必須（残骸が pointer-events を吸収する）
+- 入室時：`joineRoom` でフロアをクリア → `callMediaStatus` で再確立。`ridingData` で乗車状態を復元
+- フロア消滅時：乗っていたアバターを y=400 にスナップしてゲームエリアへ戻す
 
-```
-ゲームエリア（y < 460）  PIXIが mask付きで直接描画  ← PIXI スケール
-─────────────────── vRect.top ≈ cRect.bottom ← 接合ライン ───────────────────
-動画エリア（y >= 460）   overlay canvas で drawImage    ← posVsy スケール
-```
-
-**X軸・スケールの接合は合わせない（仕様）。Y 軸の接合と足元座標のみ正確に合わせる。**
-
-**はみ出し割合（floorFrac）の計算**
-```js
-// ly = ava.container.y - floorY（アバター足元〜フロア上端の距離、PIXI座標）
-// bounds = ava.container.getBounds()（アバター全体のバウンディングボックス）
-const floorFrac = Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
-// floorFrac = ゲームエリアにはみ出してる割合（0=全て動画エリア、1=全てゲームエリア）
-```
-
-**overlay 描画（動画エリア部分）**
-```js
-// アバターごと・フロアごと
-const posVsx = vRect.width / fW;   // X方向スケール（アバター中心位置の計算に使用）
-const posVsy = vRect.height / fH;  // Y方向位置スケール（足元 DOM 座標の計算に使用）
-const drawS = vRect.width / 660;   // アバターサイズスケール（動画増加時に縮小）
-
-const srcY = floorFrac * imgH;  // floor 以上をクロップ（overlay には floor 以下だけ描画）
-const srcH = imgH - srcY;
-
-const dstW = bounds.width * drawS;
-const dstH = (1 - floorFrac) * bounds.height * drawS;
-const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
-const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
-
-// Y位置: 足元を posVsy で正確に配置し、そこから上方向に drawS で描画
-const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
-const dstY = bounds.y >= floorY
-  ? avaDomFeetY - (ava.container.y - bounds.y) * drawS  // 完全にフロア内
-  : vRect.top;  // 上半身がゲームエリアにはみ出している場合は vRect.top から描画
-
-_avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
-```
-
-- **Y接合**: `floorFrac > 0` のとき `dstY = vRect.top ≈ cRect.bottom`（PIXI canvas 直下が動画開始位置）✓
-- **足元Y精度**: `dstY + dstH = vRect.top + ly * posVsy` ✓（posVsy 統一のため誤差なし）
-- **縦横比**: `dstW/dstH = srcW/srcH`（posVsy がキャンセルされる）→ 歪みなし ✓
-- **X軸**: 接合は合わせない仕様（posVsx と posVsy の混在は許容）
-
-**PIXIゴースト（ゲームエリア部分）**
-```js
-// floorFrac > 0 のとき: _vfMaskMap のGraphicsをゲームエリア部分の矩形に更新
-const clampH = Math.max(0, floorY - bounds.y);
-m.clear().beginFill(0xffffff).drawRect(bounds.x, bounds.y, bounds.width, clampH).endFill();
-// → PIXI が mask 付きで上部（ゲームエリア部分）を自動描画。スケールは PIXI のまま
-```
-
-**非受信アバターの非表示**
-```js
-const primaryEntry = Object.entries(videoFloorObjects).find(([, f]) => {
-  const lx = ava.container.x - f.container.x;
-  const fw = f._pixiW || 660;
-  const ly = ava.container.y - f.container.y;
-  return ly > 0 && ly <= (f._pixiH || VIDEO_FLOOR_H) + 5 && lx >= 0 && lx < fw;
-});
-if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
-// 隣フロアの動画を受信していても、本来いるフロアが未受信なら描画しない
-```
-
-**既知の課題・制限**
-- `videoSurface` イベントでフロア作成 → 相手の動画が WebRTC でまだ届いていない場合は `videoArray[B]` が空のため `_pixiW_B = 0`（均等配分フォールバック）。`playing` イベントで `videoResize()` → `_recalcFloorPositions()` が走ると解消する。
-
-**freeFloat 時のオーバーレイ描画アーキテクチャ（2026-06-10 修正）**
-
-動画を freeFloat（ドラッグ移動）すると `vEl.freeFloat = true` になる。
-フロアAのアバターCの落書きがフロアBの PIXI 領域にはみ出している場合、フロアB の overlay に描画する必要がある（Part F：B に追従）。
-同時にフロアAの overlay には**フロアAに属する部分のみ**描画されなければならない（Part E の除去）。
-
-Part E の根本原因：`_frontHoles` を `evenodd` でクリップすると、隣接する（重ならない）矩形が canvas の nonzero/evenodd ルールで「両方とも描画可能」と判定されてしまい、フロアAのループがフロアBのエリアにまではみ出す。
-
-修正方針：`_frontHoles` を **vRect との交差矩形に限定** し、CCW 方向で path に追加してから `clip()`（nonzero）を使う。
-- 非重複（隣接）：交差なし → 穴なし → フロアAの clip は自 vRect のみ → Part E 消滅
-- 重複（freeFloat が乗っかった場合）：重なり部分だけ CCW 穴 → 奥フロアのアバターが前面動画の裏に正しく隠れる
-
-```js
-// _frontHoles を正しく使う（非重複時に隣接エリアが visible にならないように）
-_avaOverlayCtx.rect(vRect.left, vRect.top, vRect.width, vRect.height); // CW（外側）
-for (const _h of _frontHoles) {
-  const iL = Math.max(vRect.left, _h.left), iT = Math.max(vRect.top, _h.top);
-  const iR = Math.min(vRect.left + vRect.width, _h.left + _h.width), iB = Math.min(vRect.top + vRect.height, _h.top + _h.height);
-  if (iR > iL && iB > iT) {
-    // CCW（穴）：moveTo TL → BL → BR → TR（y-down 座標系で CCW）
-    _avaOverlayCtx.moveTo(iL, iT); _avaOverlayCtx.lineTo(iL, iB);
-    _avaOverlayCtx.lineTo(iR, iB); _avaOverlayCtx.lineTo(iR, iT);
-    _avaOverlayCtx.closePath();
-  }
-}
-_avaOverlayCtx.clip(); // nonzero: CW=外→fill, CCW=穴
-```
-
-**isFf && _isMyPrimary（プライマリfreeFloatフロア）の扱い**
-- `isFf = true`（当該フロアが freeFloat）かつ `_isMyPrimary = true`（そのアバターのプライマリフロアが当該フロア）のとき
-- `floorFrac = 0`（全身を overlay に描画）、`ava.container.renderable = false`（PIXI 側の描画を抑制）
-- `_vfHiddenAvas` に追加 → 次フレーム先頭で `renderable = true` に復元
-
-**z-order 管理**
-- `_videoFloorZOrder[]`：配信開始順に追加、タッチで最前面に移動（`_bringVideoFloorToFront`）
-- `_updateVideoZIndices()`：`_videoFloorZOrder` に従い video/overlay の CSS z-index を更新
-- overlay ループも `_videoFloorZOrder` 順（奥→手前）で描画することで z-order が正しく合成される
-
-**やってはいけないこと**
+#### やってはいけないこと
 
 | アプローチ | 結果 | 理由 |
 |---|---|---|
 | `_recalcFloorPositions()` 内で `videoResize()` を呼ぶ | 循環呼び出し | `videoResize()` の末尾で `_recalcFloorPositions()` を呼んでいるため |
-| 透過モードで `vRect` 基準の座標系を使う | タップ・描画位置が完全にズレる | 透過モードは `cRect`（PIXIキャンバス矩形）基準が正しい |
-| 配信順の同期に受信順を使う | クライアントによって動画が逆順になる | `videoSurface` の到着順は不定。`startTime` を emit してソートが必要 |
-| `posVsy` 以外（`posVsx`、`S = vRect.width/660`、`posVsy * _vScaleCorr`）をサイズに使う | 足元 Y がズレる | `_vScaleCorr > 1` だと ly に比例して下にズレる。posVsy 統一が正しい |
-| `dstY` を足元から逆算する（`footY - dstH`） | 接合ラインがズレる | `dstY = vRect.top` でないと overlay 先頭がフロア境界に来ない |
-| `_frontHoles` を `evenodd` で clip する | 隣接フロアのエリアも描画可能になり Part E が発生 | evenodd は非重複矩形を両方 visible にする。CCW 交差穴 + nonzero が正解 |
-| アバター描画に `dstW = bounds.width * posVsx` を使う | アバターが横に伸びる | `posVsx = vRect.width/fW` は位置計算専用。サイズは `drawS = vRect.width/660` が正しい |
-
-#### 現状（2026-06-10 実装完了）✅
-- overlay（z-index:13）はフロア以下部分のみ担当、ゲームエリア部分は PIXI（z-index:12）が mask 付きで担当
-- サイズ・位置ともに `posVsy = vRect.height / fH` に統一（`_vScaleCorr` 廃止）
-- 動画フロア消滅時に乗っていた他クライアントのアバターも y=400 にスナップしてゲームエリアに戻す（`_removeVideoFloor` 修正）
-- `videoFloorObjects` の `tags` から `moving` を削除 → `updateRiding` によるY座標の上書きがなくなり、フロア内を下方向に自由移動できるようになった（重力は `y >= VIDEO_FLOOR_Y` で停止させているため `moving` タグは不要だった）
-- freeFloat 時のアバターオーバーレイ描画：パーツE（フロアB移動時に動かずフロアBに残るゴースト）を修正（`_frontHoles` CCW交差穴方式）
-- カメラ固定（`cameraSelectMode: 'fixed'`）の `OverconstrainedError` ハンドラを修正: deviceId 起因（`error.constraint === 'deviceId'` または `NotFoundError`）の場合のみ保存済み ID をクリア。品質制約（width/height/frameRate）起因のエラーでは ID を保持する
+| 透過モードで `vRect` 基準の座標系を使う | タップ・描画位置がズレる | 透過モードは `cRect` 基準が正しい |
+| 配信順の同期に受信順を使う | クライアントによって動画が逆順になる | `videoSurface` 到着順は不定。`startTime` でソートが必要 |
+| アバターサイズに `posVsx/posVsy` を使う | 横または縦に伸びる | サイズは `drawS = vRect.width/660`。posVsx/posVsy は位置計算専用 |
+| `_frontHoles` を `evenodd` で clip する | 隣接フロアにゴースト（Part E）が出る | evenodd は非重複矩形を両方 visible にする。CCW 交差穴 + nonzero が正解 |
+| `#avaVideoOverlay` の z-index を 12 以下にする | ゲームUIが動画の下に隠れる | overlay は 13、PIXI は 12 の固定構造 |
 
 ---
 
