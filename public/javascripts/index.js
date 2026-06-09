@@ -13059,7 +13059,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
     const previewGraphics = new PIXI.Graphics();
     container.addChild(oekakiGraphics);
     container.addChild(previewGraphics);
-    floorObj = { container, oekakiGraphics, previewGraphics, drawHistory: [], redoStack: [], tags: ['standable', 'moving'], name: 'videoFloor:' + token, oekakiAllowed: true };
+    floorObj = { container, oekakiGraphics, previewGraphics, drawHistory: [], redoStack: [], tags: ['standable'], name: 'videoFloor:' + token, oekakiAllowed: true };
     videoFloorObjects[token] = floorObj;
     objMap['videoFloor:' + token] = floorObj;
   }
@@ -13088,13 +13088,17 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
 function _removeVideoFloor(token) {
   const floorObj = videoFloorObjects[token];
   if (!floorObj) return;
+  const fw = floorObj._pixiW || 660;
   for (const ava of Object.values(avaP)) {
     if (ava.ridingObject === floorObj) ava.stopRiding();
+    if (ava.container.y >= VIDEO_FLOOR_Y && ava !== avaP[myToken]) {
+      const lx = ava.container.x - floorObj.container.x;
+      if (lx >= -20 && lx < fw + 20) ava.container.y = 400;
+    }
   }
   const myAva = avaP[myToken];
   if (myAva && myAva.container.y >= VIDEO_FLOOR_Y) {
     const lx = myAva.container.x - floorObj.container.x;
-    const fw = floorObj._pixiW || 660;
     if (lx >= -20 && lx < fw + 20) {
       gsap.killTweensOf(myAva.container);
       myAva.isMoving = false;
@@ -13288,7 +13292,7 @@ function _pickDevice(kind) {
         });
         // 「次回から固定」チェックボックス
         fixWrap.style.display = '';
-        fixCheck.checked = false;
+        fixCheck.checked = (kind === 'videoinput' ? cameraSelectMode === 'fixed' : micSelectMode === 'fixed');
         if (kind === 'videoinput') {
           previewWrap.style.display = '';
           _pickerPreviewOn = false;
@@ -13495,12 +13499,20 @@ async function _switchSettingPreview(deviceId, isInitial) {
 async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) return cameraDeviceId;
   const result = await _pickDevice('videoinput');
+  if (cameraSelectMode === 'fixed' && result.deviceId) {
+    cameraDeviceId = result.deviceId; cameraDeviceLabel = result.deviceLabel || '';
+    localStorage.setItem('cameraDeviceId', result.deviceId); localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
+  }
   return result.deviceId;
 }
 
 async function _getMicDeviceId() {
   if (micSelectMode === 'fixed' && micDeviceId) return micDeviceId;
   const result = await _pickDevice('audioinput');
+  if (micSelectMode === 'fixed' && result.deviceId) {
+    micDeviceId = result.deviceId; micDeviceLabel = result.deviceLabel || '';
+    localStorage.setItem('micDeviceId', result.deviceId); localStorage.setItem('micDeviceLabel', micDeviceLabel);
+  }
   return result.deviceId;
 }
 
@@ -13513,7 +13525,7 @@ async function startVideo() {
     deviceId = await _getVideoDeviceId();
   } catch (_e) { return; }
   videoStatus = {
-    deviceId: { exact: deviceId },
+    deviceId: deviceId ? { exact: deviceId } : undefined,
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({ video: videoStatus }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
@@ -13523,6 +13535,14 @@ async function startVideo() {
         localStream = stream;
       }
       localVideoTrack = localStream.addTrack(stream.getVideoTracks()[0]);
+      // 実際に取得できたdeviceIdで保存値を更新（セッションをまたいでIDが変わる環境に対応）
+      if (cameraSelectMode === 'fixed') {
+        const actualId = stream.getVideoTracks()[0]?.getSettings()?.deviceId;
+        if (actualId && actualId !== cameraDeviceId) {
+          cameraDeviceId = actualId;
+          localStorage.setItem('cameraDeviceId', actualId);
+        }
+      }
 
       mapPeer.forEach(function (value) {
         if (videoStatus) {
@@ -13559,8 +13579,10 @@ async function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         startVideo();
       }
-      // OverconstrainedError や deviceId 起因なら保存済みIDをクリアして再試行できるよう案内
-      if (cameraDeviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+      // deviceId 起因のエラーのみ保存済みIDをクリア（品質制約等は保持）
+      const isDeviceIdError = error.name === 'NotFoundError' ||
+        (error.name === 'OverconstrainedError' && (!error.constraint || error.constraint === 'deviceId'));
+      if (cameraDeviceId && isDeviceIdError) {
         cameraDeviceId = '';
         localStorage.removeItem('cameraDeviceId');
         outputChatMsg("保存済みカメラを解除しました。もう一度押してください。", "red");
@@ -13581,13 +13603,20 @@ async function startAudio() {
   } catch (_e) { return; }
   audioStatus = true;
   getDeviceStream({
-    audio: { deviceId: { exact: deviceId } }
+    audio: { deviceId: deviceId ? { exact: deviceId } : undefined }
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     if (!localStream) {
       localStream = stream;
     }
     localAudioTrack = localStream.addTrack(stream.getAudioTracks()[0]);
+    if (micSelectMode === 'fixed') {
+      const actualId = stream.getAudioTracks()[0]?.getSettings()?.deviceId;
+      if (actualId && actualId !== micDeviceId) {
+        micDeviceId = actualId;
+        localStorage.setItem('micDeviceId', actualId);
+      }
+    }
     mapPeer.forEach(function (value) {
       if (audioStatus) {
         if (value.get("onAudio")) {

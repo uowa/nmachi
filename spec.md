@@ -998,6 +998,9 @@ if (primaryEntry && !videoArray[primaryEntry[0]]) continue;
 #### 現状（2026-06-09 実装完了）✅
 - overlay（z-index:13）はフロア以下部分のみ担当、ゲームエリア部分は PIXI（z-index:12）が mask 付きで担当
 - サイズ・位置ともに `posVsy = vRect.height / fH` に統一（`_vScaleCorr` 廃止）
+- 動画フロア消滅時に乗っていた他クライアントのアバターも y=400 にスナップしてゲームエリアに戻す（`_removeVideoFloor` 修正）
+- `videoFloorObjects` の `tags` から `moving` を削除 → `updateRiding` によるY座標の上書きがなくなり、フロア内を下方向に自由移動できるようになった（重力は `y >= VIDEO_FLOOR_Y` で停止させているため `moving` タグは不要だった）
+- カメラ固定（`cameraSelectMode: 'fixed'`）の `OverconstrainedError` ハンドラを修正: deviceId 起因（`error.constraint === 'deviceId'` または `NotFoundError`）の場合のみ保存済み ID をクリア。品質制約（width/height/frameRate）起因のエラーでは ID を保持する
 
 ---
 
