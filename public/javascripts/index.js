@@ -752,7 +752,8 @@ function _updateMugenGhosts() {
     return;
   }
   const W = 660;
-  const maxY = Object.keys(videoFloorObjects).length > 0 ? VIDEO_FLOOR_Y + VIDEO_FLOOR_H : 460;
+  const _mugenFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+  const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
   const MX = 60, MY = 80;
 
   for (const token of [..._mugenGhostMap.keys()]) {
@@ -1235,6 +1236,30 @@ app.ticker.add(() => {
     }
   }
 }, null, -10);
+
+// むげんワープ後の dead reckoning（tapMap受信フレームでGSAPが未起動のまま1フレーム止まる問題を解消）
+app.ticker.add((delta) => {
+  if (!room || room.name !== 'むげん') return;
+  const _drFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+  const _drMaxY = _drFloorH > 0 ? VIDEO_FLOOR_Y + _drFloorH : 460;
+  const _drNow = performance.now();
+  for (const ava of Object.values(avaP)) {
+    if (!ava._mugenDR || ava.token === myToken) continue;
+    if (_drNow - ava._mugenDR.t > 120) { ava._mugenDR = null; continue; }
+    ava.container.x += ava._mugenDR.vx * delta;
+    ava.container.y += ava._mugenDR.vy * delta;
+    if (ava._mugenDR.tx !== undefined) {
+      const _cx = ava._mugenDR.tx - ava.container.x;
+      const _cy = ava._mugenDR.ty - ava.container.y;
+      if (Math.abs(_cx) < 50) ava.container.x += _cx * 0.15 * delta;
+      if (Math.abs(_cy) < 50) ava.container.y += _cy * 0.15 * delta;
+    }
+    if (ava.container.x < 0) ava.container.x += 660;
+    else if (ava.container.x > 660) ava.container.x -= 660;
+    if (ava.container.y < 0) ava.container.y += _drMaxY;
+    else if (ava.container.y > _drMaxY) ava.container.y -= _drMaxY;
+  }
+}, null, -0.3);
 
 // 全priority-0コールバック（avaLoop・keyMoveTickerFn）完了後・描画直前にzIndexを同期
 app.ticker.add(() => {
@@ -3385,9 +3410,9 @@ gsap.killTweensOf(avatar.container);
       if (data.forceCorrection || (!noFloorSnap && dist > 80)) {
         gsap.killTweensOf(avatar.container);
         avatar.container.position.set(data.AX, data.AY);
-      } else if (!noFloorSnap && !tapMapFresh && data.isFalling) {
+      } else if (!noFloorSnap && !tapMapFresh && data.isFalling && !avatar._mugenDR) {
         gsap.to(avatar.container, { duration: 0.04, x: data.AX, y: data.AY, ease: "none", overwrite: "auto" });
-      } else if (!noFloorSnap && !tapMapFresh && dist > 5) {
+      } else if (!noFloorSnap && !tapMapFresh && dist > 5 && !avatar._mugenDR) {
         gsap.to(avatar.container, { duration: 0.2, x: data.AX, y: data.AY, ease: "none" });
       }
     }
@@ -7852,12 +7877,19 @@ function startKeyMoveTicker() {
       // むげん部屋: 画面端でループ（逆方向から出現）
       const _mugenFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
       const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
-      if (AX < 0) AX += 660;
-      else if (AX > 660) AX -= 660;
-      if (AY < 0) AY += maxY;
-      else if (AY > maxY) AY -= maxY;
+      let _didWrap = false;
+      if (AX < 0) { AX += 660; _didWrap = true; }
+      else if (AX > 660) { AX -= 660; _didWrap = true; }
+      if (AY < 0) { AY += maxY; _didWrap = true; }
+      else if (AY > maxY) { AY -= maxY; _didWrap = true; }
       ava.container.x = AX;
       ava.container.y = AY;
+      if (_didWrap && !isReconnecting) {
+        const _we = { DIR, moveType: "absolute", AX, AY, sit: ava.sit, riding: !!ava.ridingObject, keyMove: true, keyFrame: keyWalkFrame };
+        if (ava.ridingObject) { _we.ridingOffsetX = ava.ridingOffset.x; _we.ridingOffsetY = ava.ridingOffset.y; }
+        socket.emit("tapMap", _we);
+        keySocketTimer = 0;
+      }
     }
 
     // 乗り物（雲など）に乗っている場合、ridingOffsetを更新して位置を維持
@@ -7987,6 +8019,7 @@ if (data.ridingOffsetX !== undefined) {
             const _tgtY = data.ridingOffsetY !== undefined ? data.ridingOffsetY : (data.AY - (_objC.y || 0)) / (_sy || 1);
             gsap.killTweensOf(ava.ridingOffset);
             gsap.to(ava.ridingOffset, { duration: 0.12, x: _tgtX, y: _tgtY, ease: "none" });
+            ava._mugenDR = null;
           }
         } else {
           // 降車中: transformOtherAvatarData(ridingData=null)を待って実行
@@ -8004,8 +8037,18 @@ if (data.ridingOffsetX !== undefined) {
           ava.redrawOekakiForState();
         }
         gsap.killTweensOf(ava.container);
-        gsap.to(ava.container, { duration: 0.12, x: data.AX, y: data.AY, ease: "none" });
+        if (room && room.name === 'むげん') {
+          const [_vx, _vy] = DIR_MOVE_DELTA[data.DIR] || [0, 0];
+          if (Math.abs(data.AX - ava.container.x) > 330 || Math.abs(data.AY - ava.container.y) > 220) {
+            ava.container.x = data.AX;
+            ava.container.y = data.AY;
+          }
+          ava._mugenDR = { vx: _vx * KEY_MOVE_SPEED, vy: _vy * KEY_MOVE_SPEED, t: performance.now(), tx: data.AX, ty: data.AY };
+        } else {
+          gsap.to(ava.container, { duration: 0.12, x: data.AX, y: data.AY, ease: "none" });
+        }
       } else {
+        ava._mugenDR = null;
         ava._lastTapMapAt = Date.now();
         ava.tappedMove(data.AX, data.AY, data.DIR, data.sit);
       }
@@ -11574,12 +11617,14 @@ function _startAvaOverlay() {
           const isFf = !!(vEl && vEl.freeFloat);
           // プライマリフロアが現在フロアと一致するか（freeFloat時のrenderable=false対象判定に使用）
           const _isMyPrimary = !primaryFloor || primaryFloor[0] === zToken;
+          // freeFloat全体描画: プライマリ一致 かつ アバターが完全に動画フロア内（PIXIエリアにはみ出しなし）
+          const _isFfFull = isFf && _isMyPrimary && bounds.y >= floorY;
           const extracted = _getExtracted(ava);
           if (!extracted) continue;
           const posVsx = vRect.width / fW;
           const posVsy = vRect.height / fH;
           const drawS = vRect.width / 660;
-          const floorFrac = (isFf && _isMyPrimary) ? 0 : Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
+          const floorFrac = _isFfFull ? 0 : Math.max(0, Math.min(1, (floorY - bounds.y) / bounds.height));
           const imgW = extracted.width, imgH = extracted.height;
           const srcY = floorFrac * imgH;
           const srcH = imgH - srcY;
@@ -11590,7 +11635,7 @@ function _startAvaOverlay() {
           const centerDomX = vRect.left + (ava.container.x - floorX) * posVsx;
           const dstX = centerDomX + (bounds.x - ava.container.x) * drawS;
           const avaDomFeetY = vRect.top + (ava.container.y - floorY) * posVsy;
-          const dstY = ((isFf && _isMyPrimary) || bounds.y >= floorY)
+          const dstY = (_isFfFull || bounds.y >= floorY)
             ? avaDomFeetY - (ava.container.y - bounds.y) * drawS
             : vRect.top;
           _avaOverlayCtx.save();
@@ -11604,7 +11649,7 @@ function _startAvaOverlay() {
           _avaOverlayCtx.clip();
           _avaOverlayCtx.drawImage(extracted, 0, srcY, imgW, srcH, dstX, dstY, dstW, dstH);
           _avaOverlayCtx.restore();
-          if (isFf && _isMyPrimary) {
+          if (_isFfFull) {
             const m = _vfMaskMap.get(ava);
             if (m) m.clear();
             ava.container.renderable = false;
@@ -11665,19 +11710,21 @@ function _startAvaOverlay() {
       }
     }
     if (_isMugenVF) {
-      for (const [token, entry] of _mugenGhostMap.entries()) {
+      for (const [, entry] of _mugenGhostMap.entries()) {
         for (const g of entry.ghosts) {
           g.container.renderable = true;
           if (!g.container.visible) continue;
+          const gBounds = g.container.getBounds();
+          if (!gBounds.width || !gBounds.height) continue;
+          const gbW = gBounds.width, gbH = gBounds.height;
           for (const t of Object.keys(videoFloorObjects)) {
             const f = videoFloorObjects[t];
             const fh = f._pixiH || VIDEO_FLOOR_H;
             const fw = f._pixiW || 660;
-            const glx = g.container.x - f.container.x;
-            if (glx < -660 * 2 || glx > 660 * 3) continue;
-            const gBounds = g.container.getBounds();
-            if (!gBounds.width || !gBounds.height) continue;
-            if (gBounds.y + gBounds.height < f.container.y - 50 || gBounds.y > f.container.y + fh + 50) continue;
+            if (gBounds.y + gbH < f.container.y - 50 || gBounds.y > f.container.y + fh + 50) continue;
+            const gStageL = Math.max(gBounds.x, f.container.x);
+            const gStageR = Math.min(gBounds.x + gbW, f.container.x + fw);
+            if (gStageR <= gStageL) continue;
             const vElG = videoArray[t];
             if (!vElG) continue;
             const vRectG = vElG.getBoundingClientRect();
@@ -11685,33 +11732,26 @@ function _startAvaOverlay() {
             const ghostExtracted = app.renderer.extract.canvas(g.container);
             if (!ghostExtracted || !ghostExtracted.width || !ghostExtracted.height) continue;
             const geW = ghostExtracted.width, geH = ghostExtracted.height;
-            const gbW = gBounds.width, gbH = gBounds.height;
             const gvsx = vRectG.width / fw;
             const gvsy = vRectG.height / fh;
-            const gdstW = gbW * gvsx;
+            const gdrawS = vRectG.width / 660;
+            const gCenterDomX = vRectG.left + (g.container.x - f.container.x) * gvsx;
+            const gdstW = gbW * gdrawS;
             const gdstH = gbH * gvsy;
-            for (const wrapOffset of [0, 660, -660]) {
-              const wGlx = glx + wrapOffset;
-              if (wGlx < -660 || wGlx > 660 * 2) continue;
-              const wGLeft = gBounds.x + wrapOffset;
-              const gStageL = Math.max(wGLeft, f.container.x);
-              const gStageR = Math.min(wGLeft + gbW, f.container.x + fw);
-              if (gStageR <= gStageL) continue;
-              const gdstX = vRectG.left + (gBounds.x + wrapOffset - f.container.x) * gvsx;
-              const gdstY = vRectG.top + (gBounds.y - f.container.y) * gvsy;
-              _avaOverlayCtx.save();
-              _avaOverlayCtx.beginPath();
-              _avaOverlayCtx.rect(vRectG.left, vRectG.top, vRectG.width, vRectG.height);
-              _avaOverlayCtx.clip();
-              _avaOverlayCtx.drawImage(ghostExtracted, 0, 0, geW, geH, gdstX, gdstY, gdstW, gdstH);
-              _avaOverlayCtx.restore();
-            }
+            const gdstX = gCenterDomX + (gBounds.x - g.container.x) * gdrawS;
+            const gdstY = vRectG.top + (gBounds.y - f.container.y) * gvsy;
+            _avaOverlayCtx.save();
+            _avaOverlayCtx.beginPath();
+            _avaOverlayCtx.rect(vRectG.left, vRectG.top, vRectG.width, vRectG.height);
+            _avaOverlayCtx.clip();
+            _avaOverlayCtx.drawImage(ghostExtracted, 0, 0, geW, geH, gdstX, gdstY, gdstW, gdstH);
+            _avaOverlayCtx.restore();
           }
         }
       }
     }
   };
-  app.ticker.add(_avaOverlayPostTicker, null, 50);
+  app.ticker.add(_avaOverlayPostTicker, null, -1);
 }
 
 function _stopAvaOverlay() {
@@ -12399,7 +12439,7 @@ function videoResize() {
   if (_videoTransparentActive) return;
   const _curVideoCount = Object.keys(videoArray).length;
   if (_videoAutoReset && _curVideoCount !== _lastVideoCount) {
-    Object.keys(videoArray).forEach(key => { videoArray[key].freeFloat = false; });
+    Object.keys(videoArray).forEach(key => { videoArray[key].freeFloat = false; videoArray[key].style.top = '0'; });
   }
   _lastVideoCount = _curVideoCount;
   if (Object.keys(videoArray).length) {
