@@ -1337,6 +1337,8 @@ overlayChat.eventMode = "none";
 overlayChat.zIndex = 1000;
 app.stage.addChild(overlayChat);
 
+let avaBubbleLayer = null;
+
 /**
  * PIXI.Textureからカラライズ済みアイコン画像のDataURLを生成する関数
  * @param {PIXI.Texture} texture - アイコン用のPIXI.Texture
@@ -1892,6 +1894,10 @@ class MsgBubble extends PIXI.Container {
     this._offsetX = 0;
     this._offsetY = 0;
     this._dragging = false;
+    this._avatarContainer = null;
+    this._lastBx = 0;
+    this._lastBy = 0;
+    this._overlayTickFn = null;
     this._bg   = new PIXI.Graphics();
     this._text = new PIXI.Text("", { fontSize: 15, fill: 0xffffff, fontFamily: "monospace", padding: 4 });
     this.zIndex = 20;
@@ -1917,7 +1923,21 @@ class MsgBubble extends PIXI.Container {
   }
 
   get text() { return this._text.text; }
-  set text(val) { this._text.text = val; this._redraw(); }
+  set text(val) {
+    this._text.text = val;
+    if (val && avaBubbleLayer && this.parent !== avaBubbleLayer) {
+      if (this.parent) this.parent.removeChild(this);
+      avaBubbleLayer.addChild(this);
+      this._startOverlayTick();
+    } else if (!val) {
+      this._stopOverlayTick();
+      if (this.parent && this.parent !== this._avatarContainer && this._avatarContainer) {
+        this.parent.removeChild(this);
+        this._avatarContainer.addChild(this);
+      }
+    }
+    this._redraw();
+  }
 
   get log() { return this._isLog; }
   set log(v) { this._isLog = v; if (this._text.text) this._redraw(); }
@@ -1944,8 +1964,17 @@ class MsgBubble extends PIXI.Container {
     const BASE = 7; // 付け根の幅（px）
     const col = this._avatarColor;
 
-    // テキスト色（override あればそちら、なければアバターカラー）
-    this._text.style.fill = this._textColorOverride !== null ? this._textColorOverride : col;
+    const bgCol = 0x000000;
+    const r = (col >> 16) & 0xff, g = (col >> 8) & 0xff, b = col & 0xff;
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    const isDark = lum < 40;
+
+    this._text.style.fill = this._textColorOverride !== null ? this._textColorOverride : (isDark ? 0xffffff : col);
+    this._text.style.dropShadow = isDark;
+    this._text.style.dropShadowColor = col;
+    this._text.style.dropShadowBlur = 6;
+    this._text.style.dropShadowDistance = 0;
+    this._text.style.dropShadowAlpha = 1.0;
 
     const tw = this._text.width;
     const th = this._text.height;
@@ -1992,19 +2021,39 @@ class MsgBubble extends PIXI.Container {
     // 吹き出しをアバターの右上に配置（ドラッグオフセット適用）
     const bottomGap = bangCount > 0 ? 10 : 20;
     const bottomExt = bangCount > 0 ? spikeH * 0.3 : k;
-    const _bx = 50 + this._offsetX;
-    const _by = -(this._spriteHeight + bottomGap + h + bottomExt) + this._offsetY;
-    this.position.set(_bx, _by);
+    let _bx = -w / 2 + this._offsetX;
+    let _by = -(this._spriteHeight + bottomGap + h + bottomExt) + this._offsetY;
 
-    const gA = this._isLog ? [0.22, 0.45, 0.80] : [0.04, 0.10, 0.30];
+    // 画面端クランプ（ドラッグ中は無効、_offsetX/Y は変えない）
+    const _acRef = this._avatarContainer || (this.parent !== avaBubbleLayer ? this.parent : null);
+    if (!this._dragging && _acRef?.getGlobalPosition) {
+      const gp = _acRef.getGlobalPosition();
+      const sx = _acRef.scale?.x ?? 1, sy = _acRef.scale?.y ?? 1;
+      const cW = app.renderer.width, cH = app.renderer.height, margin = 4;
+      if (gp.x + _bx * sx < margin)               _bx = (margin - gp.x) / sx;
+      if (gp.x + (_bx + w) * sx > cW - margin)    _bx = (cW - margin - w * sx - gp.x) / sx;
+      if (gp.y + _by * sy < margin)               _by = (margin - gp.y) / sy;
+    }
+
+    this._lastBx = _bx;
+    this._lastBy = _by;
+
+    if (this._avatarContainer && avaBubbleLayer && this.parent === avaBubbleLayer) {
+      const ac = this._avatarContainer;
+      this.position.set(ac.x + _bx * ac.scale.x, ac.y + _by * ac.scale.y);
+      this.scale.set(ac.scale.x, ac.scale.y);
+    } else {
+      this.scale.set(1, 1);
+      this.position.set(_bx, _by);
+    }
+
+    const gA = this._isLog ? [0.10, 0.22, 0.70] : [0.015, 0.05, 0.25];
 
     if (bangCount > 0) {
       const spikyPts = buildSpikyPts(spikeH, totalSpikes);
       // スパイク時: グロー → 黒塗り → ボーダーの順（内側へのグロー染みを黒で消す）
-      this._bg.lineStyle(10, col, gA[0]);
-      this._bg.drawPolygon(buildSpikyPts(spikeH + 6, totalSpikes));
       this._bg.lineStyle(0);
-      this._bg.beginFill(0x000000, 1);
+      this._bg.beginFill(bgCol, 1);
       this._bg.drawPolygon(spikyPts);
       this._bg.endFill();
       this._bg.lineStyle(2, col, 1);
@@ -2065,19 +2114,17 @@ class MsgBubble extends PIXI.Container {
         }
       }
       // 通常時: グロー → 黒背景（内側染みを上書き） → ボーダー
-      this._bg.lineStyle(10, col, gA[0]);
-      this._bg.drawRect(-4, -4, w + 8, h + 8);
       this._bg.lineStyle(5, col, gA[1]);
       this._bg.drawRect(-2, -2, w + 4, h + 4);
       this._bg.lineStyle(2, col, gA[2]);
       this._bg.drawRect(0, 0, w, h);
-      // 黒背景でグローの内側染みを消す
+      // 背景色でグローの内側染みを消す
       this._bg.lineStyle(0);
-      this._bg.beginFill(0x000000, 1);
+      this._bg.beginFill(bgCol, 1);
       this._bg.drawRect(0, 0, w, h);
       this._bg.endFill();
-      // 三角の黒背景
-      this._bg.beginFill(0x000000, 1);
+      // 三角の背景
+      this._bg.beginFill(bgCol, 1);
       this._bg.moveTo(triLeft[0],   triLeft[1]);
       this._bg.lineTo(triTip[0],    triTip[1]);
       this._bg.lineTo(triBottom[0], triBottom[1]);
@@ -2149,9 +2196,27 @@ class MsgBubble extends PIXI.Container {
     this._text.position.set(PX, (h - th) / 2);
   }
 
+  _startOverlayTick() {
+    if (this._overlayTickFn) return;
+    this._overlayTickFn = () => {
+      if (!this._avatarContainer || this.parent !== avaBubbleLayer) return;
+      const ac = this._avatarContainer;
+      this.x = ac.x + this._lastBx * ac.scale.x;
+      this.y = ac.y + this._lastBy * ac.scale.y;
+      this.scale.set(ac.scale.x, ac.scale.y);
+    };
+    app.ticker.add(this._overlayTickFn);
+  }
+
+  _stopOverlayTick() {
+    if (!this._overlayTickFn) return;
+    app.ticker.remove(this._overlayTickFn);
+    this._overlayTickFn = null;
+  }
+
   // 自分のアバターの吹き出しにのみ呼ぶ。ドラッグで位置変更できるようにする
   setupDrag() {
-    this._offsetX = Math.max(-200, Math.min(200, parseFloat(localStorage.getItem("bubbleOffsetX")) || 0));
+    this._offsetX = Math.max(-250, Math.min(250, parseFloat(localStorage.getItem("bubbleOffsetX")) || 0));
     this._offsetY = Math.max(-67,  Math.min(100, parseFloat(localStorage.getItem("bubbleOffsetY")) || 0));
     this.interactive = true;
     this.cursor = "grab";
@@ -2167,7 +2232,7 @@ class MsgBubble extends PIXI.Container {
       let lastEmitTime = 0;
       const onMove = ev => {
         if (!this._dragging) return;
-        this._offsetX = Math.max(-200, Math.min(200, startOX + (ev.global.x - startPX)));
+        this._offsetX = Math.max(-250, Math.min(250, startOX + (ev.global.x - startPX)));
         this._offsetY = Math.max(-67,  Math.min(100, startOY + (ev.global.y - startPY)));
         if (this._text.text) this._redraw();
         const now = Date.now();
@@ -2300,6 +2365,7 @@ class Avatar {
 
     // 吹き出し
     this.msg = new MsgBubble(this.avaS.height, this.avatarColor);
+    this.msg._avatarContainer = this.container;
     this.container.addChild(this.msg);
 
     //アバターお絵描きを描画
@@ -4384,6 +4450,10 @@ class Room extends GameObject {
   displayRoom() {
     app.stage.addChild(this.container);
     room = objMap[this.name];//現在の部屋を更新
+    avaBubbleLayer = new PIXI.Container();
+    avaBubbleLayer.zIndex = 400;
+    avaBubbleLayer.eventMode = 'passive';
+    this.container.addChild(avaBubbleLayer);
 
     //毎回更新する部屋ごとの独自処理（ROOM_PHYSICSで管理）
     const roomConfig = ROOM_PHYSICS[room.name];
@@ -5362,6 +5432,7 @@ socket.on("joineRoom", data => {
     Object.keys(avaP).forEach(key => {
       if (key !== myToken) {
         if (avaP[key]._tickerFn) app.ticker.remove(avaP[key]._tickerFn);
+        avaP[key].msg?._stopOverlayTick();
         if (avaP[key].container.parent) {
           avaP[key].container.parent.removeChild(avaP[key].container);
         }
@@ -6261,6 +6332,11 @@ socket.on("otherLeft", data => {//自分以外が部屋から退室した時
       avaP[tk].stopRiding();
       if (tk === myToken) avaP[tk].sendTransformData("落下開始");
     }
+  }
+  // 吹き出しがオーバーレイ層にある場合は先に除去
+  if (avaP[data.token].msg) {
+    avaP[data.token].msg._stopOverlayTick();
+    if (avaP[data.token].msg.parent) avaP[data.token].msg.parent.removeChild(avaP[data.token].msg);
   }
   // アバターを部屋から排除
   room.container.removeChild(avaP[data.token].container);
