@@ -672,9 +672,14 @@ CREATE TABLE editing_sessions (
 - 音声をブースト、ON/OFF可能 / Boost mic audio, toggleable
 
 #### 現状（2026-06-11 実装完了）
-- 設定パネルに「マイク音量ブースト（×3）」チェックボックスを追加
-- Web Audio API の GainNode で送信前に3倍増幅
-- 配信中にON/OFF切り替え可能（即時反映）
+- 設定パネルに「ノイズ除去（RNNoise）」「マイク音量ブースト」「低音カット（80Hz以下）」チェックボックスを追加
+- getUserMedia に `noiseSuppression: true, echoCancellation: true, autoGainControl: false` を指定（ブラウザ組み込みのノイズ抑制・エコーキャンセル）
+- Web Audio チェーン: `source → [RNNoiseWorklet] → HighPass(80Hz) → DynamicsCompressor → GainNode(×3) → AnalyserNode → dest`
+- RNNoise（`@jitsi/rnnoise-wasm` v0.2.0 WASM）をAudioWorkletで処理。定常ノイズ・混合ノイズどちらも除去可能。`public/rnnoise/rnnoise-worklet.js` + `public/rnnoise/rnnoise-sync.js`
+- HighPassFilter（BiquadFilterNode）：OFF時は `type=allpass` でバイパス、ON時は `type=highpass`（80Hz以下カット）
+- DynamicsCompressor（threshold=-24, ratio=8）でピークを圧縮してから増幅するため歪みにくく、声の大小が均一化
+- 各チェックボックスは配信中にON/OFF切り替え可能（即時反映）
+- AudioWorklet非対応環境（iOS Safari等）はRNNoiseをスキップして動作継続（低音カットはiOSでも動作）
 
 ---
 

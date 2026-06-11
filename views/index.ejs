@@ -368,7 +368,9 @@
                 <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
               </div>
               <div>
-                <input type="checkbox" id="audioBoostCheck" onchange="toggleAudioBoost()"><label for="audioBoostCheck">マイク音量ブースト（×3）</label>
+                <input type="checkbox" id="rnnoiseCheck" onchange="toggleRNNoise()"><label for="rnnoiseCheck">ノイズ除去（RNNoise）</label>
+                <br><input type="checkbox" id="audioBoostCheck" onchange="toggleAudioBoost()"><label for="audioBoostCheck">マイク音量ブースト</label>
+                <br><input type="checkbox" id="highpassCheck" onchange="toggleHighpass()"><label for="highpassCheck">低音カット（80Hz以下）</label>
               </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">

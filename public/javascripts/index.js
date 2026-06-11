@@ -1112,6 +1112,11 @@ let _audioRawStream = null;
 let _audioBoostEnabled = false;
 const AUDIO_BOOST_VALUE = 3.0;
 let _audioVizRafId = null;
+let _rnnoiseEnabled = false;
+let _rnnoiseWorkletNode = null;
+let _rnnoiseWorkletReady = false;
+let _highpassEnabled = false;
+let _highpassNode = null;
 
 let _remoteAudioCtx = null;
 const _remoteAnalysers = {};
@@ -13847,24 +13852,54 @@ async function startAudio() {
   }
   // iOS Safari: AudioContext は最初の await 前に生成しないと gesture context が失われる
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.audioWorklet && !_rnnoiseWorkletReady) {
+    try {
+      await _audioCtx.audioWorklet.addModule('/rnnoise/rnnoise-worklet.js');
+      _rnnoiseWorkletReady = true;
+    } catch (_e) { console.warn('RNNoise worklet unavailable:', _e); }
+  }
   let deviceId;
   try {
     deviceId = await _getMicDeviceId();
   } catch (_e) { _audioCtx.close(); _audioCtx = null; return; }
   audioStatus = true;
   getDeviceStream({
-    audio: { deviceId: deviceId ? { exact: deviceId } : undefined }
+    audio: {
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: false
+    }
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     _audioRawStream = stream;
     const source = _audioCtx.createMediaStreamSource(stream);
     _audioGainNode = _audioCtx.createGain();
     _audioGainNode.gain.value = _audioBoostEnabled ? AUDIO_BOOST_VALUE : 1.0;
+    const compressor = _audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -24;
+    compressor.knee.value = 10;
+    compressor.ratio.value = 8;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+    _highpassNode = _audioCtx.createBiquadFilter();
+    _highpassNode.type = _highpassEnabled ? 'highpass' : 'allpass';
+    _highpassNode.frequency.value = 80;
     _audioAnalyser = _audioCtx.createAnalyser();
     _audioAnalyser.fftSize = 256;
     _audioAnalyser.smoothingTimeConstant = 0.4;
     const dest = _audioCtx.createMediaStreamDestination();
-    source.connect(_audioGainNode);
+    // chain: source → [RNNoise] → highpass → compressor → gain → analyser → dest
+    if (_rnnoiseWorkletReady) {
+      _rnnoiseWorkletNode = new AudioWorkletNode(_audioCtx, 'rnnoise-processor');
+      _rnnoiseWorkletNode.port.postMessage({ type: 'enable', value: _rnnoiseEnabled });
+      source.connect(_rnnoiseWorkletNode);
+      _rnnoiseWorkletNode.connect(_highpassNode);
+    } else {
+      source.connect(_highpassNode);
+    }
+    _highpassNode.connect(compressor);
+    compressor.connect(_audioGainNode);
     _audioGainNode.connect(_audioAnalyser);
     _audioAnalyser.connect(dest);
     const processedTrack = dest.stream.getAudioTracks()[0];
@@ -13986,11 +14021,26 @@ function stopAudio() {
   if (_audioCtx) { _audioCtx.close(); _audioCtx = null; }
   _audioGainNode = null;
   _audioAnalyser = null;
+  _rnnoiseWorkletNode = null;
+  _rnnoiseWorkletReady = false;
+  _highpassNode = null;
 }
 
 function toggleAudioBoost() {
   _audioBoostEnabled = document.getElementById('audioBoostCheck').checked;
   if (_audioGainNode) _audioGainNode.gain.value = _audioBoostEnabled ? AUDIO_BOOST_VALUE : 1.0;
+}
+
+function toggleRNNoise() {
+  _rnnoiseEnabled = document.getElementById('rnnoiseCheck').checked;
+  if (_rnnoiseWorkletNode) {
+    _rnnoiseWorkletNode.port.postMessage({ type: 'enable', value: _rnnoiseEnabled });
+  }
+}
+
+function toggleHighpass() {
+  _highpassEnabled = document.getElementById('highpassCheck').checked;
+  if (_highpassNode) _highpassNode.type = _highpassEnabled ? 'highpass' : 'allpass';
 }
 
 function _startVolumeViz() {
