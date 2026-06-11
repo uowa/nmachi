@@ -167,6 +167,46 @@ for (let i = 0; i < roomNameList.length; i++) {
   };
 }
 
+function buildTrainData() {
+  const allRoomIds = [...roomNameList];
+  const allRoomTypes = roomNameList.map(() => 'system');
+  const allRoomNames = [...roomNameList];
+  let dbUserRooms = [];
+  try {
+    dbUserRooms = db.all(
+      "SELECT id, name FROM rooms WHERE is_system_room = 0 ORDER BY COALESCE(last_activity, created_at) DESC LIMIT 30"
+    ) || [];
+  } catch (_e) {}
+  for (const dbRoom of dbUserRooms) {
+    allRoomIds.push(dbRoom.id);
+    allRoomNames.push(dbRoom.name);
+    allRoomTypes.push('user');
+  }
+  const trainList = [];
+  for (let i = 0; i < allRoomIds.length; i++) {
+    trainList[i] = allRoomNames[i] + ":";
+    Object.keys(user).forEach(key => {
+      if (user[key].room === allRoomIds[i]) {
+        if (user[key].video && user[key].audio) {
+          trainList[i] += user[key].userName + "📺🔊 ";
+        } else if (user[key].video) {
+          trainList[i] += user[key].userName + "📺 ";
+        } else if (user[key].audio) {
+          trainList[i] += user[key].userName + "🔊 ";
+        }
+      }
+    });
+    trainList[i] += (rooms[allRoomIds[i]]?.usersToken.size ?? 0);
+  }
+  return { roomNameList: allRoomIds, roomDisplayNames: allRoomNames, roomTypes: allRoomTypes, trainList };
+}
+
+let _trainUpdateTimer = null;
+function scheduleTrainUpdate() {
+  clearTimeout(_trainUpdateTimer);
+  _trainUpdateTimer = setTimeout(() => { io.emit("trainUpdate", buildTrainData()); }, 500);
+}
+
 const crypto = require("crypto");
 
 function tripCreate(isTrip) {
@@ -594,6 +634,7 @@ io.on('connection', socket => {
       starColors: starColors,
       signs: rooms[data.toRoom].signs,
     });
+    scheduleTrainUpdate();
 
 
     // 入室時に既存のビデオ足場と落書き履歴を送信
@@ -851,41 +892,7 @@ io.on('connection', socket => {
 
     } else if (data.msg == "#train" || data.msg == "#ﾄﾚｲﾝ" || data.msg == "#トレイン" || data.msg == "#rula" || data.msg == "#ﾙｰﾗ" || data.msg == "#ルーラ" || data.msg == "#電車") {
 
-      // システム部屋
-      const allRoomIds = [...roomNameList];
-      const allRoomTypes = roomNameList.map(() => 'system');
-      const allRoomNames = [...roomNameList];
-
-      // ユーザー部屋をDBから全件取得（last_activity降順、最大30件）
-      let dbUserRooms = [];
-      try {
-        dbUserRooms = db.all(
-          "SELECT id, name FROM rooms WHERE is_system_room = 0 ORDER BY COALESCE(last_activity, created_at) DESC LIMIT 30"
-        ) || [];
-      } catch (_e) {}
-      for (const dbRoom of dbUserRooms) {
-        allRoomIds.push(dbRoom.id);
-        allRoomNames.push(dbRoom.name);
-        allRoomTypes.push('user');
-      }
-
-      let trainList = [];
-      for (let i = 0; i < allRoomIds.length; i++) {
-        trainList[i] = allRoomNames[i] + ":";
-        Object.keys(user).forEach(key => {
-          if (user[key].room === allRoomIds[i]) {
-            if (user[key].video && user[key].audio) {
-              trainList[i] += user[key].userName + "📺🔊 "
-            } else if (user[key].video) {
-              trainList[i] += user[key].userName + "📺 "
-            } else if (user[key].audio) {
-              trainList[i] += user[key].userName + "🔊 "
-            }
-          }
-        });
-        trainList[i] += (rooms[allRoomIds[i]]?.usersToken.size ?? 0);
-      }
-
+      const { roomNameList: allRoomIds, roomDisplayNames: allRoomNames, roomTypes: allRoomTypes, trainList } = buildTrainData();
       io.to(socket.id).emit("train", {
         roomNameList: allRoomIds,
         roomDisplayNames: allRoomNames,
@@ -1095,6 +1102,7 @@ io.on('connection', socket => {
         token: token,
       });
       sleepTime();
+      scheduleTrainUpdate();
     }
   });
 
@@ -1249,6 +1257,7 @@ io.on('connection', socket => {
     //メモリ解放
     delete user[token];
     delete socketID[token];
+    scheduleTrainUpdate();
 
     // close user connection
     console.log((new Date()) + ' Peer disconnected. id=' + socket.id);

@@ -164,7 +164,8 @@ const videoStartOrder = {};
 let _recalcRetryRaf = null;
 const videoFloorObjects = {};
 const videoFloorIntrinsic = {};
-const _videoFloorZOrder = []; // 奥→手前順のトークン配列（末尾が最前面）
+const _videoFloorZOrder = [];
+let _trainBtns = {}; // 奥→手前順のトークン配列（末尾が最前面）
 let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
 const VIDEO_FLOOR_H = 330;
@@ -10389,10 +10390,13 @@ function trainClick() {
 socket.on("train", data => {
   const li = document.createElement("li");
   li.classList.add("flexContainer");
+  li.style.flexWrap = 'wrap';
+  _trainBtns = {};
   const roomTypes = data.roomTypes || data.roomNameList.map(() => 'system');
   for (let i = 0; i < data.trainList.length; i++) {
     const btn = document.createElement("button");
     btn.textContent = data.trainList[i];
+    _trainBtns[data.roomNameList[i]] = btn;
     const isUser = roomTypes[i] === 'user';
     btn.style.backgroundColor = isUser ? '#1a2a5a' : 'rgb(255,165,0)';
     if (isUser) btn.style.color = '#aaccff';
@@ -10435,6 +10439,13 @@ socket.on("train", data => {
   overlayChat.children.forEach(c => { c.y += _off; });
   overlayChat.addChild(_ot);
 });//socket.on("train");
+
+socket.on("trainUpdate", data => {
+  for (let i = 0; i < data.roomNameList.length; i++) {
+    const btn = _trainBtns[data.roomNameList[i]];
+    if (btn) btn.textContent = data.trainList[i];
+  }
+});
 
 //リスト
 socket.on("list", data => {

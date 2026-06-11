@@ -1251,10 +1251,16 @@ ridingObjectがない場合:
 
 ---
 
-### 40. 電車ボタン改修
+### 40. 電車ボタン改修 ✅ (2026-06-11 実装完了)
 **Train button improvements**
 - 横枠に入りきらない場合に行を折り返す（flex-wrap 等）
 - ボタン内のユーザー数等の数値が変更されたらリアルタイムで更新
+
+#### 現状
+- `li.style.flexWrap = 'wrap'` で折り返し対応
+- `buildTrainData()` ヘルパー（bin/www）でシステム部屋＋ユーザー部屋の一覧を構築
+- `scheduleTrainUpdate()`（500ms デバウンス）が `joineRoom` / `stream`（配信開始停止）/ `disconnect` の3箇所で発火し、全クライアントに `trainUpdate` イベントを送信
+- クライアントは `_trainBtns`（roomId → button要素）で最新 train list のボタン参照を保持し、`trainUpdate` 受信時にテキストを更新
 
 ---
 
