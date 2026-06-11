@@ -1242,12 +1242,19 @@ ridingObjectがない場合:
 
 ---
 
-### 38. usersボタン → 部屋情報ボタン改修
-**"users" → "部屋情報" button overhaul**
-- ボタン名を「部屋情報」に変更
+### 38. usersボタン → 部屋人数ボタン改修 ✅ (2026-06-11 実装完了)
+**"users" → "部屋人数:" button overhaul**
+- ボタン名を「部屋人数:N」に変更（横に現在人数表示）
 - users 押した時に一番左に部屋名を表示
-- 配信受信者がわかるように表示
+- 配信受信者がわかるように表示（ユーザー名に📶マーク）
 - ユーザー名を押して赤字にした時のアボン挙動修正（「アボンをやめました」が出る問題）
+
+#### 現状
+- ボタン名は `部屋人数:<span id="usersNumber">N</span>` 形式
+- `socket.on("list")` 描画時にログの先頭に `room.name` を表示（黒文字・青み帯・padding付き）
+- 名前が14文字以内は1行、15文字以上はJS側で `Math.ceil(len/2)` 文字ずつ `\n` で分割して2行表示（`white-space:pre-line`）
+- `peerConnections[token]` が存在するユーザーのボタンに📶を付与
+- アボン修正: listボタンのpointerdownでローカルの `abon` を先に切り替えず、現在の状態（`abon`）をそのまま `setAbon` としてサーバーに送る。`abonSetting` 受信ハンドラでローカル状態更新とボタン色更新（`CSS.escape` + `querySelectorAll`）を一括処理
 
 ---
 

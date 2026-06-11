@@ -10539,16 +10539,29 @@ socket.on("trainUpdate", data => {
 socket.on("list", data => {
   const li = document.createElement("li");
   li.classList.add("flexContainer");
+  li.style.flexWrap = "wrap";
   const now = new Date();
   const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
   const timeSpan = document.createElement("span");
   timeSpan.textContent = timeStr;
   timeSpan.style.cssText = "font-size:0.85em;opacity:0.7;margin-left:6px;align-self:center;";
+  const roomNameSpan = document.createElement("span");
+  roomNameSpan.textContent = room.name;
+  roomNameSpan.style.cssText = "font-weight:bold;margin-right:4px;align-self:center;white-space:nowrap;color:#000;background:rgba(20,40,100,0.5);padding:3px;border-radius:3px;";
+  li.appendChild(roomNameSpan);
   let button = [];
 
   for (let i = 0; i < data.listName.length; i++) {
     button[i] = document.createElement("button");
-    button[i].textContent = data.listName[i];
+    const _listName = data.listName[i];
+    const _suffix = peerConnections[data.listToken[i]] ? "📶" : "";
+    if (_listName.length > 14) {
+      const _half = Math.ceil(_listName.length / 2);
+      button[i].textContent = _listName.slice(0, _half) + '\n' + _listName.slice(_half) + _suffix;
+      button[i].style.whiteSpace = "pre-line";
+    } else {
+      button[i].textContent = _listName + _suffix;
+    }
     if (avaP[data.listToken[i]].abon) {
       button[i].style.backgroundColor = "red";
     } else {
@@ -10557,15 +10570,8 @@ socket.on("list", data => {
     button[i].className = data.listToken[i];
     button[i].addEventListener('pointerdown', e => {
       if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
-      e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
-      if (myToken != data.listToken[i]) {//自テキストは省く
-        if (avaP[data.listToken[i]].abon) {
-          avaP[data.listToken[i]].abon = false;
-          button[i].style.backgroundColor = "skyblue";
-        } else {
-          avaP[data.listToken[i]].abon = true;
-          button[i].style.backgroundColor = "red";
-        }
+      e.preventDefault();
+      if (myToken != data.listToken[i]) {
         socket.emit("abonSetting", {
           setAbon: avaP[data.listToken[i]].abon,
           token: data.listToken[i],
@@ -10611,9 +10617,11 @@ socket.on("abonSetting", data => {
       avatarOekakiToken = false;
       switchDrawing();//部屋用お絵描きに切り替える
     }
+    document.querySelectorAll('button.' + CSS.escape(data.token)).forEach(btn => { btn.style.backgroundColor = "red"; });
   } else {//アボンを解除する時
     avaP[data.token].abon = false;
     outputChatMsg(data.msg, "blue");
+    document.querySelectorAll('button.' + CSS.escape(data.token)).forEach(btn => { btn.style.backgroundColor = "skyblue"; });
     if (data.room === room.name) {//アバターが部屋にいるときの解除
       avaP[data.token].msg.style.fill = "white";
       avaP[data.token].container.x = data.AX;
