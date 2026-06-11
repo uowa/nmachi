@@ -677,6 +677,8 @@ CREATE TABLE editing_sessions (
 - ピッカープレビュー：プレビューボタンON後に選択でもON前に選択後にボタンONでも映像が出る（`_pickerSyncExtraPreviews` で一括同期）、プレビューOFF時に消える
 - 設定パネルプレビュー：cam2〜以降も各カメラのプレビュー動画が縦に並ぶ
 - `videoStartOrder[myToken+'_N']` でcam1より後のタイムスタンプを付与し、パネル順を保証
+- 各カメラは完全独立（cam N=none にすると cam N のみ停止・クリア、他カメラに影響なし）
+- `populateDeviceSelects` は「最後にdeviceIdが設定されているcam+1」まで動的にセレクターを表示（中抜けがあっても高番号camのセレクターが消えない）
 
 ---
 

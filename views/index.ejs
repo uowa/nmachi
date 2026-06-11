@@ -354,7 +354,7 @@
                 <label><input type="checkbox" id="settingPreviewCheck" onchange="onSettingPreviewCheckChange(this)"> プレビュー</label>
                 <label style="margin-left:8px;"><input type="checkbox" id="multiCameraCheck" onchange="onMultiCameraCheckChange(this)"> 複数カメラ</label>
                 <br>
-                <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+                <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)" style="width:auto; max-width:100%; margin-top:3px; box-sizing:border-box"></select>
                 <div id="camExtraDeviceWraps"></div>
               </div>
               <div id="settingPreviewWrap" style="display:none; width:50%; margin-top:4px; border-radius:4px; overflow:hidden; position:relative;">
@@ -368,7 +368,7 @@
                   <option value="fixed">固定</option>
                 </select>
                 <br>
-                <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+                <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)" style="width:auto; max-width:100%; margin-top:3px; box-sizing:border-box"></select>
               </div>
               <div>
                 <input type="checkbox" id="rnnoiseCheck" onchange="toggleRNNoise()"><label for="rnnoiseCheck">ノイズ除去（RNNoise）</label>
