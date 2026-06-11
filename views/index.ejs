@@ -185,6 +185,9 @@
                       <button type="button" id="usersDisplay" onclick="usersDisplayClick();"> users:<span
                           id="usersNumber">0</span></button>
                     </div>
+                    <div id="audioVizBar" style="display:none; position:relative; height:6px; background:#222; border-radius:9999px; margin:2px 0; clip-path:inset(0 0 0 0 round 9999px);">
+                      <div id="audioVizFill" style="position:absolute; left:0; top:0; height:100%; width:0; background:linear-gradient(to right,#5be,#48f,#c4a);"></div>
+                    </div>
                   </div>
                 </div>
                 <!-- スイッチ類↑↑↑↑↑↑↑↑ -->
@@ -363,6 +366,9 @@
                 </select>
                 <br>
                 <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+              </div>
+              <div>
+                <input type="checkbox" id="audioBoostCheck" onchange="toggleAudioBoost()"><label for="audioBoostCheck">マイク音量ブースト（×3）</label>
               </div>
               <p>　動画サイズ</p>
               <form id="selectVideoSize">

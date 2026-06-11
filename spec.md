@@ -668,15 +668,26 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 15. 配信音量ブースト
+### 15. 配信音量ブースト ✅ (2026-06-11 実装完了)
 **Audio boost**
 - 音声をブースト、ON/OFF可能 / Boost mic audio, toggleable
 
+#### 現状（2026-06-11 実装完了）
+- 設定パネルに「マイク音量ブースト（×3）」チェックボックスを追加
+- Web Audio API の GainNode で送信前に3倍増幅
+- 配信中にON/OFF切り替え可能（即時反映）
+
 ---
 
-### 16. 配信音量可視化
+### 16. 配信音量可視化 ✅ (2026-06-11 実装完了)
 **Audio level visualization**
 - 音声バーに音量に応じた色付きバーを表示 / Color bar extending with volume on audio bar
+
+#### 現状（2026-06-11 実装完了）
+- 送信側：音声配信ボタン下にグラデーションバーを表示（#5be→#48f→#c4a）
+- 受信側：音量スライダーに内蔵（薄いベースバー＋鮮やかなフィル）
+- AnalyserNode（smoothingTimeConstant=0.4）で音量をリアルタイム取得
+- 受信側スライダーのつまみ・バーをフルカスタムCSS化
 
 ---
 

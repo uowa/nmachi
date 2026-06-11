@@ -1105,6 +1105,20 @@ let localStream = null;//自分のとこのメディア情報
 let localVideoTrack;//自分のとこのメディア情報
 let localAudioTrack;//自分のとこのメディア情報
 
+let _audioCtx = null;
+let _audioGainNode = null;
+let _audioAnalyser = null;
+let _audioRawStream = null;
+let _audioBoostEnabled = false;
+const AUDIO_BOOST_VALUE = 3.0;
+let _audioVizRafId = null;
+
+let _remoteAudioCtx = null;
+const _remoteAnalysers = {};
+const _remoteVizBases = {};
+const _remoteVizBars = {};
+const _remoteVizRafIds = {};
+
 let videoStatus = false;
 let audioStatus = false;
 let roomStream;
@@ -13038,10 +13052,24 @@ function attachAudio(fromToken, stream) {//remoteAudioの追加
   playMedia(audio, stream);
   audio.volume = audioVolume[fromToken].value;
 
+  // 受信音声の音量可視化（createMediaStreamSource: audio要素の再生を妨げない）
+  if (!_remoteAudioCtx) _remoteAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_remoteAudioCtx.state === 'suspended') _remoteAudioCtx.resume().catch(() => {});
+  try {
+    const source = _remoteAudioCtx.createMediaStreamSource(stream);
+    const analyser = _remoteAudioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.4;
+    source.connect(analyser);
+    _remoteAnalysers[fromToken] = analyser;
+    _startRemoteVolumeViz(fromToken);
+  } catch (_e) {}
+
   // スマホやタブレットの自動再生制限対策
   document.addEventListener('pointerdown', () => {
     audio.play();
     audio.volume = 1;
+    if (_remoteAudioCtx && _remoteAudioCtx.state === 'suspended') _remoteAudioCtx.resume().catch(() => {});
   }, { passive: true, once: true });
 
   //エラーの場合
@@ -13364,6 +13392,10 @@ function changeVideoAutoReset() {
 
 function detachAudio(token) {//remoteAudioの削除
   // mediaContainer.removeChild(document.getElementById('remote_audio_' + token));//しばらく消してみて様子見、
+  _stopRemoteVolumeViz(token);
+  if (_remoteAnalysers[token]) { _remoteAnalysers[token].disconnect(); delete _remoteAnalysers[token]; }
+  if (_remoteVizBases[token]) { delete _remoteVizBases[token]; }
+  if (_remoteVizBars[token]) { delete _remoteVizBars[token]; }
   delete remoteAudios[token];
 }
 
@@ -13724,19 +13756,31 @@ async function startAudio() {
   if (audioStatus) {
     return;
   }
+  // iOS Safari: AudioContext は最初の await 前に生成しないと gesture context が失われる
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   let deviceId;
   try {
     deviceId = await _getMicDeviceId();
-  } catch (_e) { return; }
+  } catch (_e) { _audioCtx.close(); _audioCtx = null; return; }
   audioStatus = true;
   getDeviceStream({
     audio: { deviceId: deviceId ? { exact: deviceId } : undefined }
   }).then(function (stream) { // success
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
-    if (!localStream) {
-      localStream = stream;
-    }
-    localAudioTrack = localStream.addTrack(stream.getAudioTracks()[0]);
+    _audioRawStream = stream;
+    const source = _audioCtx.createMediaStreamSource(stream);
+    _audioGainNode = _audioCtx.createGain();
+    _audioGainNode.gain.value = _audioBoostEnabled ? AUDIO_BOOST_VALUE : 1.0;
+    _audioAnalyser = _audioCtx.createAnalyser();
+    _audioAnalyser.fftSize = 256;
+    _audioAnalyser.smoothingTimeConstant = 0.4;
+    const dest = _audioCtx.createMediaStreamDestination();
+    source.connect(_audioGainNode);
+    _audioGainNode.connect(_audioAnalyser);
+    _audioAnalyser.connect(dest);
+    const processedTrack = dest.stream.getAudioTracks()[0];
+    if (!localStream) { localStream = new MediaStream(); }
+    localAudioTrack = localStream.addTrack(processedTrack);
     if (micSelectMode === 'fixed') {
       const actualId = stream.getAudioTracks()[0]?.getSettings()?.deviceId;
       if (actualId && actualId !== micDeviceId) {
@@ -13747,12 +13791,13 @@ async function startAudio() {
     mapPeer.forEach(function (value) {
       if (audioStatus) {
         if (value.get("onAudio")) {
-          value.set("oldAudio", stream.getAudioTracks()[0]);
-          value.set("idOldAudio", stream.getAudioTracks()[0].id);
-          value.get("rtc").addTrack(value.get("oldAudio"), stream);
+          value.set("oldAudio", processedTrack);
+          value.set("idOldAudio", processedTrack.id);
+          value.get("rtc").addTrack(value.get("oldAudio"), localStream);
         }
       }
     });
+    _startVolumeViz();
 
     socket.emit("mediaButton", { type: 'createAudioButton', });
     socket.emit("stream", { format: "audioStart", });
@@ -13847,6 +13892,72 @@ function stopAudio() {
     startAudio();
   }
   socket.emit("stream", { format: "audioStop", });
+  _stopVolumeViz();
+  if (_audioRawStream) { _audioRawStream.getTracks().forEach(t => t.stop()); _audioRawStream = null; }
+  if (_audioCtx) { _audioCtx.close(); _audioCtx = null; }
+  _audioGainNode = null;
+  _audioAnalyser = null;
+}
+
+function toggleAudioBoost() {
+  _audioBoostEnabled = document.getElementById('audioBoostCheck').checked;
+  if (_audioGainNode) _audioGainNode.gain.value = _audioBoostEnabled ? AUDIO_BOOST_VALUE : 1.0;
+}
+
+function _startVolumeViz() {
+  const bar = document.getElementById('audioVizBar');
+  const fill = document.getElementById('audioVizFill');
+  if (!bar || !fill || !_audioAnalyser) return;
+  bar.style.display = '';
+  const data = new Uint8Array(_audioAnalyser.frequencyBinCount);
+  function tick() {
+    _audioVizRafId = requestAnimationFrame(tick);
+    _audioAnalyser.getByteFrequencyData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i];
+    const level = sum / data.length / 255;
+    const pct = Math.min(100, level * 300);
+    fill.style.width = pct + '%';
+  }
+  tick();
+}
+
+function _stopVolumeViz() {
+  if (_audioVizRafId) { cancelAnimationFrame(_audioVizRafId); _audioVizRafId = null; }
+  const bar = document.getElementById('audioVizBar');
+  if (bar) bar.style.display = 'none';
+}
+
+function _updateRemoteSliderBg(token, levelPct) {
+  const base = _remoteVizBases[token];
+  const fill = _remoteVizBars[token];
+  const slider = audioVolume[token];
+  if (!fill || !slider) return;
+  const valPct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+  if (base) base.style.width = valPct + '%';
+  fill.style.width = Math.min(levelPct, valPct) + '%';
+}
+
+function _startRemoteVolumeViz(token) {
+  const slider = audioVolume[token];
+  const analyser = _remoteAnalysers[token];
+  if (!slider || !analyser) return;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  function tick() {
+    _remoteVizRafIds[token] = requestAnimationFrame(tick);
+    analyser.getByteFrequencyData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i];
+    const level = sum / data.length / 255;
+    const levelPct = Math.min(100, level * 300);
+    _updateRemoteSliderBg(token, levelPct);
+  }
+  tick();
+}
+
+function _stopRemoteVolumeViz(token) {
+  if (_remoteVizRafIds[token]) { cancelAnimationFrame(_remoteVizRafIds[token]); delete _remoteVizRafIds[token]; }
+  _updateRemoteSliderBg(token, 0);
 }
 
 function checkAllListenFunk() {
@@ -14037,7 +14148,6 @@ function createAudioButton(fromToken) {
   if (!audioVolume[fromToken]) {
     audioVolume[fromToken] = document.createElement('input');
     audioVolume[fromToken].token = fromToken;
-    audioVolume[fromToken].classList.add("order3");
     audioVolume[fromToken].classList.add('audioVolume');
     audioVolume[fromToken].type = "range";
     audioVolume[fromToken].name = "speed";
@@ -14045,18 +14155,36 @@ function createAudioButton(fromToken) {
     audioVolume[fromToken].min = "0";
     audioVolume[fromToken].max = "1";
     audioVolume[fromToken].step = "0.001";
-    // audioVolume[fromToken].width = "500px";
-    audioVolume[fromToken].onchange = function setAudioVolume() {
+    audioVolume[fromToken].oninput = function setAudioVolume() {
       if (remoteAudios[fromToken]) {
-        let audio = remoteAudios[fromToken];
-        audio.volume = document.getElementById(fromToken).value;
+        remoteAudios[fromToken].volume = audioVolume[fromToken].value;
       }
+      if (!_remoteVizRafIds[fromToken]) _updateRemoteSliderBg(fromToken, 0);
     }
   } else {
     let audio = remoteAudios[fromToken];
     // audio.volume = document.getElementById(fromToken).value;
   }
-  mediaElement[fromToken].appendChild(audioVolume[fromToken]);
+  if (!_remoteVizBars[fromToken]) {
+    const base = document.createElement('div');
+    base.classList.add('audioVolumeBase');
+    const fill = document.createElement('div');
+    fill.classList.add('audioVolumeFill');
+    const track = document.createElement('div');
+    track.classList.add('audioVolumeTrack');
+    track.appendChild(base);
+    track.appendChild(fill);
+    const wrap = document.createElement('div');
+    wrap.classList.add('audioVolumeWrap');
+    wrap.appendChild(track);
+    wrap.appendChild(audioVolume[fromToken]);
+    _remoteVizBases[fromToken] = base;
+    _remoteVizBars[fromToken] = fill;
+    mediaElement[fromToken].appendChild(wrap);
+    _updateRemoteSliderBg(fromToken, 0);
+  } else {
+    mediaElement[fromToken].appendChild(audioVolume[fromToken].closest('.audioVolumeWrap') || audioVolume[fromToken]);
+  }
 
   if (checkAllListen) {//checkAllListenがonだったらボタンを押す
     if (audioButtonFlag[fromToken] === undefined) {
