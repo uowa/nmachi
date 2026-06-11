@@ -128,7 +128,7 @@
 
 ---
 
-### 1. キーボード移動 & アバター落書き強化 ✅
+### 1. キーボード移動 & アバター落書き強化 ✅ (2026-04-10 実装完了)
 **Keyboard movement & avatar doodle enhancement**
 - 矢印キーで移動、同時押しで斜め移動 / Arrow keys to move, diagonal on simultaneous press
 - キーを離した時点で停止（クリック移動と違いアイドルポーズにならない）/ Stop on key release (no idle pose, unlike click-move)
@@ -136,7 +136,7 @@
 
 ---
 
-### 2. 自動再接続 ✅
+### 2. 自動再接続 ✅ (2026-04-10 実装完了)
 **Auto-reconnect**
 - 切断→再接続時に位置・アバター情報・配信受信情報を再送信 / On reconnect, resend position, avatar, stream info
 - チャット欄に青字でステータスを表示:
@@ -520,7 +520,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 6. ログハイライト機能 ✅
+### 6. ログハイライト機能 ✅ (2026-04-13 実装完了)
 **Log highlight**
 - アバタークリック→そのユーザーの発言と入退室のみハイライト / Click avatar → highlight that user's messages & joins/leaves
 - 他をクリックで解除 / Click elsewhere to deselect
@@ -552,7 +552,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 7. ログ複数行入力（Shift+Enter）✅
+### 7. ログ複数行入力（Shift+Enter）✅ (2026-04-13 実装完了)
 **Multi-line input (Shift+Enter)**
 - Shift+Enterで入力欄が縦に拡張 / Shift+Enter expands input vertically
 - Enterで送信→入力欄リセット / Enter sends → resets input
@@ -584,7 +584,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 8. 他者からのアバター落書きON/OFF ✅
+### 8. 他者からのアバター落書きON/OFF ✅ (2026-04-13 実装完了)
 **Toggle others' avatar doodles**
 - デフォルトON / Default: ON
 
@@ -603,7 +603,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 10. usersで時間表示 ✅
+### 10. usersで時間表示 ✅ (2026-05-17 実装完了)
 **Timestamp in users list**
 - usersボタン押下時に時刻も表示 / Show time when users list is opened
 
@@ -612,7 +612,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 11. 配信画質セレクター ✅
+### 11. 配信画質セレクター ✅ (2026-05-08 実装完了)
 **Stream quality selector**
 - 最高・高・標準・低 の4段階 / 4 levels: max / high / normal / low
 - 設定から変更 / Changed via settings
@@ -625,7 +625,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 12. カメラ選択 ✅
+### 12. カメラ選択 ✅ (2026-05-18 実装完了)
 **Camera selection**
 - 配信開始時にカメラを選択 / Select camera when starting stream
 - 「毎回選ぶ」か固定かを設定で切り替え（初期値: 毎回）/ Setting: always-ask vs. fixed (default: always-ask)
@@ -636,7 +636,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 12.5. カメラプレビュー（配信中カメラ切替）✅
+### 12.5. カメラプレビュー（配信中カメラ切替）✅ (2026-05-31 実装完了)
 
 **Camera preview during stream**
 - 配信中に別カメラに切り替える前にプレビュー確認できる
@@ -653,7 +653,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 13. マイク選択 ✅
+### 13. マイク選択 ✅ (2026-05-18 実装完了)
 **Mic selection**
 - カメラ選択と同仕様 / Same spec as camera selection
 
@@ -706,6 +706,8 @@ CREATE TABLE editing_sessions (
 - 透過モード入り時: `mediaContainer.style.height=''` `mediaContainer.style.width=''` で inline height/width を消しCSSの `bottom:0` を有効化、全動画の `top/left/width/height` を全画面値にリセット
 - `videoResize()` 末尾で `Object.keys(videoArray).forEach(k => _syncHandle(k))` を呼び、透過切替後もハンドル位置を正しく同期
 - `videoResize()` 先頭に `if (_videoTransparentActive) return;` ガードを追加。透過モード中に `loadedmetadata` 等で `videoResize()` が呼ばれ `mediaContainer.style.height` が再設定されて全画面が崩れる問題を修正
+- `_applyTransparentLayout` でデスクトップも AR（アスペクト比）ベースで動画サイズを計算（修正前は `window.innerHeight / N` で AR 無視、動画フロアのタップ可能範囲が画面全体になりアバター位置がズレていた）
+- モバイルでは `localW = 660`（CSS scale 変換後のローカル座標幅）を使用。`windowWidth` が 660〜870 の端末で `window.innerWidth` をそのまま使うと `width²/660` になり横はみ出しが発生していた
 - 設定チェックボックス「透過配信をデフォルトにする」＋透過度スライダー（0.05〜0.95）
 - localStorage: `videoTransparentDefault`（bool）、`videoTransparentOpacity`（float）
 
@@ -730,7 +732,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 21. 特定部屋への直接リンク ✅
+### 21. 特定部屋への直接リンク ✅ (2026-05-17 実装完了)
 **Direct room link**
 - ログイン後に指定部屋へ直行するリンクを発行 / Shareable link that lands user in specific room after login
 - 設定からコピー可能 / Copyable from settings
@@ -1166,7 +1168,7 @@ ridingObjectがない場合:
 
 ---
 
-### 34. むげん部屋キーボード移動ループ ✅
+### 34. むげん部屋キーボード移動ループ ✅ (2026-06-11 最終更新)
 **Mugen room: keyboard movement wraps around screen edges**
 - キー移動でアバターが画面外に出ると、逆方向から出現（左端→右端から、等）
 - 出現時はトリミングして画面外からスライドインするように

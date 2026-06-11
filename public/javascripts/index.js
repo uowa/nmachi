@@ -153,9 +153,10 @@ let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false";
 let useLogItemHighlight = localStorage.getItem("useLogItemHighlight") !== "false"; // デフォルトtrue
 let contextMenuPos = localStorage.getItem("contextMenuPos") || "tapLeft";
 let showCoord = localStorage.getItem("showCoord") === "true";
-let videoTransparentDefault = localStorage.getItem("videoTransparentDefault") === "true";
+const _vtdStored = localStorage.getItem("videoTransparentDefault");
+let videoTransparentDefault = _vtdStored !== null ? _vtdStored === "true" : (navigator.maxTouchPoints > 0);
 let videoTransparentOpacity = Math.max(0.3, parseFloat(localStorage.getItem("videoTransparentOpacity") || "0.5"));
-let _videoTransparentActive = videoTransparentDefault;
+let _videoTransparentActive = false;
 let _streamSurfaceAllowed = localStorage.getItem('streamSurfaceAllowed') !== 'false';
 let _videoAutoReset = localStorage.getItem('videoAutoReset') !== 'false';
 let _lastVideoCount = 0;
@@ -11484,7 +11485,7 @@ function _startAvaOverlay() {
     const overlayAvas = Object.values(avaP).filter(_isOnVideoFloor);
     const hasDrawings = _videoFloorDrawingToken !== null || Object.values(videoFloorObjects).some(f => f.drawHistory && f.drawHistory.length > 0);
     const _isMugenVF = room && room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0;
-    const hasNonFloorOekaki = !_videoTransparentActive && !_isMugenVF &&
+    const hasNonFloorOekaki = !_isMugenVF &&
       Object.values(avaP).some(ava => !ava.abon && ava.container.parent === room.container &&
         !_isOnVideoFloor(ava) && ava.drawHistory && ava.drawHistory.length > 0);
     if (overlayAvas.length === 0 && !hasDrawings && !_isMugenVF && !hasNonFloorOekaki) return;
@@ -11498,13 +11499,9 @@ function _startAvaOverlay() {
       let ext;
       const _savedRenderable = ava.container.renderable;
       ava.container.renderable = true;
-      if (_videoTransparentActive) {
-        ext = app.renderer.extract.canvas(ava.container);
-      } else {
-        const sm = ava.container.mask; ava.container.mask = null;
-        ext = app.renderer.extract.canvas(ava.container);
-        ava.container.mask = sm;
-      }
+      const sm = ava.container.mask; ava.container.mask = null;
+      ext = app.renderer.extract.canvas(ava.container);
+      ava.container.mask = sm;
       ava.container.renderable = _savedRenderable;
       _extractedAvas.set(ava, ext || null);
       return ext || null;
@@ -11518,31 +11515,20 @@ function _startAvaOverlay() {
       const _frontHoles = [];
       for (let _fj = _zi + 1; _fj < _videoFloorZOrder.length; _fj++) {
         const _ft = _videoFloorZOrder[_fj];
-        if (_videoTransparentActive) {
-          const _fObjH = videoFloorObjects[_ft];
-          if (_fObjH) _frontHoles.push({ left: cRect.left + _fObjH.container.x * sx, top: cRect.bottom, width: (_fObjH._pixiW || 660) * sx, height: (_fObjH._pixiH || VIDEO_FLOOR_H) * sy });
-        } else {
-          const _fv = videoArray[_ft];
-          if (_fv) { const _fr = _fv.getBoundingClientRect(); if (_fr.width > 0 && _fr.height > 0) _frontHoles.push(_fr); }
-        }
+        const _fv = videoArray[_ft];
+        if (_fv) { const _fr = _fv.getBoundingClientRect(); if (_fr.width > 0 && _fr.height > 0) _frontHoles.push(_fr); }
       }
       // --- 落書き ---
       const drawingNow = _videoFloorDrawingToken === zToken && _videoFloorCurrentLine && _videoFloorCurrentLine.pointer.length >= 2;
       if (floorObj.drawHistory.length || drawingNow) {
         let clipLeft, clipTop, clipW, clipH, toScreen;
-        if (_videoTransparentActive) {
-          clipLeft = cRect.left + floorObj.container.x * sx; clipTop = cRect.bottom;
-          clipW = (floorObj._pixiW || 660) * sx; clipH = (floorObj._pixiH || VIDEO_FLOOR_H) * sy;
-          toScreen = (lx, ly) => ({ x: cRect.left + (floorObj.container.x + lx) * sx, y: cRect.top + (floorObj.container.y + ly) * sy });
-        } else {
-          const vEl = videoArray[zToken];
-          if (vEl) {
-            const vRect = vEl.getBoundingClientRect();
-            if (vRect.width > 0 && vRect.height > 0) {
-              clipLeft = vRect.left; clipTop = vRect.top;
-              clipW = vRect.width; clipH = vRect.height;
-              toScreen = (lx, ly) => ({ x: vRect.left + lx * vRect.width, y: vRect.top + ly * vRect.height });
-            }
+        const vEl = videoArray[zToken];
+        if (vEl) {
+          const vRect = vEl.getBoundingClientRect();
+          if (vRect.width > 0 && vRect.height > 0) {
+            clipLeft = vRect.left; clipTop = vRect.top;
+            clipW = vRect.width; clipH = vRect.height;
+            toScreen = (lx, ly) => ({ x: vRect.left + lx * vRect.width, y: vRect.top + ly * vRect.height });
           }
         }
         if (toScreen) {
@@ -11576,24 +11562,7 @@ function _startAvaOverlay() {
         }
       }
       // --- アバター ---
-      if (_videoTransparentActive) {
-        const floorX = floorObj.container.x;
-        const fW = floorObj._pixiW || 660;
-        for (const ava of _sortedOverlayAvas) {
-          const bounds = ava.container.getBounds();
-          if (bounds.width <= 0 || bounds.height <= 0) continue;
-          if (bounds.x + bounds.width < floorX - 20 || bounds.x > floorX + fW + 20) continue;
-          const extracted = _getExtracted(ava);
-          if (!extracted) continue;
-          _avaOverlayCtx.save();
-          _avaOverlayCtx.beginPath();
-          _avaOverlayCtx.rect(cRect.left + floorX * sx, cRect.bottom, fW * sx, (floorObj._pixiH || VIDEO_FLOOR_H) * sy);
-          for (const _h of _frontHoles) _avaOverlayCtx.rect(_h.left, _h.top, _h.width, _h.height);
-          _avaOverlayCtx.clip(_frontHoles.length ? 'evenodd' : 'nonzero');
-          _avaOverlayCtx.drawImage(extracted, cRect.left + bounds.x * sx, cRect.top + bounds.y * sy, bounds.width * sx, bounds.height * sy);
-          _avaOverlayCtx.restore();
-        }
-      } else {
+      {
         const vEl = videoArray[zToken];
         if (!vEl) continue;
         const vRect = vEl.getBoundingClientRect();
@@ -11766,51 +11735,54 @@ function _stopAvaOverlay() {
   if (el) el.style.display = 'none';
 }
 
+function _applyTransparentLayout() {
+  const mcRect = mediaContainer.getBoundingClientRect();
+  const baseToks = _videoSortedKeys().filter(tok => _isBaseVideoToken(tok));
+  const N = baseToks.length;
+  if (N === 0) return;
+  const W = window.innerWidth;
+  const isMobile = windowWidth <= 870;
+  const localW = isMobile ? 660 : W;
+  let topOffset = 0;
+  baseToks.forEach((tok, i) => {
+    const v = videoArray[tok];
+    if (!v) return;
+    const ar = (v.videoWidth && v.videoHeight) ? v.videoWidth / v.videoHeight : 0;
+    const H = ar ? Math.round(localW / ar) : window.innerHeight;
+    v.freeFloat = true;
+    v.style.top = (topOffset - mcRect.top) + 'px';
+    v.style.left = (-mcRect.left) + 'px';
+    v.style.width = localW + 'px';
+    v.style.height = H + 'px';
+    topOffset += H;
+  });
+  mediaContainer.style.height = (topOffset - mcRect.top) + 'px';
+  Object.keys(videoHandles).forEach(tok => _syncHandle(tok));
+}
+
 function _applyVideoTransparent() {
   if (_videoTransparentActive) {
-    // transform を持つ #main の外に出して fixed が viewport 基準になるようにする
-    _mcOriginalParent = mediaContainer.parentNode;
-    _mcOriginalNextSibling = mediaContainer.nextSibling;
-    document.body.appendChild(mediaContainer);
-    mediaContainer.classList.add('video-transparent-mode');
-    mediaContainer.style.height = '';
-    mediaContainer.style.width = '';
-    Object.values(videoArray).forEach(v => {
-      v.freeFloat = false;
-      v.style.opacity = videoTransparentOpacity;
-      v.style.pointerEvents = 'auto';
-      v.style.top = '0';
-      v.style.left = '0';
-      v.style.width = '100%';
-      v.style.height = '100%';
-      v.style.objectFit = 'contain';
-      v.style.objectPosition = 'left top';
-    });
-    Object.values(videoHandles).forEach(h => { h.style.display = 'none'; });
-    _overlayFloorSynced = false;
-    _startAvaOverlay();
+    _applyTransparentLayout();
+    Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+    const _ovElOn = document.getElementById('avaVideoOverlay'); if (_ovElOn) _ovElOn.style.opacity = videoTransparentOpacity;
   } else {
-    mediaContainer.classList.remove('video-transparent-mode');
-    if (_mcOriginalParent) {
-      _mcOriginalParent.insertBefore(mediaContainer, _mcOriginalNextSibling);
-      _mcOriginalParent = null;
-    }
-    Object.values(videoArray).forEach(v => {
+    Object.keys(videoArray).forEach(tok => {
+      const v = videoArray[tok];
       v.freeFloat = false;
+      v.style.top = '';
+      v.style.left = '';
+      v.style.width = '';
+      v.style.height = '';
       v.style.opacity = '';
-      v.style.pointerEvents = '';
-      v.style.top = '0';
-      v.style.objectFit = '';
-      v.style.objectPosition = '';
     });
-    Object.values(videoHandles).forEach(h => { h.style.display = ''; });
-    _overlayFloorSynced = false;
-    if (videoArray[myToken]) requestAnimationFrame(() => _syncVideoFloor(myToken));
+    mediaContainer.style.height = '';
+    const _ovElOff = document.getElementById('avaVideoOverlay'); if (_ovElOff) _ovElOff.style.opacity = '';
     videoResize();
   }
 }
 
 function toggleVideoTransparent() {
+  if (!videoTransparentDefault) return;
   _videoTransparentActive = !_videoTransparentActive;
   _applyVideoTransparent();
 }
@@ -11818,8 +11790,6 @@ function toggleVideoTransparent() {
 function changeVideoTransparentDefault() {
   videoTransparentDefault = document.getElementById('videoTransparentDefault').checked;
   localStorage.setItem("videoTransparentDefault", videoTransparentDefault);
-  _videoTransparentActive = videoTransparentDefault;
-  _applyVideoTransparent();
 }
 
 function changeVideoTransparentOpacity(val) {
@@ -11827,6 +11797,7 @@ function changeVideoTransparentOpacity(val) {
   localStorage.setItem("videoTransparentOpacity", videoTransparentOpacity);
   if (_videoTransparentActive) {
     Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+    const _ovEl = document.getElementById('avaVideoOverlay'); if (_ovEl) _ovEl.style.opacity = videoTransparentOpacity;
   }
 }
 
@@ -11880,10 +11851,6 @@ function _addVideoInteraction(fromToken) {
   const _vfLocalCoords = (cx, cy) => {
     const floorObj = videoFloorObjects[fromToken];
     if (!floorObj) return null;
-    if (_videoTransparentActive) {
-      const cRect = myCanvas.getBoundingClientRect();
-      return { x: (cx - cRect.left) * 660 / cRect.width, y: (cy - cRect.bottom) * 460 / cRect.height };
-    }
     const vRect = v.getBoundingClientRect();
     if (vRect.width === 0 || vRect.height === 0) return null;
     return { x: (cx - vRect.left) / vRect.width, y: (cy - vRect.top) / vRect.height };
@@ -12050,6 +12017,7 @@ function _addVideoInteraction(fromToken) {
         document.getElementById('videoTransparentOpacitySlider').value = newVal;
         localStorage.setItem("videoTransparentOpacity", newVal);
         Object.values(videoArray).forEach(vv => { vv.style.opacity = newVal; });
+        const _ovElSw = document.getElementById('avaVideoOverlay'); if (_ovElSw) _ovElSw.style.opacity = newVal;
       }
     }
   });
@@ -12088,13 +12056,11 @@ function _addVideoInteraction(fromToken) {
       const forwardToCanvas = () => {
         if (floorPolyMode || _imgDoodleMode) return;
         const cRect = myCanvas.getBoundingClientRect();
-        // 通常モード: 動画エリア内クリックをvideoSurface座標にマップ
-        if (!_videoTransparentActive && videoFloorObjects[fromToken]) {
+        if (videoFloorObjects[fromToken]) {
           const vRect = v.getBoundingClientRect();
           if (vRect.width > 0 && vRect.height > 0 &&
               fx >= vRect.left && fx <= vRect.right && fy >= vRect.top && fy <= vRect.bottom) {
             const normX = (fx - vRect.left) / vRect.width;
-            const normY = (fy - vRect.top) / vRect.height;
             const floorObj = videoFloorObjects[fromToken];
             const pixiW = floorObj ? (floorObj._pixiW || 660) : 660;
             const pixiH = floorObj ? (floorObj._pixiH || VIDEO_FLOOR_H) : VIDEO_FLOOR_H;
@@ -12112,17 +12078,11 @@ function _addVideoInteraction(fromToken) {
           return;
         }
         if (!videoFloorObjects[fromToken]) return;
-        if (_videoTransparentActive && !_overlayFloorSynced && videoArray[myToken]) {
-          _overlayFloorSynced = true;
-          _syncVideoFloor(myToken);
-        }
         const targetX = Math.max(0, Math.min(660, (fx - cRect.left) * 660 / cRect.width));
         const targetY = VIDEO_FLOOR_Y + Math.max(0, Math.min(VIDEO_FLOOR_H, (fy - cRect.bottom) * 460 / cRect.height));
         _doStageTap(targetX, targetY);
       };
-      if (e.pointerType === 'mouse') {
-        forwardToCanvas();
-      } else {
+      {
         const now = Date.now();
         if (now - tapTime < 300) {
           clearTimeout(tapForwardTimer);
@@ -12172,6 +12132,18 @@ function _addVideoInteraction(fromToken) {
     contextMenuPositionSet(e);
   });
 
+  v.addEventListener('wheel', (e) => {
+    if (!_videoTransparentActive) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    const newVal = Math.max(0.3, Math.min(0.99, videoTransparentOpacity + delta));
+    videoTransparentOpacity = newVal;
+    document.getElementById('videoTransparentOpacitySlider').value = newVal;
+    localStorage.setItem('videoTransparentOpacity', newVal);
+    Object.values(videoArray).forEach(vv => { vv.style.opacity = newVal; });
+    const _ovElWh = document.getElementById('avaVideoOverlay'); if (_ovElWh) _ovElWh.style.opacity = newVal;
+  }, { passive: false });
+
   // リサイズハンドル（タッチ/マウスともシングルドラッグ）
   handle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -12205,7 +12177,6 @@ function _addVideoInteraction(fromToken) {
 
 document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
 document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
-if (videoTransparentDefault) _applyVideoTransparent();
 document.getElementById('streamSurfaceAllowed').checked = _streamSurfaceAllowed;
 document.getElementById('videoAutoReset').checked = _videoAutoReset;
 
@@ -12436,7 +12407,6 @@ function _videoSortedKeys() {
 }
 
 function videoResize() {
-  if (_videoTransparentActive) return;
   const _curVideoCount = Object.keys(videoArray).length;
   if (_videoAutoReset && _curVideoCount !== _lastVideoCount) {
     Object.keys(videoArray).forEach(key => { videoArray[key].freeFloat = false; videoArray[key].style.top = '0'; });
@@ -13021,16 +12991,12 @@ function attachVideo(fromToken, stream) {
   }
 
   _addVideoInteraction(fromToken);
-  if (_videoTransparentActive) {
-    videoArray[fromToken].style.opacity = videoTransparentOpacity;
-    videoArray[fromToken].style.pointerEvents = 'auto';
-    videoArray[fromToken].style.left = '0';
-    videoArray[fromToken].style.width = '100%';
-    videoArray[fromToken].style.height = '100%';
-    videoArray[fromToken].style.objectFit = 'contain';
-    videoArray[fromToken].style.objectPosition = 'left top';
-  }
   mediaContainer.appendChild(videoArray[fromToken]);
+  if (_videoTransparentActive) {
+    _applyTransparentLayout();
+    Object.values(videoArray).forEach(v => { v.style.opacity = videoTransparentOpacity; });
+    const _ovElAt = document.getElementById('avaVideoOverlay'); if (_ovElAt) _ovElAt.style.opacity = videoTransparentOpacity;
+  }
 
   playMedia(videoArray[fromToken], stream);
   // 再生できない場合のエラー表示
@@ -13040,7 +13006,7 @@ function attachVideo(fromToken, stream) {
   // メタデータ読み込み時にvideoResizeを呼ぶ
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
-    if (fromToken === myToken && !_videoTransparentActive) _syncVideoFloor(fromToken);
+    if (fromToken === myToken) _syncVideoFloor(fromToken);
     if (_isBaseVideoToken(fromToken) && fromToken !== myToken && !videoFloorObjects[fromToken]) {
       socket.emit('requestVideoSurface', { floorToken: fromToken });
     }
@@ -13090,7 +13056,7 @@ function detachVideo(token) {//videoの削除
     }
     // 他者の動画を閉じた場合はフロアを残す（videoSurface: enabled=false で消す）
   }
-  videoResize();
+  if (_videoTransparentActive) { _applyTransparentLayout(); } else { videoResize(); }
 }
 
 // --- ビデオ足場システム ---
@@ -13193,7 +13159,7 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
   }
   floorObj._intrinsicH = h;
   if (!_avaOverlayPostTicker) _startAvaOverlay();
-  if (!_videoTransparentActive) { videoResize(); } else { _recalcFloorPositions(); }
+  if (!_videoTransparentActive) { videoResize(); } else { _recalcFloorPositions(); _applyTransparentLayout(); }
   // 新規フロア作成時: このフロアを待っていたアバターの乗車状態を復元
   if (!floorObj._wasResolved) {
     floorObj._wasResolved = true;
@@ -13236,6 +13202,7 @@ function _removeVideoFloor(token) {
   if (_zi >= 0) _videoFloorZOrder.splice(_zi, 1);
   _updateVideoZIndices();
   _recalcFloorPositions();
+  if (_videoTransparentActive) _applyTransparentLayout();
   if (Object.keys(videoFloorObjects).length === 0) { _videoFloorFocused = false; _stopAvaOverlay(); }
   switchDrawing(avatarOekakiToken);
 }
