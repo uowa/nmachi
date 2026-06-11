@@ -661,9 +661,22 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 14. 複数カメラ
+### 14. 複数カメラ ✅ (2026-06-12 実装完了)
 **Multi-camera support**
 - 複数カメラを同時使用可能にする / Allow using multiple cameras simultaneously
+
+#### 現状（2026-06-12 実装完了）
+- 最大10台のカメラを同時配信可能（cam1は既存変数、cam2〜10は `_xcam[n]` オブジェクトで管理）
+- 設定パネルに「複数カメラ」チェックボックスを追加（localStorage `multiCameraEnabled` で保存、デフォルトOFF）
+- チェックON時：cam1が選択されるとcam2セレクターが出現、cam2選択でcam3セレクター…と順番に最大cam10まで動的生成（`populateDeviceSelects` が `camExtraDeviceWraps` コンテナに生成）
+- 「毎回選ぶ」ピッカーでも同様にcam2→cam3→…と連鎖セレクター表示（`_buildPickerCamSelect` で汎用生成）
+- 受信側には「動画受信N」ボタンがN台分表示
+- WebRTC: 1本のRTCPeerConnectionに複数トラックを追加（接続数は増やさない）
+- stream ID で `_xcam[n].streamId[fromToken]` と照合してどのカメラのトラックか判定
+- 同時使用できないカメラを選択した場合は `NotReadableError` をキャッチしてエラー表示・リセット
+- ピッカープレビュー：プレビューボタンON後に選択でもON前に選択後にボタンONでも映像が出る（`_pickerSyncExtraPreviews` で一括同期）、プレビューOFF時に消える
+- 設定パネルプレビュー：cam2〜以降も各カメラのプレビュー動画が縦に並ぶ
+- `videoStartOrder[myToken+'_N']` でcam1より後のタイムスタンプを付与し、パネル順を保証
 
 ---
 

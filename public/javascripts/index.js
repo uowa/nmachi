@@ -1092,6 +1092,7 @@ const QUALITY_BITRATE = { max: undefined, high: 1000000, normal: 400000, low: 10
 const QUALITY_ORDER = ['low', 'normal', 'high', 'max'];
 let streamQualityLevel = localStorage.getItem('streamQualityLevel') || 'max';
 let receiverQualityLevel = localStorage.getItem('receiverQuality') || 'max';
+let multiCameraEnabled = localStorage.getItem('multiCameraEnabled') === 'true';
 let cameraSelectMode = localStorage.getItem('cameraSelectMode') || 'always';
 let cameraDeviceId = localStorage.getItem('cameraDeviceId') || '';
 let cameraDeviceLabel = localStorage.getItem('cameraDeviceLabel') || '';
@@ -1127,6 +1128,16 @@ const _remoteVizRafIds = {};
 let videoStatus = false;
 let audioStatus = false;
 let roomStream;
+
+// 追加カメラ (n=2..MAX_CAMS)
+// _xcam[n].status, .stream, .track, .deviceId, .button{}, .buttonFlag{}, .remoteStream{}, .streamId{}, .previewStream
+const MAX_CAMS = 10;
+const _xcam = {};
+function _xcamGet(n) {
+  if (!_xcam[n]) _xcam[n] = { status: false, stream: null, track: null, deviceId: '', button: {}, buttonFlag: {}, remoteStream: {}, streamId: {}, previewStream: null };
+  return _xcam[n];
+}
+let _pendingExtraCameraIds = [];
 
 let mapPeer = new Map();
 
@@ -11220,6 +11231,7 @@ document.getElementById('streamQualitySelect').value = streamQualityLevel;
 document.getElementById('receiverQualitySelect').value = receiverQualityLevel;
 document.getElementById('cameraSelectMode').value = cameraSelectMode;
 document.getElementById('micSelectMode').value = micSelectMode;
+document.getElementById('multiCameraCheck').checked = multiCameraEnabled;
 
 //ビデオサイズ
 if (localStorage.getItem("videoSize")) {
@@ -12896,6 +12908,13 @@ socket.on("mediaButton", data => {
     if (videoStatus) {
       socket.emit("mediaButton", { type: 'createVideoButton', quality: streamQualityLevel, startTime: videoStartOrder[myToken] });
     }
+    // 追加カメラ配信中なら各ボタン作成通知
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (_xc && _xc.status && _xc.stream) {
+        socket.emit('mediaButton', { type: 'createVideoButtonN', camIdx: _cn, startTime: videoStartOrder[myToken + '_' + _cn], streamId: _xc.stream.id });
+      }
+    }
     // 音声配信中ならボタン作成通知
     if (audioStatus) {
       socket.emit("mediaButton", { type: 'createAudioButton', });
@@ -12909,6 +12928,37 @@ socket.on("mediaButton", data => {
     }
     if (!videoButton[fromToken] || videoButton[fromToken].style.visibility === "hidden") {
       createVideoButton(fromToken);
+    }
+  }
+  // 追加カメラN 動画受信ボタンの作成要求
+  else if (data.type === 'createVideoButtonN') {
+    const _cn = data.camIdx;
+    if (_cn >= 2 && _cn <= MAX_CAMS) {
+      if (data.startTime) videoStartOrder[fromToken + '_' + _cn] = data.startTime;
+      _xcamGet(_cn).streamId[fromToken] = data.streamId;
+      const _xb = _xcamGet(_cn).button;
+      if (!_xb[fromToken] || _xb[fromToken].style.visibility === 'hidden') {
+        createVideoButtonN(_cn, fromToken);
+      }
+    }
+  }
+  // 追加カメラN 動画ボタン削除要求
+  else if (data.type === 'removeVideoButtonN') {
+    const _cn = data.camIdx;
+    if (_cn >= 2 && _cn <= MAX_CAMS) {
+      const _xb = _xcamGet(_cn).button;
+      if (_xb[fromToken]) _xb[fromToken].style.visibility = 'hidden';
+      if (videoArray[fromToken + '_' + _cn]) detachVideo(fromToken + '_' + _cn);
+      // すべてのボタンが非表示ならメディア要素ごと削除
+      let _anyVisible = (videoButton[fromToken] && videoButton[fromToken].style.visibility !== 'hidden') ||
+                        (audioButton[fromToken] && audioButton[fromToken].style.visibility !== 'hidden');
+      if (!_anyVisible) {
+        for (let _ci = 2; _ci <= MAX_CAMS; _ci++) {
+          const _xbi = _xcam[_ci] && _xcam[_ci].button[fromToken];
+          if (_xbi && _xbi.style.visibility !== 'hidden') { _anyVisible = true; break; }
+        }
+      }
+      if (!_anyVisible) removeMediaElementButton(fromToken);
     }
   }
   // 音声受信ボタンの作成要求
@@ -13030,22 +13080,25 @@ function removeMediaElementButton(fromToken) {
 // メディア要素・ボタン・フラグ・ピアコネクション・mapPeerを削除
 function stopConnection(fromToken) {
   if (mediaElement[fromToken]) {
-    // 動画・音声ボタンを非表示
-    if (videoButton[fromToken]) {
-      videoButton[fromToken].style.visibility = "hidden";
+    if (videoButton[fromToken]) videoButton[fromToken].style.visibility = "hidden";
+    if (audioButton[fromToken]) audioButton[fromToken].style.visibility = "hidden";
+    if (videoButtonFlag[fromToken]) delete videoButtonFlag[fromToken];
+    if (audioButtonFlag[fromToken]) delete audioButtonFlag[fromToken];
+    // 追加カメラボタンも非表示
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (!_xc) continue;
+      if (_xc.button[fromToken]) _xc.button[fromToken].style.visibility = "hidden";
+      if (_xc.buttonFlag[fromToken] !== undefined) delete _xc.buttonFlag[fromToken];
     }
-    if (audioButton[fromToken]) {
-      audioButton[fromToken].style.visibility = "hidden";
-    }
-    // ボタンフラグを削除
-    if (videoButtonFlag[fromToken]) {
-      delete videoButtonFlag[fromToken];
-    }
-    if (audioButtonFlag[fromToken]) {
-      delete audioButtonFlag[fromToken];
-    }
-    // メディア要素を削除
-    removeMediaElementButton(fromToken)
+    removeMediaElementButton(fromToken);
+  }
+  // 追加カメラのクリーンアップ
+  for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+    const _xc = _xcam[_cn];
+    if (!_xc) continue;
+    if (videoArray[fromToken + '_' + _cn]) detachVideo(fromToken + '_' + _cn);
+    delete _xc.streamId[fromToken];
   }
   // ピアコネクションを切断・削除
   if (peerConnections[fromToken]) {
@@ -13064,17 +13117,17 @@ function stopAllConnection() {
   const keys = Object.keys(mediaElement);
   keys.forEach(function (fromToken) {
     removeMediaElementButton(fromToken);
-    if (videoButton[fromToken]) {
-      videoButton[fromToken].style.visibility = "hidden";
-    }
-    if (audioButton[fromToken]) {
-      audioButton[fromToken].style.visibility = "hidden";
-    }
-    if (videoButtonFlag[fromToken]) {
-      delete videoButtonFlag[fromToken];
-    }
-    if (audioButtonFlag[fromToken]) {
-      delete audioButtonFlag[fromToken];
+    if (videoButton[fromToken]) videoButton[fromToken].style.visibility = "hidden";
+    if (audioButton[fromToken]) audioButton[fromToken].style.visibility = "hidden";
+    if (videoButtonFlag[fromToken]) delete videoButtonFlag[fromToken];
+    if (audioButtonFlag[fromToken]) delete audioButtonFlag[fromToken];
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (!_xc) continue;
+      if (_xc.button[fromToken]) _xc.button[fromToken].style.visibility = "hidden";
+      if (_xc.buttonFlag[fromToken] !== undefined) delete _xc.buttonFlag[fromToken];
+      if (videoArray[fromToken + '_' + _cn]) detachVideo(fromToken + '_' + _cn);
+      delete _xc.streamId[fromToken];
     }
   });
   // mapPeerの全idに対してstopConnectionを実行
@@ -13126,7 +13179,7 @@ function attachVideo(fromToken, stream) {
   videoArray[fromToken].addEventListener('loadedmetadata', (event) => {
     videoResize();
     if (fromToken === myToken) _syncVideoFloor(fromToken);
-    if (_isBaseVideoToken(fromToken) && fromToken !== myToken && !videoFloorObjects[fromToken]) {
+    if (_isBaseVideoToken(fromToken) && fromToken !== myToken && !videoFloorObjects[fromToken] && !/^.+_\d+$/.test(fromToken)) {
       socket.emit('requestVideoSurface', { floorToken: fromToken });
     }
     if (!_avaOverlayPostTicker && videoFloorObjects[fromToken]) _startAvaOverlay();
@@ -13495,6 +13548,7 @@ function detachAudio(token) {//remoteAudioの削除
 
 // ---------------------- media handling -----------------------
 let _pickerSwitchPreview = null; // _pickDevice実行中のみ有効、onDevicePickerPreviewClickから参照
+let _pickerSyncExtraPreviews = null; // cam2/cam3プレビューの一括start/stop用
 let _pickerPreviewOn = false;
 
 function _pickDevice(kind) {
@@ -13560,7 +13614,101 @@ function _pickDevice(kind) {
           }
 
           _pickerSwitchPreview = switchPreview;
-          select.addEventListener('change', () => switchPreview(select.value));
+          select.addEventListener('change', () => {
+            switchPreview(select.value);
+            // cam1 が選択されたら cam2 セレクターを表示
+            _buildPickerExtraCamSelect(filtered, extraPreviewStreams);
+          });
+
+          // cam2/cam3 セレクター（videoinput 時のみ）
+          const extraCamsEl = document.getElementById('devicePickerExtraCams');
+          const extraPreviewStreams = {};
+          function _buildPickerCamSelect(camIdx, deviceList, previewMap, container) {
+            // camIdx: 2 or 3
+            const wrap = document.createElement('div');
+            wrap.style.marginBottom = '8px';
+            wrap.dataset.camIdx = String(camIdx);
+            const lbl = document.createElement('span');
+            lbl.textContent = 'カメラ' + camIdx + '（省略可）：';
+            lbl.style.fontSize = '0.9em';
+            const sel = document.createElement('select');
+            sel.style.cssText = 'width:100%; margin-top:3px; box-sizing:border-box;';
+            const blankOpt = document.createElement('option');
+            blankOpt.value = ''; blankOpt.textContent = '(なし)';
+            sel.appendChild(blankOpt);
+            deviceList.forEach((d, i) => {
+              const opt = document.createElement('option');
+              opt.value = d.deviceId;
+              opt.textContent = d.label || 'カメラ' + (i + 1);
+              sel.appendChild(opt);
+            });
+            wrap.appendChild(lbl);
+            wrap.appendChild(sel);
+            // プレビュー動画要素
+            const prevEl = document.createElement('video');
+            prevEl.autoplay = true; prevEl.muted = true; prevEl.setAttribute('playsinline', '');
+            prevEl.style.cssText = 'width:100%; margin-top:4px; border-radius:4px; display:none;';
+            wrap.appendChild(prevEl);
+            container.appendChild(wrap);
+            const camKey = 'cam' + camIdx;
+            sel.addEventListener('change', async () => {
+              if (previewMap[camKey]) { previewMap[camKey].getTracks().forEach(t => t.stop()); previewMap[camKey] = null; }
+              prevEl.srcObject = null; prevEl.style.display = 'none';
+              // 次のカメラセレクターを再構築
+              if (camIdx < MAX_CAMS) {
+                const nextIdx = camIdx + 1;
+                const existingNext = container.querySelector('[data-cam-idx="' + nextIdx + '"]');
+                if (existingNext) existingNext.remove();
+                // 次以降も削除
+                for (let _ri = nextIdx + 1; _ri <= MAX_CAMS; _ri++) {
+                  const _re = container.querySelector('[data-cam-idx="' + _ri + '"]');
+                  if (_re) _re.remove();
+                  const _ck = 'cam' + _ri;
+                  if (previewMap[_ck]) { previewMap[_ck].getTracks().forEach(t => t.stop()); previewMap[_ck] = null; }
+                }
+                if (sel.value && multiCameraEnabled) {
+                  _buildPickerCamSelect(nextIdx, deviceList, previewMap, container);
+                }
+              }
+              if (_pickerPreviewOn && sel.value) {
+                try {
+                  previewMap[camKey] = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: sel.value } } });
+                  prevEl.srcObject = previewMap[camKey];
+                  prevEl.style.display = '';
+                } catch (_e) {}
+              }
+            });
+          }
+          function _buildPickerExtraCamSelect(deviceList, previewMap) {
+            extraCamsEl.innerHTML = '';
+            if (!select.value || !multiCameraEnabled) return;
+            _buildPickerCamSelect(2, deviceList, previewMap, extraCamsEl);
+          }
+          // cam2/cam3プレビューの一括start/stop（onDevicePickerPreviewClickから参照）
+          _pickerSyncExtraPreviews = async function () {
+            const wraps = extraCamsEl.querySelectorAll('[data-cam-idx]');
+            for (const wrap of wraps) {
+              const idx = wrap.dataset.camIdx;
+              const camKey = 'cam' + idx;
+              const sel2 = wrap.querySelector('select');
+              const prevEl2 = wrap.querySelector('video');
+              if (!sel2 || !prevEl2) continue;
+              if (extraPreviewStreams[camKey]) {
+                extraPreviewStreams[camKey].getTracks().forEach(t => t.stop());
+                extraPreviewStreams[camKey] = null;
+              }
+              prevEl2.srcObject = null;
+              prevEl2.style.display = 'none';
+              if (_pickerPreviewOn && sel2.value) {
+                try {
+                  extraPreviewStreams[camKey] = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: sel2.value } } });
+                  prevEl2.srcObject = extraPreviewStreams[camKey];
+                  prevEl2.style.display = '';
+                } catch (_e) {}
+              }
+            }
+          };
+          if (filtered.length > 1) _buildPickerExtraCamSelect(filtered, extraPreviewStreams);
         } else {
           previewWrap.style.display = 'none';
           previewEl.style.display = 'none';
@@ -13572,9 +13720,28 @@ function _pickDevice(kind) {
           previewEl.srcObject = null;
           previewEl.style.display = 'none';
         }
+        function stopExtraPreviews(previewMap) {
+          _pickerSyncExtraPreviews = null;
+          if (previewMap) {
+            for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+              const _ck = 'cam' + _cn;
+              if (previewMap[_ck]) { previewMap[_ck].getTracks().forEach(t => t.stop()); previewMap[_ck] = null; }
+            }
+          }
+          const extraCamsEl = document.getElementById('devicePickerExtraCams');
+          if (extraCamsEl) extraCamsEl.innerHTML = '';
+        }
         function onOk() {
           const deviceId = select.value;
           const deviceLabel = select.options[select.selectedIndex]?.textContent || '';
+          // cam2/cam3 セレクターの値を収集
+          const extraIds = [];
+          const extraCamsEl = document.getElementById('devicePickerExtraCams');
+          if (extraCamsEl) {
+            extraCamsEl.querySelectorAll('select').forEach(sel => {
+              if (sel.value) extraIds.push(sel.value);
+            });
+          }
           // 「次回から固定」がチェックされていたらモードと保存IDを更新
           if (fixCheck.checked) {
             if (kind === 'videoinput') {
@@ -13591,12 +13758,14 @@ function _pickDevice(kind) {
           }
           overlay.style.display = 'none';
           stopPreview();
+          stopExtraPreviews(kind === 'videoinput' ? extraPreviewStreams : null);
           cleanup();
-          resolve({ deviceId, deviceLabel });
+          resolve({ deviceId, deviceLabel, extraIds });
         }
         function onCancel() {
           overlay.style.display = 'none';
           stopPreview();
+          stopExtraPreviews(kind === 'videoinput' ? extraPreviewStreams : null);
           cleanup();
           reject(new Error('cancelled'));
         }
@@ -13616,6 +13785,7 @@ function onDevicePickerPreviewClick() {
   if (btn) btn.style.outline = _pickerPreviewOn ? '2px solid #4a90d9' : '';
   const select = document.getElementById('devicePickerSelect');
   if (_pickerSwitchPreview) _pickerSwitchPreview(select.value);
+  if (_pickerSyncExtraPreviews) _pickerSyncExtraPreviews();
 }
 
 let _settingPreviewStream = null;
@@ -13634,6 +13804,10 @@ function onSettingPreviewCheckChange(checkbox) {
     _settingPreviewCurrentDeviceId = '';
     const sel = document.getElementById('cameraDeviceSelect');
     if (sel.value) _switchSettingPreview(sel.value, true);
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (_xc && _xc.deviceId) _switchSettingPreviewN(_cn, _xc.deviceId);
+    }
   } else {
     stopSettingPreview();
   }
@@ -13668,6 +13842,15 @@ async function stopSettingPreview() {
     _settingPreviewStream.getTracks().forEach(t => t.stop());
   }
   _settingPreviewStream = null;
+  // 追加カメラのプレビューも停止
+  for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+    const _xc = _xcam[_cn];
+    if (_xc && _xc.previewStream) { _xc.previewStream.getTracks().forEach(t => t.stop()); _xc.previewStream = null; }
+    const _pEl = document.getElementById('settingPreview' + _cn);
+    const _pWr = document.getElementById('settingPreview' + _cn + 'Wrap');
+    if (_pEl) _pEl.srcObject = null;
+    if (_pWr) _pWr.style.display = 'none';
+  }
   _settingPreviewActive = false;
   const previewEl = document.getElementById('settingPreview');
   const previewWrapEl = document.getElementById('settingPreviewWrap');
@@ -13749,9 +13932,36 @@ async function _switchSettingPreview(deviceId, isInitial) {
   }
 }
 
+async function _switchSettingPreviewN(n, deviceId) {
+  const _xc = _xcamGet(n);
+  if (_xc.previewStream) { _xc.previewStream.getTracks().forEach(t => t.stop()); _xc.previewStream = null; }
+  const previewEl = document.getElementById('settingPreview' + n);
+  const previewWrapEl = document.getElementById('settingPreview' + n + 'Wrap');
+  if (!previewEl || !previewWrapEl) return;
+  previewEl.srcObject = null;
+  if (!deviceId) { previewWrapEl.style.display = 'none'; return; }
+  try {
+    _xc.previewStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+    if (!_settingPreviewActive) { _xc.previewStream.getTracks().forEach(t => t.stop()); _xc.previewStream = null; return; }
+    previewEl.srcObject = _xc.previewStream;
+    previewWrapEl.style.display = '';
+  } catch (_e) {
+    previewWrapEl.style.display = 'none';
+  }
+}
+
 async function _getVideoDeviceId() {
-  if (cameraSelectMode === 'fixed' && cameraDeviceId) return cameraDeviceId;
+  if (cameraSelectMode === 'fixed' && cameraDeviceId) {
+    _pendingExtraCameraIds = [];
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (_xc && _xc.deviceId) _pendingExtraCameraIds.push(_xc.deviceId);
+      else break;
+    }
+    return cameraDeviceId;
+  }
   const result = await _pickDevice('videoinput');
+  _pendingExtraCameraIds = result.extraIds || [];
   if (cameraSelectMode === 'fixed' && result.deviceId) {
     cameraDeviceId = result.deviceId; cameraDeviceLabel = result.deviceLabel || '';
     localStorage.setItem('cameraDeviceId', result.deviceId); localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
@@ -13782,7 +13992,7 @@ async function startVideo() {
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({ video: videoStatus }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
-    .then(function (stream) { // success
+    .then(async function (stream) { // success
       document.getElementById('startVideo').style.backgroundColor = "skyblue";
       if (!localStream) {
         localStream = stream;
@@ -13823,6 +14033,15 @@ async function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
       }
+      // 追加カメラが選択されていたら順番に起動
+      if (_pendingExtraCameraIds.length > 0) {
+        for (let _pi = 0; _pi < _pendingExtraCameraIds.length; _pi++) {
+          const _camN = _pi + 2;
+          _xcamGet(_camN).deviceId = _pendingExtraCameraIds[_pi];
+          await startVideoN(_camN, _pendingExtraCameraIds[_pi]);
+        }
+        _pendingExtraCameraIds = [];
+      }
       populateDeviceSelects();
       updateStreamStatus();
 
@@ -13844,6 +14063,63 @@ async function startVideo() {
       }
       console.error('getUserMedia error:', error);
     });
+}
+
+async function startVideoN(n, deviceId) {
+  const _xc = _xcamGet(n);
+  if (_xc.status) return;
+  let tmpStream;
+  try {
+    tmpStream = await getDeviceStream({ video: { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] } });
+  } catch (e) {
+    outputChatMsg('カメラ' + n + 'の取得に失敗: ' + e.name, 'red');
+    _xc.deviceId = '';
+    populateDeviceSelects();
+    return;
+  }
+  _xc.status = { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] };
+  _xc.track = tmpStream.getVideoTracks()[0];
+  _xc.stream = new MediaStream([_xc.track]);
+
+  mapPeer.forEach(function (value) {
+    if (value.get('onVideo')) {
+      value.set('oldVideoN_' + n, _xc.track);
+      value.set('idOldVideoN_' + n, _xc.track.id);
+      value.get('rtc').addTrack(_xc.track, _xc.stream);
+    }
+  });
+
+  const prevKey = n > 2 ? (myToken + '_' + (n - 1)) : myToken;
+  const startTimeN = (videoStartOrder[prevKey] || Date.now()) + (n - 1);
+  videoStartOrder[myToken + '_' + n] = startTimeN;
+  attachVideo(myToken + '_' + n, _xc.stream);
+  socket.emit('mediaButton', { type: 'createVideoButtonN', camIdx: n, startTime: startTimeN, streamId: _xc.stream.id });
+}
+
+function stopVideoN(n) {
+  // n+1以降のカメラも先に停止
+  for (let _cn = MAX_CAMS; _cn > n; _cn--) {
+    const _xcn = _xcam[_cn];
+    if (_xcn && _xcn.status) stopVideoN(_cn);
+  }
+  const _xc = _xcam[n];
+  if (!_xc || !_xc.status) return;
+  _xc.status = false;
+  mapPeer.forEach(function (value) {
+    const senders = value.get('rtc').getSenders();
+    const trackId = value.get('idOldVideoN_' + n);
+    senders.forEach(function (sender) {
+      if (sender.track && trackId && sender.track.id === trackId) value.get('rtc').removeTrack(sender);
+    });
+    value.delete('oldVideoN_' + n);
+    value.delete('idOldVideoN_' + n);
+  });
+  if (videoArray[myToken + '_' + n]) detachVideo(myToken + '_' + n);
+  if (_xc.stream) { _xc.stream.getTracks().forEach(t => t.stop()); _xc.stream = null; }
+  _xc.track = null;
+  _xc.deviceId = '';
+  socket.emit('mediaButton', { type: 'removeVideoButtonN', camIdx: n });
+  populateDeviceSelects();
 }
 
 async function startAudio() {
@@ -13982,6 +14258,10 @@ function stopVideo() {
     startVideo();
   }
   socket.emit("stream", { format: "videoStop", });
+  for (let _cn = MAX_CAMS; _cn >= 2; _cn--) {
+    const _xcn = _xcam[_cn];
+    if (_xcn && _xcn.status) stopVideoN(_cn);
+  }
   updateStreamStatus();
 }
 
@@ -14263,6 +14543,43 @@ function createVideoButton(fromToken) {
   }
 }
 
+function createVideoButtonN(n, fromToken) {
+  if (avaP[fromToken] && avaP[fromToken].abon) return;
+  if (!mediaElement[fromToken]) {
+    mediaElement[fromToken] = document.createElement('li');
+    mediaElement[fromToken].classList.add('flexContainer');
+    mediaElement[fromToken].classList.add('mediaElement');
+    document.getElementById("mediaMenu").appendChild(mediaElement[fromToken]);
+    distributor[fromToken] = document.createElement('text');
+    distributor[fromToken].classList.add("order1");
+    distributor[fromToken].innerHTML = avaP[fromToken] ? avaP[fromToken].name : fromToken;
+    mediaElement[fromToken].prepend(distributor[fromToken]);
+  }
+  const _xc = _xcamGet(n);
+  if (!_xc.button[fromToken]) {
+    _xc.button[fromToken] = document.createElement('input');
+    _xc.button[fromToken].classList.add("order2");
+    _xc.button[fromToken].value = "動画受信" + n;
+    _xc.button[fromToken].type = "button";
+  }
+  _xc.button[fromToken].style.visibility = "visible";
+  mediaElement[fromToken].insertBefore(_xc.button[fromToken], mediaElement[fromToken].firstElementChild);
+  if (checkAllListen && _xc.buttonFlag[fromToken] === undefined) {
+    _xc.buttonFlag[fromToken] = true;
+  }
+  if (_xc.buttonFlag[fromToken]) {
+    _xc.buttonFlag[fromToken] = true;
+    _xc.button[fromToken].style.backgroundColor = 'skyblue';
+    mediaConnect(fromToken, "call video");
+  } else {
+    _xc.button[fromToken].style.backgroundColor = "red";
+    _xc.button[fromToken].onclick = function () {
+      _xc.buttonFlag[fromToken] = true;
+      mediaConnect(fromToken, "call video");
+    };
+  }
+}
+
 function createAudioButton(fromToken) {
   if (avaP[fromToken].abon) return;
   if (!mediaElement[fromToken]) {
@@ -14361,27 +14678,64 @@ function prepareNewConnection(fromToken) {
   // --- on get remote stream ---
   if ('ontrack' in peer) {
     peer.ontrack = (event) => {
-      stream[fromToken] = event.streams[0];//追加の場合
       let track = event.track;
-      console.log('[ontrack]', fromToken.slice(0,6), track.kind, 'flag:', videoButtonFlag[fromToken], 'hasVideo:', !!videoArray[fromToken]);
+      // 追加カメラの判定（streamIdで照合、大きいインデックス優先）
+      let _matchedCamN = 0;
+      if (track.kind === 'video' && event.streams[0]) {
+        for (let _cn = MAX_CAMS; _cn >= 2; _cn--) {
+          const _xc = _xcam[_cn];
+          if (_xc && _xc.streamId[fromToken] && event.streams[0].id === _xc.streamId[fromToken]) {
+            _matchedCamN = _cn; break;
+          }
+        }
+      }
+      console.log('[ontrack]', fromToken.slice(0,6), track.kind, _matchedCamN ? 'cam' + _matchedCamN : '', 'flag:', videoButtonFlag[fromToken], 'hasVideo:', !!videoArray[fromToken]);
       if (track.kind === 'video') {
-        if (videoButtonFlag[fromToken] === true && !videoArray[fromToken]) {//videoButtonがonの時
-          videoButton[fromToken].style.backgroundColor = 'skyblue';
-          attachVideo(fromToken, stream[fromToken]);
+        if (_matchedCamN >= 2) {
+          // 追加カメラのトラック
+          const _xc = _xcamGet(_matchedCamN);
+          const _sfx = '_' + _matchedCamN;
+          _xc.remoteStream[fromToken] = event.streams[0];
+          if (_xc.buttonFlag[fromToken] === true && !videoArray[fromToken + _sfx]) {
+            if (_xc.button[fromToken]) _xc.button[fromToken].style.backgroundColor = 'skyblue';
+            attachVideo(fromToken + _sfx, _xc.remoteStream[fromToken]);
+            if (_xc.button[fromToken]) {
+              _xc.button[fromToken].onclick = (function(_n, _ft) { return function () {
+                const _xcLocal = _xcamGet(_n);
+                _xcLocal.buttonFlag[_ft] = false;
+                if (videoArray[_ft + '_' + _n]) detachVideo(_ft + '_' + _n);
+                if (_xcLocal.button[_ft]) {
+                  _xcLocal.button[_ft].style.backgroundColor = 'red';
+                  _xcLocal.button[_ft].onclick = function () {
+                    _xcLocal.buttonFlag[_ft] = true;
+                    if (_xcLocal.remoteStream[_ft]) attachVideo(_ft + '_' + _n, _xcLocal.remoteStream[_ft]);
+                    if (_xcLocal.button[_ft]) _xcLocal.button[_ft].style.backgroundColor = 'skyblue';
+                  };
+                }
+              }; })(_matchedCamN, fromToken);
+            }
+          }
+        } else {
+          // cam1 のトラック
+          stream[fromToken] = event.streams[0];
+          if (videoButtonFlag[fromToken] === true && !videoArray[fromToken]) {//videoButtonがonの時
+            videoButton[fromToken].style.backgroundColor = 'skyblue';
+            attachVideo(fromToken, stream[fromToken]);
 
-          if (selectVideoReverseOther.checked) {//受信した動画の左右反転にチェックが入ってたら
-            attachVideo(fromToken + "Re", stream[fromToken]);
-          }
-          if (selectVideoInverseOther.checked) {//受信した動画の上下反転にチェックが入ってたら
-            attachVideo(fromToken + "Inv", stream[fromToken]);
-          }
-          if (selectVideoInverseAndReverseOther.checked) {//受信した動画の上下左右反転にチェックが入ってたら
-            attachVideo(fromToken + "IR", stream[fromToken]);
-          }
-          videoButton[fromToken].onclick = function buttonClick() {//videoButtonがクリックされた時
-            videoButtonFlag[fromToken] = false;
-            mediaConnect(fromToken, "stop video");
-            ///映像が直ぐに消えないならdetachvideoとかやる
+            if (selectVideoReverseOther.checked) {//受信した動画の左右反転にチェックが入ってたら
+              attachVideo(fromToken + "Re", stream[fromToken]);
+            }
+            if (selectVideoInverseOther.checked) {//受信した動画の上下反転にチェックが入ってたら
+              attachVideo(fromToken + "Inv", stream[fromToken]);
+            }
+            if (selectVideoInverseAndReverseOther.checked) {//受信した動画の上下左右反転にチェックが入ってたら
+              attachVideo(fromToken + "IR", stream[fromToken]);
+            }
+            videoButton[fromToken].onclick = function buttonClick() {//videoButtonがクリックされた時
+              videoButtonFlag[fromToken] = false;
+              mediaConnect(fromToken, "stop video");
+              ///映像が直ぐに消えないならdetachvideoとかやる
+            }
           }
         }
       }
@@ -14395,43 +14749,45 @@ function prepareNewConnection(fromToken) {
           }
         }
       }
-      stream[fromToken].onaddtrack = function (evt) {
-        const trackOnAdd = evt.track;
-        if (trackOnAdd.kind === 'video') {
-        }
-        else if (trackOnAdd.kind === 'audio') {
-        }
-      };
+      if (stream[fromToken]) {
+        stream[fromToken].onaddtrack = function (evt) {
+          const trackOnAdd = evt.track;
+          if (trackOnAdd.kind === 'video') {
+          }
+          else if (trackOnAdd.kind === 'audio') {
+          }
+        };
 
-      stream[fromToken].onremovetrack = function (evt) {//除去の場合        
-        const trackRemove = evt.track;
-        if (trackRemove.kind === 'video') {// video除去時の処理
-          if (videoArray[fromToken]) {
-            detachVideo(fromToken);
-          }
-          if (videoButton[fromToken] && !videoButtonFlag[fromToken]) {//リスナー側が切っただけの場合
-            videoButton[fromToken].style.backgroundColor = "red";
-            videoButton[fromToken].onclick = function buttonClick() {
-              videoButtonFlag[fromToken] = true;
-              mediaConnect(fromToken, "call video");;
+        stream[fromToken].onremovetrack = function (evt) {//除去の場合
+          const trackRemove = evt.track;
+          if (trackRemove.kind === 'video') {// video除去時の処理
+            if (videoArray[fromToken]) {
+              detachVideo(fromToken);
             }
-          }
-        } else if (trackRemove.kind === 'audio') {// audio除去時の処理
-          if (remoteAudios[fromToken]) {
-            detachAudio(fromToken);
-          }
-          if (audioButton[fromToken] && !audioButtonFlag[fromToken]) {//リスナー側が切っただけの場合
-            audioButton[fromToken].style.backgroundColor = "red";
-            audioButton[fromToken].onclick = function buttonClick() {
-              audioButtonFlag[fromToken] = true;
-              mediaConnect(fromToken, "call audio");
+            if (videoButton[fromToken] && !videoButtonFlag[fromToken]) {//リスナー側が切っただけの場合
+              videoButton[fromToken].style.backgroundColor = "red";
+              videoButton[fromToken].onclick = function buttonClick() {
+                videoButtonFlag[fromToken] = true;
+                mediaConnect(fromToken, "call video");;
+              }
             }
-          }
+          } else if (trackRemove.kind === 'audio') {// audio除去時の処理
+            if (remoteAudios[fromToken]) {
+              detachAudio(fromToken);
+            }
+            if (audioButton[fromToken] && !audioButtonFlag[fromToken]) {//リスナー側が切っただけの場合
+              audioButton[fromToken].style.backgroundColor = "red";
+              audioButton[fromToken].onclick = function buttonClick() {
+                audioButtonFlag[fromToken] = true;
+                mediaConnect(fromToken, "call audio");
+              }
+            }
 
-          // if (!audioButton[fromToken] && mediaElement[fromToken]) {
-          //   document.getElementById("mediaMenu").removeChild(mediaElement[fromToken]);
-        }
-      };
+            // if (!audioButton[fromToken] && mediaElement[fromToken]) {
+            //   document.getElementById("mediaMenu").removeChild(mediaElement[fromToken]);
+          }
+        };
+      }
 
     };
   }
@@ -14561,6 +14917,15 @@ function setupDataChannelEventHandler(rtcPeerConnection) {
               value.set("idOldVideo", localStream.getVideoTracks()[0].id);
               value.get("rtc").addTrack(value.get("oldVideo"), localStream);
             }
+            // 追加カメラも配信中なら追加
+            for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+              const _xc = _xcam[_cn];
+              if (_xc && _xc.status && _xc.stream && _xc.track && !value.get("idOldVideoN_" + _cn)) {
+                value.set("oldVideoN_" + _cn, _xc.track);
+                value.set("idOldVideoN_" + _cn, _xc.track.id);
+                value.get("rtc").addTrack(_xc.track, _xc.stream);
+              }
+            }
           }
         });
       }
@@ -14586,6 +14951,15 @@ function setupDataChannelEventHandler(rtcPeerConnection) {
               value.set("oldVideo", localStream.getVideoTracks()[0]);
               value.set("idOldVideo", localStream.getVideoTracks()[0].id);
               value.get("rtc").addTrack(value.get("oldVideo"), localStream);
+            }
+            // 追加カメラも配信中なら追加
+            for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+              const _xc = _xcam[_cn];
+              if (_xc && _xc.status && _xc.stream && _xc.track && !value.get("idOldVideoN_" + _cn)) {
+                value.set("oldVideoN_" + _cn, _xc.track);
+                value.set("idOldVideoN_" + _cn, _xc.track.id);
+                value.get("rtc").addTrack(_xc.track, _xc.stream);
+              }
             }
           }
         });
@@ -14723,6 +15097,17 @@ function makeOffer(fromToken, video, audio) {
   }
   else {
     console.warn('no local stream, but continue.');
+  }
+  // 追加カメラも配信中なら追加
+  if (video) {
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (_xc && _xc.status && _xc.stream && _xc.track) {
+        mapPeer.get(fromToken).set('oldVideoN_' + _cn, _xc.track);
+        mapPeer.get(fromToken).set('idOldVideoN_' + _cn, _xc.track.id);
+        peerConnection.addTrack(_xc.track, _xc.stream);
+      }
+    }
   }
 
   // DataChannelの作成
@@ -14905,6 +15290,73 @@ async function populateDeviceSelects(kind) {
   const _fillCamLabel = (_settingPreviewActive && _settingPreviewCurrentDeviceId) ? '' : cameraDeviceLabel;
   fill(document.getElementById('cameraDeviceSelect'), 'videoinput', _fillCamId, _fillCamLabel);
   fill(document.getElementById('micDeviceSelect'), 'audioinput', micDeviceId, micDeviceLabel);
+
+  const camList = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
+  function fillExtraCamSelect(selectEl, savedId) {
+    selectEl.innerHTML = '<option value="">(なし)</option>';
+    camList.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || 'カメラ' + (i + 1);
+      if (d.deviceId === savedId) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  // 追加カメラセレクターを動的生成（camExtraDeviceWraps コンテナ内に配置）
+  if (multiCameraEnabled) {
+    let container = document.getElementById('camExtraDeviceWraps');
+    if (!container) { container = document.createElement('div'); container.id = 'camExtraDeviceWraps'; document.getElementById('cam2DeviceWrap')?.parentNode?.insertBefore(container, document.getElementById('cam2DeviceWrap') || null); }
+    // 不要なラッパーをすべて削除して再描画
+    container.innerHTML = '';
+    // cam2..MAX_CAMS: 前のカメラが選択されている場合のみ表示
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const prevDeviceId = _cn === 2 ? cameraDeviceId : (_xcam[_cn - 1] && _xcam[_cn - 1].deviceId);
+      if (!prevDeviceId) break;
+      const _xc = _xcamGet(_cn);
+      const wrap = document.createElement('div');
+      wrap.style.marginTop = '3px';
+      const lbl = document.createTextNode('カメラ' + _cn + '：');
+      const sel = document.createElement('select');
+      sel.style.cssText = 'width:100%; margin-top:3px; box-sizing:border-box;';
+      sel.setAttribute('onfocus', "populateDeviceSelects('videoinput')");
+      sel.onchange = (function(_n, _s) { return function () { onCameraDeviceSelectN(_n, _s); }; })(_cn, sel);
+      fillExtraCamSelect(sel, _xc.deviceId);
+      wrap.appendChild(lbl);
+      wrap.appendChild(sel);
+      container.appendChild(wrap);
+    }
+    // プレビュー要素も動的生成
+    let previewContainer = document.getElementById('settingPreviewExtraWraps');
+    if (!previewContainer) {
+      previewContainer = document.createElement('div');
+      previewContainer.id = 'settingPreviewExtraWraps';
+      const pw = document.getElementById('settingPreviewWrap');
+      if (pw) pw.parentNode.insertBefore(previewContainer, pw.nextSibling);
+    }
+    previewContainer.innerHTML = '';
+    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+      const _xc = _xcam[_cn];
+      if (!_xc || !_xc.deviceId) break;
+      let wrap = document.getElementById('settingPreview' + _cn + 'Wrap');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'settingPreview' + _cn + 'Wrap';
+        wrap.style.cssText = 'display:none; width:50%; margin-top:4px; border-radius:4px; overflow:hidden;';
+        const vid = document.createElement('video');
+        vid.id = 'settingPreview' + _cn;
+        vid.autoplay = true; vid.setAttribute('playsinline', ''); vid.muted = true;
+        vid.style.cssText = 'width:100%; display:block; min-height:0;';
+        wrap.appendChild(vid);
+      }
+      previewContainer.appendChild(wrap);
+    }
+  } else {
+    const c = document.getElementById('camExtraDeviceWraps');
+    if (c) c.innerHTML = '';
+    const pc = document.getElementById('settingPreviewExtraWraps');
+    if (pc) pc.innerHTML = '';
+  }
 }
 
 function onCameraDeviceSelect(sel) {
@@ -14919,6 +15371,50 @@ function onCameraDeviceSelect(sel) {
   localStorage.setItem('cameraDeviceId', cameraDeviceId);
   localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
   if (videoStatus) switchVideoDevice(cameraDeviceId);
+}
+
+function onMultiCameraCheckChange(checkbox) {
+  multiCameraEnabled = checkbox.checked;
+  localStorage.setItem('multiCameraEnabled', multiCameraEnabled ? 'true' : 'false');
+  populateDeviceSelects();
+  if (!multiCameraEnabled) {
+    for (let _cn = MAX_CAMS; _cn >= 2; _cn--) {
+      const _xcn = _xcam[_cn];
+      if (_xcn && _xcn.status) stopVideoN(_cn);
+      if (_xcn) _xcn.deviceId = '';
+    }
+  }
+}
+
+async function onCameraDeviceSelectN(n, sel) {
+  const _xc = _xcamGet(n);
+  if (!sel.value) {
+    // n以降をすべて停止・クリア
+    for (let _cn = MAX_CAMS; _cn >= n; _cn--) {
+      const _xcn = _xcam[_cn];
+      if (_xcn && _xcn.status) stopVideoN(_cn);
+      if (_xcn) { _xcn.deviceId = ''; if (_xcn.previewStream) { _xcn.previewStream.getTracks().forEach(t => t.stop()); _xcn.previewStream = null; } }
+    }
+    populateDeviceSelects();
+    return;
+  }
+  try {
+    const test = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: sel.value } } });
+    test.getTracks().forEach(t => t.stop());
+    _xc.deviceId = sel.value;
+    // n-1番のカメラが配信中なら即起動
+    const prevRunning = n === 2 ? videoStatus : (_xcam[n - 1] && _xcam[n - 1].status);
+    if (prevRunning) startVideoN(n, sel.value);
+    if (_settingPreviewActive) _switchSettingPreviewN(n, sel.value);
+    populateDeviceSelects();
+  } catch (e) {
+    if (e.name === 'NotReadableError' || e.name === 'OverconstrainedError') {
+      outputChatMsg('このカメラは同時に使用できません: ' + (sel.options[sel.selectedIndex]?.textContent || ''), 'red');
+    } else {
+      outputChatMsg('カメラ' + n + 'の取得に失敗: ' + e.name, 'red');
+    }
+    sel.value = _xc.deviceId || '';
+  }
 }
 
 async function switchVideoDevice(deviceId) {

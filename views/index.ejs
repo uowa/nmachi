@@ -352,13 +352,16 @@
                   <option value="fixed">固定</option>
                 </select>
                 <label><input type="checkbox" id="settingPreviewCheck" onchange="onSettingPreviewCheckChange(this)"> プレビュー</label>
+                <label style="margin-left:8px;"><input type="checkbox" id="multiCameraCheck" onchange="onMultiCameraCheckChange(this)"> 複数カメラ</label>
                 <br>
                 <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+                <div id="camExtraDeviceWraps"></div>
               </div>
               <div id="settingPreviewWrap" style="display:none; width:50%; margin-top:4px; border-radius:4px; overflow:hidden; position:relative;">
                 <video id="settingPreview" autoplay playsinline muted style="width:100%; display:block; min-height:0;"></video>
                 <div id="settingPreviewBlackOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:#000; z-index:1;"></div>
               </div>
+              <div id="settingPreviewExtraWraps"></div>
               <div>
                 マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
                   <option value="always">毎回選ぶ</option>
@@ -714,9 +717,9 @@
       あなたのWebブラウザーでJavaScriptを有効にする方法</a>
   </noscript>
   <div id="devicePickerOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:#fff; color:#333; padding:16px; border-radius:8px; min-width:240px; max-width:90vw;">
+    <div style="background:#fff; color:#333; padding:16px; border-radius:8px; min-width:240px; max-width:min(90vw,680px); max-height:80vh; overflow-y:auto; box-sizing:border-box;">
       <p id="devicePickerLabel" style="margin:0 0 8px; font-weight:bold;"></p>
-      <video id="devicePickerPreview" autoplay playsinline muted style="width:100%; margin-bottom:6px; border-radius:4px; background:#000; display:none;"></video>
+      <video id="devicePickerPreview" autoplay playsinline muted style="width:100%; margin-bottom:6px; border-radius:4px; display:none;"></video>
       <div id="devicePickerPreviewWrap" style="margin-bottom:8px; display:none;">
         <button type="button" id="devicePickerPreviewBtn" onclick="onDevicePickerPreviewClick()">プレビュー</button>
       </div>
@@ -724,6 +727,7 @@
         <label><input type="checkbox" id="devicePickerFixCheck"> <span id="devicePickerFixLabel">次回から固定</span></label>
       </div>
       <select id="devicePickerSelect" style="width:100%; margin-bottom:10px;"></select>
+      <div id="devicePickerExtraCams"></div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button id="devicePickerOk" type="button">OK</button>
         <button id="devicePickerCancel" type="button">キャンセル</button>
