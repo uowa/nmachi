@@ -1967,14 +1967,12 @@ class MsgBubble extends PIXI.Container {
     const bgCol = 0x000000;
     const r = (col >> 16) & 0xff, g = (col >> 8) & 0xff, b = col & 0xff;
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    const isDark = lum < 40;
+    const isDark = lum < 80;
 
-    this._text.style.fill = this._textColorOverride !== null ? this._textColorOverride : (isDark ? 0xffffff : col);
-    this._text.style.dropShadow = isDark;
-    this._text.style.dropShadowColor = col;
-    this._text.style.dropShadowBlur = 6;
-    this._text.style.dropShadowDistance = 0;
-    this._text.style.dropShadowAlpha = 1.0;
+    this._text.style.fill = this._textColorOverride !== null ? this._textColorOverride : (isDark ? 0xf5f5f5 : col);
+    this._text.style.stroke = isDark ? col : 0x000000;
+    this._text.style.strokeThickness = isDark ? 2 : 0;
+    this._text.style.dropShadow = false;
 
     const tw = this._text.width;
     const th = this._text.height;

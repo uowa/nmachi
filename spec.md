@@ -213,7 +213,7 @@
 - **グロー**: 10px 外層を削除、5px+2px の2層構成に縮小
 - **画面端自動収まり**: `_redraw()` でキャンバス境界クランプ（ドラッグ中は無効）
 - **障害物前面表示**: `displayRoom()` で `avaBubbleLayer`（zIndex=400）を `room.container` に追加。テキスト設定時に吹き出しを reparent＋overlay ticker で毎フレーム位置追従。`otherLeft`・再接続時にクリーンアップ
-- **濃い色アバターの視認性**: lum<40 のとき白文字＋`dropShadow`（distance=0, blur=6）でアバター色グロー。通常はアバター色文字のまま
+- **濃い色アバターの視認性**: lum<80 のとき `0xf5f5f5`（≈96%白）文字＋アバター色2px stroke。通常はアバター色文字のまま
 
 ---
 
