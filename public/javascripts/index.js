@@ -1137,13 +1137,12 @@ function _xcamGet(n) {
   if (!_xcam[n]) _xcam[n] = { status: false, stream: null, track: null, deviceId: '', button: {}, buttonFlag: {}, remoteStream: {}, streamId: {}, previewStream: null };
   return _xcam[n];
 }
-let _pendingExtraCameraIds = [];
+let _pendingExtraCameraIds = {};
 const _pendingRemoteVideoStreams = {}; // { fromToken: { streamId: stream } } ontrack/createVideoButtonNのレースコンディション対策
-// cam2+ のデバイスID を localStorage から復元
+// cam2+ のデバイスID を localStorage から復元（中飛びを許容するため break しない）
 for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
   const _savedId = localStorage.getItem('cameraDeviceId_' + _cn);
   if (_savedId) _xcamGet(_cn).deviceId = _savedId;
-  else break;
 }
 
 let mapPeer = new Map();
@@ -12996,8 +12995,12 @@ socket.on("mediaButton", data => {
     if (videoArray[fromToken + 'IR']) detachVideo(fromToken + 'IR');
     stream[fromToken] = null;
     delete _pendingRemoteVideoStreams[fromToken];
-    // 音声ボタンも非表示ならメディア要素ごと削除
-    if (!audioButton[fromToken] || audioButton[fromToken].style.visibility === "hidden") {
+    // cam2+ボタンも音声ボタンも非表示ならメディア要素ごと削除
+    let _anyCamNVis = false;
+    for (let _ci = 2; _ci <= MAX_CAMS; _ci++) {
+      if (_xcam[_ci] && _xcam[_ci].button[fromToken] && _xcam[_ci].button[fromToken].style.visibility !== 'hidden') { _anyCamNVis = true; break; }
+    }
+    if (!_anyCamNVis && (!audioButton[fromToken] || audioButton[fromToken].style.visibility === 'hidden')) {
       removeMediaElementButton(fromToken);
     }
   }
@@ -13983,16 +13986,18 @@ async function _switchSettingPreviewN(n, deviceId) {
 
 async function _getVideoDeviceId() {
   if (cameraSelectMode === 'fixed' && cameraDeviceId) {
-    _pendingExtraCameraIds = [];
-    for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
-      const _xc = _xcam[_cn];
-      if (_xc && _xc.deviceId) _pendingExtraCameraIds.push(_xc.deviceId);
-      else break;
+    _pendingExtraCameraIds = {};
+    if (multiCameraEnabled) {
+      for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+        const _xc = _xcam[_cn];
+        if (_xc && _xc.deviceId) _pendingExtraCameraIds[_cn] = _xc.deviceId;
+      }
     }
     return cameraDeviceId;
   }
   const result = await _pickDevice('videoinput');
-  _pendingExtraCameraIds = result.extraIds || [];
+  _pendingExtraCameraIds = {};
+  (result.extraIds || []).forEach((id, i) => { if (id) _pendingExtraCameraIds[i + 2] = id; });
   if (cameraSelectMode === 'fixed' && result.deviceId) {
     cameraDeviceId = result.deviceId; cameraDeviceLabel = result.deviceLabel || '';
     localStorage.setItem('cameraDeviceId', result.deviceId); localStorage.setItem('cameraDeviceLabel', cameraDeviceLabel);
@@ -14064,15 +14069,14 @@ async function startVideo() {
       document.getElementById('startVideo').onclick = function buttonClick() {
         stopVideo();
       }
-      // 追加カメラが選択されていたら順番に起動
-      if (_pendingExtraCameraIds.length > 0) {
-        for (let _pi = 0; _pi < _pendingExtraCameraIds.length; _pi++) {
-          const _camN = _pi + 2;
-          _xcamGet(_camN).deviceId = _pendingExtraCameraIds[_pi];
-          await startVideoN(_camN, _pendingExtraCameraIds[_pi]);
+      // 追加カメラが選択されていたら起動（中飛びを許容）
+      for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+        if (_pendingExtraCameraIds[_cn]) {
+          _xcamGet(_cn).deviceId = _pendingExtraCameraIds[_cn];
+          await startVideoN(_cn, _pendingExtraCameraIds[_cn]);
         }
-        _pendingExtraCameraIds = [];
       }
+      _pendingExtraCameraIds = {};
       populateDeviceSelects();
       updateStreamStatus();
 
@@ -14576,7 +14580,19 @@ function createVideoButton(fromToken) {
     videoButton[fromToken].style.backgroundColor = "red";
     videoButton[fromToken].onclick = function buttonClick() {
       videoButtonFlag[fromToken] = true;
-      mediaConnect(fromToken, "call video");
+      if (stream[fromToken] && !videoArray[fromToken]) {
+        videoButton[fromToken].style.backgroundColor = 'skyblue';
+        attachVideo(fromToken, stream[fromToken]);
+        if (selectVideoReverseOther.checked) attachVideo(fromToken + "Re", stream[fromToken]);
+        if (selectVideoInverseOther.checked) attachVideo(fromToken + "Inv", stream[fromToken]);
+        if (selectVideoInverseAndReverseOther.checked) attachVideo(fromToken + "IR", stream[fromToken]);
+        videoButton[fromToken].onclick = function buttonClick() {
+          videoButtonFlag[fromToken] = false;
+          mediaConnect(fromToken, "stop video");
+        };
+      } else {
+        mediaConnect(fromToken, "call video");
+      }
     }
   }
 }
@@ -15456,7 +15472,12 @@ function onMultiCameraCheckChange(checkbox) {
     for (let _cn = MAX_CAMS; _cn >= 2; _cn--) {
       const _xcn = _xcam[_cn];
       if (_xcn && _xcn.status) stopVideoN(_cn);
-      if (_xcn) _xcn.deviceId = '';
+      if (_xcn) {
+        _xcn.deviceId = '';
+        localStorage.removeItem('cameraDeviceId_' + _cn);
+        if (_xcn.previewStream && _xcn.previewStream !== _xcn.stream) { _xcn.previewStream.getTracks().forEach(t => t.stop()); }
+        _xcn.previewStream = null;
+      }
     }
   }
 }
