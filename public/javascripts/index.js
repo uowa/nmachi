@@ -1708,12 +1708,12 @@ async function setUp(assets) {//画像読み込み後の処理はここに書い
   app.stage.eventMode = 'static';
   app.stage.on('pointermove', (event) => {
     if (showCoord) {
-      coordText.text = `avaX: ${AX}\navaY: ${AY}`;
+      coordText.text = `AvatarX: ${AX}\nAvatarY: ${AY}`;
     }
     loginMX = event.global.x;
     loginMY = event.global.y;
     if (showCoord && 0 <= loginMX && loginMX <= 660 && 0 <= loginMY && loginMY <= 460) {
-      mouseText.text = `mouX: ${loginMX}\nmouY: ${loginMY}`;
+      mouseText.text = `MouseX: ${loginMX}\nMouseY: ${loginMY}`;
     }
   });
 
@@ -8620,6 +8620,13 @@ wa_i.addEventListener('pointerdown', e => {
   e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
   clickedWa_iButtun = !clickedWa_iButtun;
   wa_i.style.backgroundColor = clickedWa_iButtun ? 'skyblue' : 'red';
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'F12') {
+    const el = document.getElementById('devEditSection');
+    if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+  }
 });
 
 //お絵描き用のシステム

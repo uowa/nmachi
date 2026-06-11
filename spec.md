@@ -1226,11 +1226,16 @@ ridingObjectがない場合:
 
 ---
 
-### 36. 編集用UIをF12コンソール開いてる時だけ表示
+### 36. 編集用UIをF12コンソール開いてる時だけ表示 ✅ (2026-06-11 実装完了)
 **Show debug UI only when DevTools are open**
 - 「― 編集用 ―」セクションのUI（座標表示・床Poly等）を DevTools を開いている時だけ表示
 - DevTools 開閉の検出: `window.outerHeight - window.innerHeight > 200` 等
 - 座標表示ラベル改善: `mouX mouY avaX avaY` → `MouseX MouseY AvatarX AvatarY` に変更
+
+#### 現状（2026-06-11 実装完了）
+- `views/index.ejs`: 編集UIセクションを `<div id="devEditSection" style="display:none">` で包んだ
+- `index.js`: `_isDevToolsOpen()` / `_updateDevEditVisibility()` を追加。`resize` イベント + 1秒インターバルで検出
+- 座標テキスト: `AvatarX/AvatarY`（青）、`MouseX/MouseY`（赤）に変更済み
 
 ---
 
