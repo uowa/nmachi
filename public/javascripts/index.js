@@ -11347,16 +11347,17 @@ function changeLogHighlight() {
 }
 
 function _applyHighlightStyle(li, token, isAnnounce) {
+  if (!('origBg' in li.dataset)) li.dataset.origBg = li.style.background;
   const c = (avaP[token] != null ? avaP[token].avatarColor : null) ?? 0xffffff;
   const r = (c >> 16) & 0xff;
   const g = (c >> 8) & 0xff;
   const b = c & 0xff;
   if (r + g + b < 60) {
     li.style.background = isAnnounce ? 'rgba(0,0,0,0.6)' : 'black';
+    if (!('origColor' in li.dataset)) li.dataset.origColor = li.style.color;
     li.style.color = 'white';
   } else {
     li.style.background = `rgba(${r},${g},${b},${isAnnounce ? 0.3 : 0.7})`;
-    li.style.color = '';
   }
 }
 
@@ -11364,8 +11365,12 @@ function applyLogHighlight(token) {
   highlightToken = token;
   mainLogUl.querySelectorAll('li.log-highlight').forEach(li => {
     li.classList.remove('log-highlight');
-    li.style.background = '';
-    li.style.color = '';
+    li.style.background = li.dataset.origBg ?? '';
+    delete li.dataset.origBg;
+    if ('origColor' in li.dataset) {
+      li.style.color = li.dataset.origColor;
+      delete li.dataset.origColor;
+    }
   });
   if (token) {
     mainLogUl.querySelectorAll('li.' + CSS.escape(token)).forEach(li => {
