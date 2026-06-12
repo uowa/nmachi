@@ -1259,7 +1259,7 @@ ridingObjectがない場合:
 
 #### 現状（2026-06-11 実装完了）
 - `views/index.ejs`: 編集UIセクションを `<div id="devEditSection" style="display:none">` で包んだ
-- `index.js`: `_isDevToolsOpen()` / `_updateDevEditVisibility()` を追加。`resize` イベント + 1秒インターバルで検出
+- `index.js`: F12キー押下でトグル表示（`outerHeight - innerHeight` 方式は環境依存で誤検知したため不採用）
 - 座標テキスト: `AvatarX/AvatarY`（青）、`MouseX/MouseY`（赤）に変更済み
 
 ---
