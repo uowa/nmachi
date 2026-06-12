@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const db = require('../db/index');
+
+const DIR_BG_DIR = path.join(__dirname, '../public/uploads/dir');
 
 const DIRECTION_LIFETIMES = {
   '東の部屋': 24,
@@ -103,6 +107,45 @@ router.delete('/:roomName/gates/:index', (req, res) => {
     db.run('DELETE FROM rooms WHERE id = ?', [gate.room_id]);
     db.run('DELETE FROM direction_gates WHERE parent_room_name = ? AND gate_index = ?', [roomName, gateIndex]);
 
+    res.json({ ok: true });
+});
+
+// GET /api/direction/:roomName/bg
+router.get('/:roomName/bg', (req, res) => {
+    const { roomName } = req.params;
+    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    const row = db.get('SELECT url FROM direction_bg_images WHERE room_name = ?', [roomName]);
+    res.json(row ? { url: row.url } : {});
+});
+
+// POST /api/direction/:roomName/bg
+router.post('/:roomName/bg', (req, res) => {
+    const { roomName } = req.params;
+    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    const { imageBase64 } = req.body || {};
+    if (!imageBase64) return res.status(400).json({ error: 'imageBase64が必要です' });
+    const match = imageBase64.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
+    if (!match) return res.status(400).json({ error: '画像形式が不正です' });
+    const ext = match[1].replace('jpeg', 'jpg');
+    const buffer = Buffer.from(match[2], 'base64');
+    fs.mkdirSync(DIR_BG_DIR, { recursive: true });
+    const filename = roomName + '.' + ext;
+    const filepath = path.join(DIR_BG_DIR, filename);
+    fs.writeFileSync(filepath, buffer);
+    const url = '/uploads/dir/' + filename;
+    db.run('INSERT OR REPLACE INTO direction_bg_images (room_name, filename, url) VALUES (?, ?, ?)', [roomName, filename, url]);
+    res.json({ url });
+});
+
+// DELETE /api/direction/:roomName/bg
+router.delete('/:roomName/bg', (req, res) => {
+    const { roomName } = req.params;
+    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    const row = db.get('SELECT filename FROM direction_bg_images WHERE room_name = ?', [roomName]);
+    if (row) {
+        try { fs.unlinkSync(path.join(DIR_BG_DIR, row.filename)); } catch (_e) {}
+        db.run('DELETE FROM direction_bg_images WHERE room_name = ?', [roomName]);
+    }
     res.json({ ok: true });
 });
 

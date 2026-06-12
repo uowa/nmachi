@@ -73,6 +73,11 @@ db.exec(`
     room_name TEXT,
     UNIQUE(parent_room_name, gate_index)
   );
+  CREATE TABLE IF NOT EXISTS direction_bg_images (
+    room_name TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    url TEXT NOT NULL
+  );
 `);
 
 const insertRoom = db.prepare(

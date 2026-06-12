@@ -326,22 +326,22 @@ const warpPoints = [
   },
   {
     room: "東の部屋",
-    area: { x1: 580, x2: 660, y1: 400, y2: 480 },
+    area: { x1: 0, x2: 60, y1: 195, y2: 285 },
     toSpot: "mugenMainSpot"
   },
   {
     room: "南の部屋",
-    area: { x1: 580, x2: 660, y1: 400, y2: 480 },
+    area: { x1: 275, x2: 385, y1: 0, y2: 60 },
     toSpot: "mugenMainSpot"
   },
   {
     room: "西の部屋",
-    area: { x1: 580, x2: 660, y1: 400, y2: 480 },
+    area: { x1: 600, x2: 660, y1: 195, y2: 285 },
     toSpot: "mugenMainSpot"
   },
   {
     room: "北の部屋",
-    area: { x1: 580, x2: 660, y1: 400, y2: 480 },
+    area: { x1: 275, x2: 385, y1: 420, y2: 480 },
     toSpot: "mugenMainSpot"
   },
   {
@@ -749,12 +749,12 @@ function _replayOekakiOnGhost(g, ava) {
 }
 
 function _updateMugenGhosts() {
-  if (!room || room.name !== 'むげん') {
+  if (!room || (room.name !== 'むげん' && !_DIR_ROOM_NAMES.has(room.name))) {
     if (_mugenGhostMap.size > 0) _destroyAllMugenGhosts();
     return;
   }
   const W = 660;
-  const _mugenFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+  const _mugenFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
   const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
   const MX = 60, MY = 80;
 
@@ -891,13 +891,43 @@ async function showGateCreateDialog(gateIndex, prevRoom) {
 
 async function loadDirectionGates(roomName) {
   try {
-    const res = await fetch('/api/direction/' + encodeURIComponent(roomName) + '/gates');
-    if (!res.ok) return;
-    const gates = await res.json();
-    directionGateRooms[roomName] = [null, null, null, null];
-    gates.forEach(g => { directionGateRooms[roomName][g.gate_index] = g.room_id; });
-    updateDirectionGateTints(roomName);
+    const [gatesRes, bgRes] = await Promise.all([
+      fetch('/api/direction/' + encodeURIComponent(roomName) + '/gates'),
+      fetch('/api/direction/' + encodeURIComponent(roomName) + '/bg'),
+    ]);
+    if (gatesRes.ok) {
+      const gates = await gatesRes.json();
+      directionGateRooms[roomName] = [null, null, null, null];
+      gates.forEach(g => { directionGateRooms[roomName][g.gate_index] = g.room_id; });
+      updateDirectionGateTints(roomName);
+    }
+    if (bgRes.ok) {
+      const bgData = await bgRes.json();
+      _applyDirectionBg(roomName, bgData.url || null);
+    }
   } catch (_e) {}
+}
+
+const _DIR_ROOM_NAMES = new Set(['東の部屋', '南の部屋', '西の部屋', '北の部屋']);
+
+function _applyDirectionBg(roomName, url) {
+  if (!room || room.name !== roomName) return;
+  const roomObj = objMap[roomName];
+  if (!roomObj) return;
+  if (roomObj.dirBgSprite) {
+    if (roomObj.dirBgSprite.parent) roomObj.dirBgSprite.parent.removeChild(roomObj.dirBgSprite);
+    roomObj.dirBgSprite.destroy();
+    roomObj.dirBgSprite = null;
+  }
+  if (!url) return;
+  const tex = PIXI.Texture.from(url + '?t=' + Date.now());
+  const sp = new PIXI.Sprite(tex);
+  sp.zIndex = 6;
+  sp.eventMode = 'none';
+  sp.width = 660;
+  sp.height = 480;
+  roomObj.dirBgSprite = sp;
+  roomObj.container.addChild(sp);
 }
 
 function updateDirectionGateTints(roomName) {
@@ -1275,10 +1305,10 @@ app.ticker.add(() => {
   }
 }, null, -10);
 
-// むげんワープ後の dead reckoning（tapMap受信フレームでGSAPが未起動のまま1フレーム止まる問題を解消）
+// むげん・方角部屋のワープ後 dead reckoning（tapMap受信フレームでGSAPが未起動のまま1フレーム止まる問題を解消）
 app.ticker.add((delta) => {
-  if (!room || room.name !== 'むげん') return;
-  const _drFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+  if (!room || (room.name !== 'むげん' && !_DIR_ROOM_NAMES.has(room.name))) return;
+  const _drFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
   const _drMaxY = _drFloorH > 0 ? VIDEO_FLOOR_Y + _drFloorH : 460;
   const _drNow = performance.now();
   for (const ava of Object.values(avaP)) {
@@ -2329,6 +2359,10 @@ const ROOM_PHYSICS = {
   "星1":         { gravity: false, se: "outerSpace", overlayChatColor: "white" },
   "むげんのいりぐち": { gravity: false, se: "outerSpace", overlayChatColor: "black" },
   "むげん":           { gravity: false, se: "outerSpace", overlayChatColor: "black" },
+  "東の部屋":         { gravity: false, se: "outerSpace", overlayChatColor: "white" },
+  "南の部屋":         { gravity: false, se: "outerSpace", overlayChatColor: "white" },
+  "西の部屋":         { gravity: false, se: "outerSpace", overlayChatColor: "white" },
+  "北の部屋":         { gravity: false, se: "outerSpace", overlayChatColor: "white" },
 };
 
 class Avatar {
@@ -2797,7 +2831,7 @@ class Avatar {
     if (room.name === "星1") {
       this.container.scale.x = 0.5;
       this.container.scale.y = 0.5;
-    } else if (room.name === "むげん") {
+    } else if (room.name === "むげん" || room.name === "東の部屋" || room.name === "南の部屋" || room.name === "西の部屋" || room.name === "北の部屋") {
       this.container.scale.x = 0.82;
       this.container.scale.y = 0.82;
     } else {
@@ -3841,22 +3875,26 @@ class Room extends GameObject {
       case "西の部屋":
       case "北の部屋": {
         const dirBg = new PIXI.Graphics();
-        dirBg.beginFill(0xffffff);
+        dirBg.beginFill(0x000000);
         dirBg.drawRect(0, 0, 660, 480);
         dirBg.endFill();
+        dirBg.zIndex = 0;
         this.container.addChild(dirBg);
-        const dirLabel = new PIXI.Text(name, { fontFamily: 'serif', fontSize: 28, fill: 0x888888, alpha: 0.5 });
-        dirLabel.anchor.set(0.5, 0.5);
-        dirLabel.position.set(330, 240);
-        dirLabel.zIndex = 5;
-        dirLabel.eventMode = 'none';
-        this.container.addChild(dirLabel);
+
+        const dirChar = new PIXI.Text(name[0], { fontFamily: 'serif', fontSize: 200, fill: 0xffffff });
+        dirChar.anchor.set(0.5, 0.5);
+        dirChar.position.set(330, 240);
+        dirChar.zIndex = 5;
+        dirChar.eventMode = 'none';
+        this.container.addChild(dirChar);
+
+        this.dirBgSprite = null;
 
         const dirGatePositions = [
-          { x: 330, y: 0,   ax: 0.5, ay: 0   },
-          { x: 330, y: 480, ax: 0.5, ay: 1   },
-          { x: 0,   y: 240, ax: 0,   ay: 0.5 },
-          { x: 660, y: 240, ax: 1,   ay: 0.5 },
+          { x: 0,   y: 0,   ax: 0, ay: 0 },
+          { x: 660, y: 0,   ax: 1, ay: 0 },
+          { x: 0,   y: 480, ax: 0, ay: 1 },
+          { x: 660, y: 480, ax: 1, ay: 1 },
         ];
         if (!directionGateRooms[name]) directionGateRooms[name] = [null, null, null, null];
         directionGateSprites[name] = [];
@@ -7986,8 +8024,8 @@ function startKeyMoveTicker() {
       if (AX < 0)   { goSelfToRoomSpot("star1EntrySpot"); return; }
     }
 
-    // むげん以外: キーボード移動で画面外に出ないようクランプ
-    if (room.name !== "むげん") {
+    // むげん・方角部屋以外: キーボード移動で画面外に出ないようクランプ
+    if (!_DIR_ROOM_NAMES.has(room.name) && room.name !== "むげん") {
       AX = Math.max(0, Math.min(660, AX));
       const _maxFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
       const _maxAY = _maxFloorH > 0 ? VIDEO_FLOOR_Y + _maxFloorH : VIDEO_FLOOR_Y;
@@ -7995,8 +8033,8 @@ function startKeyMoveTicker() {
       ava.container.x = AX;
       ava.container.y = AY;
     } else {
-      // むげん部屋: 画面端でループ（逆方向から出現）
-      const _mugenFloorH = Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+      // むげん・方角部屋: 画面端でループ（逆方向から出現）
+      const _mugenFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
       const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
       let _didWrap = false;
       if (AX < 0) { AX += 660; _didWrap = true; }
@@ -8158,7 +8196,7 @@ if (data.ridingOffsetX !== undefined) {
           ava.redrawOekakiForState();
         }
         gsap.killTweensOf(ava.container);
-        if (room && room.name === 'むげん') {
+        if (room && (room.name === 'むげん' || _DIR_ROOM_NAMES.has(room.name))) {
           const [_vx, _vy] = DIR_MOVE_DELTA[data.DIR] || [0, 0];
           if (Math.abs(data.AX - ava.container.x) > 330 || Math.abs(data.AY - ava.container.y) > 220) {
             ava.container.x = data.AX;
@@ -10743,6 +10781,15 @@ function contextMenuPositionSet(e) {
     contextMenuCloudRelX = null;
   }
 
+  // 背景画像変更メニュー：方角部屋のみ表示
+  if (_DIR_ROOM_NAMES.has(room.name)) {
+    document.getElementById('dirBgChangeMenu').style.display = 'block';
+    document.getElementById('dirBgDeleteMenu').style.display = 'block';
+  } else {
+    document.getElementById('dirBgChangeMenu').style.display = 'none';
+    document.getElementById('dirBgDeleteMenu').style.display = 'none';
+  }
+
   contextMenu.style.display = 'block';
 
   // 画面右上：right プロパティで直接配置（menuW計測不要）
@@ -10944,6 +10991,44 @@ avatarOekakiMenu.addEventListener('pointerdown', e => {
 });
 
 // 立て看板メニュー
+document.getElementById('dirBgChangeMenu').addEventListener('pointerdown', e => {
+  if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
+  contextMenu.style.display = 'none';
+  document.getElementById('dirBgFileInput').click();
+});
+
+document.getElementById('dirBgFileInput').addEventListener('change', async function() {
+  const file = this.files[0];
+  if (!file || !room || !_DIR_ROOM_NAMES.has(room.name)) return;
+  this.value = '';
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const res = await fetch('/api/direction/' + encodeURIComponent(room.name) + '/bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: ev.target.result }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      _applyDirectionBg(room.name, data.url);
+      socket.emit('dirBgUpdate', { roomName: room.name, url: data.url });
+    } catch (_e) {}
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('dirBgDeleteMenu').addEventListener('pointerdown', async e => {
+  if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
+  contextMenu.style.display = 'none';
+  if (!room || !_DIR_ROOM_NAMES.has(room.name)) return;
+  try {
+    await fetch('/api/direction/' + encodeURIComponent(room.name) + '/bg', { method: 'DELETE' });
+    _applyDirectionBg(room.name, null);
+    socket.emit('dirBgUpdate', { roomName: room.name, url: null });
+  } catch (_e) {}
+});
+
 signMenu.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
   contextMenu.style.display = "none";
@@ -11046,6 +11131,10 @@ document.getElementById("signDeleteConfirm").addEventListener('pointerdown', () 
 });
 
 // サーバーからの看板作成
+socket.on('dirBgUpdate', data => {
+  _applyDirectionBg(data.roomName, data.url || null);
+});
+
 socket.on("createSign", data => {
   // 自分が直前に作った看板なら pendingSignPassword を適用
   const password = _applyPendingPassword ? pendingSignPassword : "";

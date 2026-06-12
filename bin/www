@@ -1218,6 +1218,13 @@ io.on('connection', socket => {
     io.to(socket.id).emit('videoSurface', { token: data.floorToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, videoW: surf.videoW || 0, videoH: surf.videoH || 0, enabled: true, drawHistory: surf.drawHistory || [] });
   });
 
+  socket.on('dirBgUpdate', (data) => {
+    if (!checkUser()) return;
+    const { roomName, url } = data || {};
+    if (!roomName) return;
+    io.to(roomName).emit('dirBgUpdate', { roomName, url: url || null });
+  });
+
   socket.on("disconnect", () => {
     if (socket._editingRoomId) {
       const r = db.get('SELECT name FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);

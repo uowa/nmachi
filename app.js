@@ -72,6 +72,7 @@ app.use("/uowamemo07", pagesRouter);
 app.use("/uowamemo08", pagesRouter);
 app.use("/uowamemo09", pagesRouter);
 app.use("/uowamemo10", pagesRouter);
+app.use("/button-test", pagesRouter);
 
 
 
