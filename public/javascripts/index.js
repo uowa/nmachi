@@ -1110,13 +1110,13 @@ let _audioCtx = null;
 let _audioGainNode = null;
 let _audioAnalyser = null;
 let _audioRawStream = null;
-let _audioBoostEnabled = false;
+let _audioBoostEnabled = localStorage.getItem("micBoost") === "true";
 const AUDIO_BOOST_VALUE = 3.0;
 let _audioVizRafId = null;
-let _rnnoiseEnabled = false;
+let _rnnoiseEnabled = localStorage.getItem("useRNNoise") === "true";
 let _rnnoiseWorkletNode = null;
 let _rnnoiseWorkletReady = false;
-let _highpassEnabled = false;
+let _highpassEnabled = localStorage.getItem("lowCut") === "true";
 let _highpassNode = null;
 
 let _remoteAudioCtx = null;
@@ -10388,6 +10388,9 @@ document.getElementById('contextMenuPos').value = contextMenuPos;
 if (document.getElementById('useTTS')) document.getElementById('useTTS').checked = useTTS;
 if (document.getElementById('ttsMode')) document.getElementById('ttsMode').value = ttsMode;
 if (document.getElementById('ttsVolumeSlider')) document.getElementById('ttsVolumeSlider').value = ttsVolume;
+document.getElementById('rnnoiseCheck').checked = _rnnoiseEnabled;
+document.getElementById('audioBoostCheck').checked = _audioBoostEnabled;
+document.getElementById('highpassCheck').checked = _highpassEnabled;
 
 logNoiseButton.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
@@ -14373,6 +14376,7 @@ function stopAudio() {
 function toggleAudioBoost() {
   _audioBoostEnabled = document.getElementById('audioBoostCheck').checked;
   if (_audioGainNode) _audioGainNode.gain.value = _audioBoostEnabled ? AUDIO_BOOST_VALUE : 1.0;
+  localStorage.setItem("micBoost", _audioBoostEnabled);
 }
 
 function toggleRNNoise() {
@@ -14380,11 +14384,13 @@ function toggleRNNoise() {
   if (_rnnoiseWorkletNode) {
     _rnnoiseWorkletNode.port.postMessage({ type: 'enable', value: _rnnoiseEnabled });
   }
+  localStorage.setItem("useRNNoise", _rnnoiseEnabled);
 }
 
 function toggleHighpass() {
   _highpassEnabled = document.getElementById('highpassCheck').checked;
   if (_highpassNode) _highpassNode.type = _highpassEnabled ? 'highpass' : 'allpass';
+  localStorage.setItem("lowCut", _highpassEnabled);
 }
 
 function _startVolumeViz() {

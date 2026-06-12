@@ -710,6 +710,7 @@ CREATE TABLE editing_sessions (
 - DynamicsCompressor（threshold=-24, ratio=8）でピークを圧縮してから増幅するため歪みにくく、声の大小が均一化
 - 各チェックボックスは配信中にON/OFF切り替え可能（即時反映）
 - AudioWorklet非対応環境（iOS Safari等）はRNNoiseをスキップして動作継続（低音カットはiOSでも動作）
+- 各チェックボックスの状態をlocalStorageに保存・復元（キー: `useRNNoise`, `micBoost`, `lowCut`）（2026-06-12 追加）
 
 ---
 
