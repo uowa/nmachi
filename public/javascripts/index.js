@@ -6468,6 +6468,15 @@ socket.on("disconnect", (reason) => {
   stopAllConnection();
   videoStatus = false;
   audioStatus = false;
+  for (let _cn = MAX_CAMS; _cn >= 2; _cn--) {
+    const _xc = _xcam[_cn];
+    if (_xc && _xc.status) {
+      _xc.status = false;
+      if (_xc.stream) { _xc.stream.getTracks().forEach(t => t.stop()); _xc.stream = null; }
+      _xc.track = null;
+      if (videoArray[myToken + '_' + _cn]) detachVideo(myToken + '_' + _cn);
+    }
+  }
 
   // 再接続に使う状態を保存
   const ava = avaP[myToken];
@@ -13126,6 +13135,8 @@ function stopConnection(fromToken) {
     delete _xc.streamId[fromToken];
     delete _xc.remoteStream[fromToken];
   }
+  const _pend = _pendingRemoteVideoStreams[fromToken];
+  if (_pend) { Object.values(_pend).forEach(s => { if (s) s.getTracks().forEach(t => t.stop()); }); }
   delete _pendingRemoteVideoStreams[fromToken];
   // ピアコネクションを切断・削除
   if (peerConnections[fromToken]) {
@@ -13155,6 +13166,7 @@ function stopAllConnection() {
       if (_xc.buttonFlag[fromToken] !== undefined) delete _xc.buttonFlag[fromToken];
       if (videoArray[fromToken + '_' + _cn]) detachVideo(fromToken + '_' + _cn);
       delete _xc.streamId[fromToken];
+      delete _xc.remoteStream[fromToken];
     }
   });
   // mapPeerの全idに対してstopConnectionを実行
@@ -14019,16 +14031,26 @@ async function startVideo() {
   if (videoStatus) {
     return;
   }
+  videoStatus = true;
+  document.getElementById('startVideo').style.backgroundColor = 'gray';
+  document.getElementById('startVideo').onclick = function buttonClick() { stopVideo(); };
   let deviceId;
   try {
     deviceId = await _getVideoDeviceId();
-  } catch (_e) { return; }
+  } catch (_e) {
+    videoStatus = false;
+    document.getElementById('startVideo').style.backgroundColor = 'red';
+    document.getElementById('startVideo').onclick = function buttonClick() { startVideo(); };
+    return;
+  }
+  if (!videoStatus) return;
   videoStatus = {
     deviceId: deviceId ? { exact: deviceId } : undefined,
     ...QUALITY_CONSTRAINTS[streamQualityLevel],
   };
   getDeviceStream({ video: videoStatus }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
     .then(async function (stream) { // success
+      if (!videoStatus) { stream.getTracks().forEach(t => t.stop()); return; }
       document.getElementById('startVideo').style.backgroundColor = "skyblue";
       if (!localStream) {
         localStream = stream;
@@ -14112,6 +14134,10 @@ async function startVideoN(n, deviceId) {
     populateDeviceSelects();
     return;
   }
+  if (!videoStatus) {
+    tmpStream.getTracks().forEach(t => t.stop());
+    return;
+  }
   _xc.deviceId = deviceId;
   _xc.status = { deviceId: { exact: deviceId }, ...QUALITY_CONSTRAINTS[streamQualityLevel] };
   _xc.track = tmpStream.getVideoTracks()[0];
@@ -14156,6 +14182,9 @@ async function startAudio() {
   if (audioStatus) {
     return;
   }
+  audioStatus = true;
+  document.getElementById('startAudio').style.backgroundColor = 'gray';
+  document.getElementById('startAudio').onclick = function buttonClick() { stopAudio(); };
   // iOS Safari: AudioContext は最初の await 前に生成しないと gesture context が失われる
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (_audioCtx.audioWorklet && !_rnnoiseWorkletReady) {
@@ -14164,11 +14193,15 @@ async function startAudio() {
       _rnnoiseWorkletReady = true;
     } catch (_e) { console.warn('RNNoise worklet unavailable:', _e); }
   }
+  if (!audioStatus) return;
   let deviceId;
   try {
     deviceId = await _getMicDeviceId();
-  } catch (_e) { _audioCtx.close(); _audioCtx = null; return; }
-  audioStatus = true;
+  } catch (_e) {
+    if (audioStatus) { audioStatus = false; _audioCtx.close(); _audioCtx = null; document.getElementById('startAudio').style.backgroundColor = 'red'; document.getElementById('startAudio').onclick = function buttonClick() { startAudio(); }; }
+    return;
+  }
+  if (!audioStatus) return;
   getDeviceStream({
     audio: {
       deviceId: deviceId ? { exact: deviceId } : undefined,
@@ -14177,6 +14210,7 @@ async function startAudio() {
       autoGainControl: false
     }
   }).then(function (stream) { // success
+    if (!audioStatus) { stream.getTracks().forEach(t => t.stop()); return; }
     document.getElementById('startAudio').style.backgroundColor = "skyblue";
     _audioRawStream = stream;
     const source = _audioCtx.createMediaStreamSource(stream);
@@ -14570,7 +14604,7 @@ function createVideoButton(fromToken) {
   }
   if (videoButtonFlag[fromToken]) {//ボタンが押されていたら
     videoButtonFlag[fromToken] = true;
-    videoButton[fromToken].style.backgroundColor = 'skyblue';
+    videoButton[fromToken].style.backgroundColor = 'gray';
     if ((checkAllListen && !(audioButtonFlag[fromToken] === false))) {//checkAllListenでcallAudioも呼ばれてる場合
       mediaConnect(fromToken, "call video and audio");
     } else {
@@ -14591,10 +14625,33 @@ function createVideoButton(fromToken) {
           mediaConnect(fromToken, "stop video");
         };
       } else {
+        videoButton[fromToken].style.backgroundColor = 'gray';
+        videoButton[fromToken].onclick = null;
         mediaConnect(fromToken, "call video");
       }
     }
   }
+}
+
+function _makeCamNOnClick(n, ft) {
+  return function () {
+    const _xcL = _xcamGet(n);
+    _xcL.buttonFlag[ft] = true;
+    if (_xcL.remoteStream[ft] && !videoArray[ft + '_' + n]) {
+      _xcL.button[ft].style.backgroundColor = 'skyblue';
+      attachVideo(ft + '_' + n, _xcL.remoteStream[ft]);
+      _xcL.button[ft].onclick = function () {
+        _xcL.buttonFlag[ft] = false;
+        if (videoArray[ft + '_' + n]) detachVideo(ft + '_' + n);
+        _xcL.button[ft].style.backgroundColor = 'red';
+        _xcL.button[ft].onclick = _makeCamNOnClick(n, ft);
+      };
+    } else {
+      _xcL.button[ft].style.backgroundColor = 'gray';
+      _xcL.button[ft].onclick = null;
+      mediaConnect(ft, "call video");
+    }
+  };
 }
 
 function createVideoButtonN(n, fromToken) {
@@ -14629,35 +14686,16 @@ function createVideoButtonN(n, fromToken) {
   }
   if (_xc.buttonFlag[fromToken]) {
     _xc.buttonFlag[fromToken] = true;
-    _xc.button[fromToken].style.backgroundColor = 'skyblue';
     if (_xc.remoteStream[fromToken] && !videoArray[fromToken + '_' + n]) {
+      _xc.button[fromToken].style.backgroundColor = 'skyblue';
       attachVideo(fromToken + '_' + n, _xc.remoteStream[fromToken]);
     } else {
+      _xc.button[fromToken].style.backgroundColor = 'gray';
       mediaConnect(fromToken, "call video");
     }
   } else {
     _xc.button[fromToken].style.backgroundColor = "red";
-    _xc.button[fromToken].onclick = (function(_n, _ft) { return function () {
-      const _xcL = _xcamGet(_n);
-      _xcL.buttonFlag[_ft] = true;
-      if (_xcL.remoteStream[_ft] && !videoArray[_ft + '_' + _n]) {
-        // すでにトラックが届いているので直接アタッチ
-        _xcL.button[_ft].style.backgroundColor = 'skyblue';
-        attachVideo(_ft + '_' + _n, _xcL.remoteStream[_ft]);
-        _xcL.button[_ft].onclick = function () {
-          _xcL.buttonFlag[_ft] = false;
-          if (videoArray[_ft + '_' + _n]) detachVideo(_ft + '_' + _n);
-          _xcL.button[_ft].style.backgroundColor = 'red';
-          _xcL.button[_ft].onclick = function () {
-            _xcL.buttonFlag[_ft] = true;
-            if (_xcL.remoteStream[_ft]) attachVideo(_ft + '_' + _n, _xcL.remoteStream[_ft]);
-            if (_xcL.button[_ft]) _xcL.button[_ft].style.backgroundColor = 'skyblue';
-          };
-        };
-      } else {
-        mediaConnect(_ft, "call video");
-      }
-    }; })(n, fromToken);
+    _xc.button[fromToken].onclick = _makeCamNOnClick(n, fromToken);
   }
 }
 
@@ -14730,12 +14768,14 @@ function createAudioButton(fromToken) {
   }
 
   if (audioButtonFlag[fromToken]) {//ボタンが既に押されていたら
-    audioButton[fromToken].style.backgroundColor = 'skyblue';
+    audioButton[fromToken].style.backgroundColor = 'gray';
     mediaConnect(fromToken, "call audio");
   } else {//押されてなかったら
     audioButton[fromToken].style.backgroundColor = "red";
     audioButton[fromToken].onclick = function buttonClick() {
       audioButtonFlag[fromToken] = true;
+      audioButton[fromToken].style.backgroundColor = 'gray';
+      audioButton[fromToken].onclick = null;
       mediaConnect(fromToken, "call audio");
     }
   }
@@ -14934,6 +14974,34 @@ function prepareNewConnection(fromToken) {
     console.log('[ICE]', fromToken.slice(0,6), peer.iceConnectionState);
     if (peer.iceConnectionState === 'failed') {
       console.warn('[ICE] failed - TURN server unreachable?');
+      if (videoButton[fromToken] && videoButtonFlag[fromToken] && !videoArray[fromToken]) {
+        videoButtonFlag[fromToken] = false;
+        videoButton[fromToken].style.backgroundColor = 'red';
+        videoButton[fromToken].onclick = function buttonClick() {
+          videoButtonFlag[fromToken] = true;
+          videoButton[fromToken].style.backgroundColor = 'gray';
+          videoButton[fromToken].onclick = null;
+          mediaConnect(fromToken, "call video");
+        };
+      }
+      if (audioButton[fromToken] && audioButtonFlag[fromToken] && !remoteAudios[fromToken]) {
+        audioButtonFlag[fromToken] = false;
+        audioButton[fromToken].style.backgroundColor = 'red';
+        audioButton[fromToken].onclick = function buttonClick() {
+          audioButtonFlag[fromToken] = true;
+          audioButton[fromToken].style.backgroundColor = 'gray';
+          audioButton[fromToken].onclick = null;
+          mediaConnect(fromToken, "call audio");
+        };
+      }
+      for (let _cn = 2; _cn <= MAX_CAMS; _cn++) {
+        const _xc = _xcam[_cn];
+        if (_xc && _xc.button[fromToken] && _xc.buttonFlag[fromToken] && !videoArray[fromToken + '_' + _cn]) {
+          _xc.buttonFlag[fromToken] = false;
+          _xc.button[fromToken].style.backgroundColor = 'red';
+          _xc.button[fromToken].onclick = _makeCamNOnClick(_cn, fromToken);
+        }
+      }
     }
     if (peer.iceConnectionState === 'disconnected') {
       stopConnection(fromToken);//相手が切断したときにこちらも切断する
@@ -15220,7 +15288,7 @@ function makeOffer(fromToken, video, audio) {
 }
 
 function setOffer(fromToken, sessionDescription) {//message.type === 'offer'の時使う
-
+  if (_inRoomTransition) return;
   let peerConnection = prepareNewConnection(fromToken);
   mapPeer.set(fromToken, new Map());
 

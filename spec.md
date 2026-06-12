@@ -661,7 +661,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 14. 複数カメラ ✅ (2026-06-12 実装完了、2026-06-13 バグ修正)
+### 14. 複数カメラ ✅ (2026-06-12 実装完了、2026-06-13 バグ修正、2026-06-13 追加バグ修正)
 **Multi-camera support**
 - 複数カメラを同時使用可能にする / Allow using multiple cameras simultaneously
 
@@ -684,6 +684,16 @@ CREATE TABLE editing_sessions (
 - `_pendingExtraCameraIds` をオブジェクト形式に変更し中抜けcam番号に対応
 - `remove video button` 受信時、cam2+ボタンが表示中なら `removeMediaElementButton` を呼ばない
 - `createVideoButton` のonclickで `stream[fromToken]` が既にあれば直接 attach（再配信後に押せない問題を修正）
+- **disconnect 時に cam2+ の status・stream が残留するバグを修正**（disconnectハンドラ末尾に cam2+ ローカル停止ループ追加）
+- **`startVideoN` の getDeviceStream await 中に disconnect・部屋移動が起きた場合の誤動作を修正**（await 後に `videoStatus` ガード追加）
+- **`stopAllConnection` で `_xcam[n].remoteStream` がクリアされないバグを修正**（cam2+ ループに `delete remoteStream` 追加）
+- **`_pendingRemoteVideoStreams` の tracks が stop されないバグを修正**（delete 前に tracks.stop() 追加）
+- **`startVideo`・`startAudio` の getDeviceStream.then() 内に status ガードがないバグを修正**（停止・部屋移動後に配信通知が走る問題）
+- **`startVideo`・`startAudio` の await 前に status フラグが立たないバグを修正**（部屋移動時の stopVideo/stopAudio が効かない問題）
+- **受信ボタン連打中に部屋移動すると旧部屋ユーザーと WebRTC が確立されるバグを修正**（`setOffer` に `_inRoomTransition` ガード追加）
+- **配信ボタン（startVideo/startAudio）押下直後に灰色+キャンセル可能状態に変更**（getUserMedia 待ち中に再度押せばキャンセルできる）
+- **受信ボタンに「接続中」状態（灰色）を追加**（WebRTC 確立待ち中は連打ブロック、ICE 失敗時に赤に戻す）
+- `_makeCamNOnClick(n, ft)` ヘルパー関数で cam2+ 受信ボタンの onclick ロジックを共通化（createVideoButtonN・ICE失敗リセットで共用）
 
 ---
 
