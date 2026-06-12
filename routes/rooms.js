@@ -79,7 +79,10 @@ router.get('/', (_req, res) => {
 
 // GET /api/rooms/:id - 部屋の公開情報
 router.get('/:id', (req, res) => {
-    const room = db.get('SELECT id, name, is_system_room, avatar_scale FROM rooms WHERE id = ?', req.params.id);
+    const room = db.get(
+        'SELECT id, name, is_system_room, avatar_scale, CASE WHEN edit_password_hash IS NOT NULL THEN 1 ELSE 0 END AS has_password FROM rooms WHERE id = ?',
+        req.params.id
+    );
     if (!room) return res.status(404).json({ error: '部屋が見つかりません' });
     res.json(room);
 });
@@ -145,7 +148,8 @@ router.post('/:id/auth', (req, res) => {
         }
     }
 
-    res.json({ ok: true, name: room.name });
+    const fullRoom = db.get('SELECT allow_video, allow_audio, background_color FROM rooms WHERE id = ?', id);
+    res.json({ ok: true, name: room.name, allow_video: fullRoom?.allow_video ?? 1, allow_audio: fullRoom?.allow_audio ?? 1, background_color: fullRoom?.background_color ?? null });
 });
 
 // POST /api/rooms/:id/lock - 編集ロック取得
@@ -201,7 +205,7 @@ router.get('/:id', (req, res) => {
 
 // PUT /api/rooms/:id - 部屋情報更新
 router.put('/:id', authRoom, (req, res) => {
-    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale } = req.body || {};
+    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale, background_color } = req.body || {};
     const sets = [];
     const vals = [];
 
@@ -212,6 +216,7 @@ router.put('/:id', authRoom, (req, res) => {
     if (allowAudio !== undefined) { sets.push('allow_audio = ?'); vals.push(allowAudio ? 1 : 0); }
     if (customCode !== undefined) { sets.push('custom_code = ?'); vals.push(customCode); }
     if (avatar_scale !== undefined) { sets.push('avatar_scale = ?'); vals.push(avatar_scale === null ? null : parseFloat(avatar_scale)); }
+    if (background_color !== undefined) { sets.push('background_color = ?'); vals.push(background_color || null); }
 
     if (sets.length === 0) return res.status(400).json({ error: '更新フィールドがありません' });
 
@@ -251,11 +256,12 @@ router.post('/:id/warps', authRoom, (req, res) => {
 
 // PUT /api/rooms/:id/warps/:warpId - ワープゾーン更新
 router.put('/:id/warps/:warpId', authRoom, (req, res) => {
-    const { target_room_id, x, y, width, height, visual_opacity, shape } = req.body || {};
+    const { target_room_id, x, y, width, height, visual_opacity, shape, color } = req.body || {};
     const sets = [];
     const vals = [];
     if (target_room_id !== undefined) { sets.push('target_room_id = ?'); vals.push(target_room_id || null); }
     if (shape !== undefined) { sets.push('shape = ?'); vals.push(shape); }
+    if (color !== undefined) { sets.push('color = ?'); vals.push(color || null); }
     if (x !== undefined) { sets.push('x = ?'); vals.push(x); }
     if (y !== undefined) { sets.push('y = ?'); vals.push(y); }
     if (width !== undefined || height !== undefined) {

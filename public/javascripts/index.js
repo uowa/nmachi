@@ -405,6 +405,7 @@ const warpPoints = [
 // DBワープゾーン関連
 let dbWarpZones = [];
 let warpZoneGfx = null;
+let _roomBgGfx = null;
 
 // DB部屋画像関連
 let dbRoomImages = [];
@@ -551,6 +552,24 @@ async function loadDbWarpZones(roomId) {
   } catch (_e) {}
 }
 
+function _applyRoomBgColor(colorHex) {
+  if (!room || !room.container) return;
+  if (!_roomBgGfx) {
+    _roomBgGfx = new PIXI.Graphics();
+    _roomBgGfx.zIndex = -1;
+  }
+  _roomBgGfx.clear();
+  if (colorHex) {
+    const col = parseInt(colorHex.replace('#', ''), 16);
+    _roomBgGfx.beginFill(col, 1);
+    _roomBgGfx.drawRect(0, 0, 660, 460);
+    _roomBgGfx.endFill();
+    room.container.addChild(_roomBgGfx);
+  } else if (_roomBgGfx.parent) {
+    _roomBgGfx.parent.removeChild(_roomBgGfx);
+  }
+}
+
 function drawWarpZones() {
   if (!warpZoneGfx) {
     warpZoneGfx = new PIXI.Graphics();
@@ -560,8 +579,15 @@ function drawWarpZones() {
   if (room && room.container) room.container.addChild(warpZoneGfx);
   dbWarpZones.forEach(wz => {
     if (_hiddenWarpIds.has(wz.id)) return;
-    // back=黄緑、接続済み=青白、未接続=オレンジ
-    const color = wz.warp_type === 'back' ? 0x88ff44 : (wz.target_room_id ? 0x00ccff : 0xff8800);
+    const isBack = wz.warp_type === 'back';
+    let color;
+    if (wz.color) {
+      color = parseInt(wz.color.replace('#', ''), 16);
+    } else if (isBack) {
+      color = 0x3355ff;
+    } else {
+      color = wz.target_room_id ? 0xdd2222 : 0xff8800;
+    }
     warpZoneGfx.lineStyle(2, color, 0.8);
     warpZoneGfx.beginFill(color, wz.visual_opacity ?? 0.2);
     if (wz.shape === 'circle' || wz.shape === 'ellipse') {
@@ -949,6 +975,7 @@ function onDirectionGateClick(roomName, gateIndex) {
 }
 
 async function showDirectionGateCreateDialog(roomName, gateIndex) {
+  if (!confirm('新しい部屋を作りますか？')) return;
   _newRoomGateIndex = gateIndex;
   _newRoomParentDirection = roomName;
   _prevRoomName = roomName;
@@ -992,6 +1019,7 @@ function _roomToSpot(roomName) {
 
 async function _warpPortalCreateRoom() {
   if (document.getElementById('roomEditPanel').style.display !== 'none') return;
+  if (!confirm('新しい部屋を作りますか？')) return;
   try {
     const res = await fetch('/api/rooms', {
       method: 'POST',
@@ -5403,29 +5431,34 @@ function updateWarpList() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:4px;align-items:center;margin:3px 0;font-size:11px;flex-wrap:wrap;padding:3px;border:1px solid ' + (isBack ? '#88ff44' : '#223366') + ';border-radius:3px;';
 
-    // 形状セレクタ
-    const shapeSel = document.createElement('select');
-    shapeSel.style.cssText = 'background:#0d0d1a;color:#fff;border:1px solid #4a90d9;font-size:10px;';
-    [['rect','矩形'],['circle','円'],['ellipse','楕円']].forEach(([v, l]) => {
-      const o = document.createElement('option');
-      o.value = v; o.textContent = l;
-      if (v === wz.shape) o.selected = true;
-      shapeSel.appendChild(o);
-    });
-    shapeSel.addEventListener('change', async () => {
+    // □/○ 形状トグルボタン
+    const isRect = wz.shape === 'rect';
+    const rectBtn = document.createElement('button');
+    rectBtn.textContent = '□';
+    rectBtn.title = '矩形';
+    rectBtn.style.cssText = 'font-size:12px;padding:0 5px;cursor:pointer;border:1px solid #4a90d9;background:' + (isRect ? '#1a3a6a' : '#0d0d1a') + ';color:#fff;';
+    const circBtn = document.createElement('button');
+    circBtn.textContent = '○';
+    circBtn.title = '円';
+    circBtn.style.cssText = 'font-size:12px;padding:0 5px;cursor:pointer;border:1px solid #4a90d9;background:' + (!isRect ? '#1a3a6a' : '#0d0d1a') + ';color:#fff;';
+    const _setShape = async (shape) => {
       await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
-        body: JSON.stringify({ shape: shapeSel.value }),
+        body: JSON.stringify({ shape }),
       });
       await loadDbWarpZones(warpEditRoomId);
       updateWarpList();
-    });
-    row.appendChild(shapeSel);
+      drawWarpZones();
+    };
+    rectBtn.addEventListener('click', () => _setShape('rect'));
+    circBtn.addEventListener('click', () => _setShape('circle'));
+    row.appendChild(rectBtn);
+    row.appendChild(circBtn);
 
     // 表示/非表示トグル
-    const visBtn = document.createElement('button');
     const isHidden = _hiddenWarpIds.has(wz.id);
+    const visBtn = document.createElement('button');
     visBtn.textContent = isHidden ? '表示' : '非表示';
     visBtn.style.cssText = 'font-size:10px;padding:1px 5px;cursor:pointer;background:' + (isHidden ? '#333' : '#0d0d1a') + ';color:' + (isHidden ? '#888' : '#fff') + ';border:1px solid #4a90d9;';
     visBtn.addEventListener('click', () => {
@@ -5444,12 +5477,37 @@ function updateWarpList() {
     });
     row.appendChild(visBtn);
 
-    // 削除ボタン（back ワープは無効）
+    // 色変更ピッカー
+    const defaultCol = isBack ? '#3355ff' : '#dd2222';
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = wz.color || defaultCol;
+    colorInput.title = '色';
+    colorInput.style.cssText = 'width:24px;height:20px;padding:0;border:1px solid #4a90d9;cursor:pointer;background:none;';
+    colorInput.addEventListener('change', async () => {
+      await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+        body: JSON.stringify({ color: colorInput.value }),
+      });
+      await loadDbWarpZones(warpEditRoomId);
+      updateWarpList();
+      drawWarpZones();
+    });
+    row.appendChild(colorInput);
+
+    // 情報テキスト
+    const info = document.createElement('span');
+    info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:60px;';
+    info.textContent = (isBack ? '↩リターンゲート ' : '') + `(${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
+    row.appendChild(info);
+
+    // 削除ボタン（back ワープは無効）※最後に配置
     const delBtn = document.createElement('button');
-    delBtn.textContent = '×';
+    delBtn.textContent = '✖';
     delBtn.style.cssText = 'color:#fff;border:none;cursor:pointer;padding:1px 5px;font-size:11px;background:' + (isBack ? '#444' : '#600') + ';';
     delBtn.disabled = isBack;
-    delBtn.title = isBack ? '前の部屋に戻るワープは削除できません' : '削除';
+    delBtn.title = isBack ? 'リターンゲートは削除できません' : '削除';
     delBtn.addEventListener('click', async () => {
       if (errEl) errEl.textContent = '';
       const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
@@ -5463,13 +5521,9 @@ function updateWarpList() {
       }
       await loadDbWarpZones(warpEditRoomId);
       updateWarpList();
+      drawWarpZones();
     });
     row.appendChild(delBtn);
-
-    const info = document.createElement('span');
-    info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:60px;';
-    info.textContent = (isBack ? '↩戻る ' : '') + `#${wz.id} (${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
-    row.appendChild(info);
 
     list.appendChild(row);
   });
@@ -5670,6 +5724,7 @@ socket.on("joineRoom", data => {
 
   // DBワープゾーン・画像・カスタムコードを取得して描画
   if (data.toRoom !== "loginRoom") {
+    _applyRoomBgColor(data.background_color || null);
     loadDbWarpZones(data.toRoom);
     loadDbImages(data.toRoom);
     loadDbScaleZones(data.toRoom);
@@ -8855,6 +8910,8 @@ function _closeRoomPanel() {
   document.getElementById('roomEditPanel').style.display = 'none';
   document.getElementById('mainLog').style.display = '';
   _originalRoomName = '';
+  _isNewRoomMode = false;
+  _newRoomParentDirection = null;
   _updateRoomSaveBtnState();
   socket.emit('endRoomEdit');
   _releaseRoomEditLock();
@@ -8917,9 +8974,30 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   document.getElementById('roomEditMain').style.display = 'none';
   document.getElementById('roomDeleteConfirm').style.display = 'none';
   document.getElementById('codeRulesBox').textContent = CODE_RULES;
+
+  // タイトル切り替え（新規作成 vs 既存編集）
+  const titleEl = document.getElementById('roomEditTitle');
+  if (_isNewRoomMode) {
+    titleEl.style.color = '#ff8800';
+    titleEl.innerHTML = '新しく部屋を作る：<span id="roomEditNameDisplay" style="color:#fff;font-weight:normal;"></span>';
+  } else {
+    titleEl.style.color = '#4a90d9';
+    titleEl.innerHTML = '部屋を編集：<span id="roomEditNameDisplay" style="color:#fff;"></span>';
+  }
+
   // 認証前から部屋名を表示
   const knownName = (window._allRooms || []).find(r => r.id === roomId);
   document.getElementById('roomEditNameDisplay').textContent = knownName ? knownName.name : (_pendingRoomName || '');
+
+  // デフォルトタブを ImgWarp に設定
+  ['ImgWarp', 'Code', 'Options'].forEach(t => {
+    const active = t === 'ImgWarp';
+    document.getElementById('roomEditTab' + t).style.background = active ? '#1a3a6a' : '#0d0d1a';
+    document.getElementById('roomEditTab' + t).style.color = active ? '#fff' : '#888';
+    document.getElementById('roomEditContent' + t).style.display = active ? 'block' : 'none';
+  });
+  startWarpGlow();
+  _enableWarpEditMode();
 
   const lockResult = await _acquireRoomEditLock(roomId, pw);
   if (!lockResult.ok) {
@@ -8942,6 +9020,7 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   imgEditPassword = pw;
   codeEditRoomId = roomId;
   codeEditPassword = pw;
+  _scaleZoneEditRoomId = roomId;
   _sessionRoomPasswords.set(roomId, pw);
 
   const displayName = _pendingRoomName || '';
@@ -8960,39 +9039,52 @@ async function _openRoomEditPanelDirect(roomId, pw) {
     document.getElementById('codeEditor').value = d.custom_code || '';
     document.getElementById('codeMsg').textContent = '';
   }
+
+  // 部屋のオプション情報を取得して反映
+  try {
+    const authRes = await fetch('/api/rooms/' + encodeURIComponent(roomId) + '/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Edit-Password': pw },
+      body: JSON.stringify({ editPassword: pw }),
+    });
+    if (authRes.ok) {
+      const authData = await authRes.json();
+      const bgInput = document.getElementById('bgColorInput');
+      if (bgInput) bgInput.value = authData.background_color || '#ffffff';
+      const allowVideoChk = document.getElementById('allowVideoChk');
+      if (allowVideoChk) allowVideoChk.checked = authData.allow_video !== 0;
+      const allowAudioChk = document.getElementById('allowAudioChk');
+      if (allowAudioChk) allowAudioChk.checked = authData.allow_audio !== 0;
+    }
+  } catch (_e) {}
+
   document.getElementById('roomEditMain').style.display = 'block';
   document.getElementById('roomEditErr').textContent = '';
 }
 
-function openRoomEditPanel() {
-  _openRoomPanel();
-  document.getElementById('gateCreateSection').style.display = 'none';
-  document.getElementById('roomEditSection').style.display = 'block';
-  const rId = room ? room.name : '';
-  document.getElementById('roomEditRoomIdDisplay').textContent = rId;
-  document.getElementById('roomEditPw').value = '';
-  document.getElementById('roomEditPw').type = 'password';
-  document.getElementById('roomEditPwToggle').textContent = '表示';
-  document.getElementById('roomEditMain').style.display = 'none';
-  document.getElementById('roomEditErr').textContent = '';
-  document.getElementById('roomDeleteConfirm').style.display = 'none';
-  // コードルール初期表示
-  document.getElementById('codeRulesBox').textContent = CODE_RULES;
+async function openRoomEditPanel() {
+  const roomId = room ? room.name : '';
 
-  // 認証前から部屋名を表示
-  const knownName = (window._allRooms || []).find(r => r.id === rId);
-  document.getElementById('roomEditNameDisplay').textContent = knownName ? knownName.name : '';
-  if (!knownName) {
-    fetch('/api/rooms/' + encodeURIComponent(rId)).then(r => r.ok ? r.json() : null).then(d => {
-      if (d && d.name) document.getElementById('roomEditNameDisplay').textContent = d.name;
-    }).catch(() => {});
-  }
-
-  const cachedPw = _sessionRoomPasswords.get(rId);
+  // セッションキャッシュがあれば直接開く
+  const cachedPw = _sessionRoomPasswords.get(roomId);
   if (cachedPw !== undefined) {
-    document.getElementById('roomEditPw').value = cachedPw;
-    document.getElementById('roomEditAuthBtn').click();
+    _pendingRoomName = (window._allRooms || []).find(r => r.id === roomId)?.name || roomId;
+    _openRoomEditPanelDirect(roomId, cachedPw);
+    return;
   }
+
+  // パスワード有無を確認してポップアップ or 直接開く
+  let pw = '';
+  try {
+    const info = await fetch('/api/rooms/' + encodeURIComponent(roomId)).then(r => r.ok ? r.json() : {});
+    if (info.name) _pendingRoomName = info.name;
+    if (info.has_password) {
+      pw = prompt('パスワードを入力してください') ?? '';
+      if (pw === null) return;
+    }
+  } catch (_e) {}
+
+  _openRoomEditPanelDirect(roomId, pw);
 }
 
 document.getElementById('roomEditMenu').addEventListener('click', () => {
@@ -9004,82 +9096,16 @@ document.getElementById('roomEditMenu').addEventListener('click', () => {
 
 document.getElementById('roomEditPwToggle').addEventListener('click', () => {
   const inp = document.getElementById('roomEditPw');
-  const isHidden = inp.type === 'password';
-  inp.type = isHidden ? 'text' : 'password';
-  document.getElementById('roomEditPwToggle').textContent = isHidden ? '隠す' : '表示';
+  inp.type = inp.type === 'password' ? 'text' : 'password';
 });
 
-document.getElementById('roomEditAuthBtn').addEventListener('click', async () => {
+// パスワード欄でEnterキー → パスワードを使って直接開く
+document.getElementById('roomEditPw').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
   const roomId = room ? room.name : '';
   const pw = document.getElementById('roomEditPw').value;
-  const errEl = document.getElementById('roomEditErr');
-  errEl.textContent = '確認中...';
-
-  // サーバーでパスワードを検証
-  let authRes;
-  try {
-    authRes = await fetch('/api/rooms/' + encodeURIComponent(roomId) + '/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ editPassword: pw }),
-    });
-  } catch (_e) {
-    errEl.textContent = '通信エラー';
-    return;
-  }
-  if (!authRes.ok) {
-    const d = await authRes.json().catch(() => ({}));
-    errEl.textContent = d.error || '認証失敗';
-    return;
-  }
-  const authData = await authRes.json();
-
-  // 編集ロック取得
-  const lockResult = await _acquireRoomEditLock(roomId, pw);
-  if (!lockResult.ok) {
-    errEl.textContent = lockResult.error;
-    return;
-  }
-
-  try {
-    if (!window._allRooms) {
-      const r = await fetch('/api/rooms');
-      window._allRooms = r.ok ? await r.json() : [];
-    }
-  } catch (_e) { window._allRooms = []; }
-
-  warpEditRoomId = roomId;
-  warpEditPassword = pw;
-  imgEditRoomId = roomId;
-  imgEditPassword = pw;
-  codeEditRoomId = roomId;
-  codeEditPassword = pw;
-  _sessionRoomPasswords.set(roomId, pw);
-
-  document.getElementById('roomEditNameDisplay').textContent = authData.name || '';
-  _originalRoomName = authData.name || '';
-  document.getElementById('roomNameEditInput').value = _originalRoomName;
-  _updateRoomSaveBtnState();
-
-  await loadDbWarpZones(roomId);
-  updateWarpList();
-  await refreshImgList();
-  const codeRes = await fetch('/api/rooms/' + encodeURIComponent(roomId) + '/code');
-  if (codeRes.ok) {
-    const d = await codeRes.json();
-    document.getElementById('codeEditor').value = d.custom_code || '';
-    document.getElementById('codeMsg').textContent = '';
-  }
-  document.getElementById('roomEditMain').style.display = 'block';
-  errEl.textContent = '';
-  if (_isNewRoomMode) {
-    setTimeout(() => document.getElementById('roomNameEditInput').focus(), 50);
-  }
-});
-
-// パスワード欄でEnterキー → 読込
-document.getElementById('roomEditPw').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('roomEditAuthBtn').click(); }
+  _openRoomEditPanelDirect(roomId, pw);
 });
 
 function _updateRoomSaveBtnState() {}
@@ -9174,15 +9200,27 @@ document.getElementById('roomEditDiscardBtn').addEventListener('click', async ()
 // 保存（パネルは閉じない）
 document.getElementById('roomEditSaveBtn').addEventListener('click', async () => {
   if (document.getElementById('roomEditMain').style.display === 'none') return;
-  const ok = await _saveRoomNameIfChanged();
-  if (ok) _isNewRoomMode = false;
+  const nameVal = document.getElementById('roomNameEditInput').value.trim();
+  if (!nameVal) { document.getElementById('roomEditErr').textContent = '部屋名を入力してください'; return; }
+  if (nameVal !== _originalRoomName) {
+    const ok = await _saveRoomNameIfChanged();
+    if (!ok) return;
+  }
+  _isNewRoomMode = false;
+  document.getElementById('roomEditErr').textContent = '';
+  if (_scaleZoneEditRoomId || warpEditRoomId) await _saveRoomScale();
 });
 
 // 完了（保存してパネルを閉じる）
 document.getElementById('roomEditCompleteBtn').addEventListener('click', async () => {
   if (document.getElementById('roomEditMain').style.display !== 'none') {
-    const ok = await _saveRoomNameIfChanged();
-    if (!ok) return;
+    const nameVal = document.getElementById('roomNameEditInput').value.trim();
+    if (!nameVal) { document.getElementById('roomEditErr').textContent = '部屋名を入力してください'; return; }
+    if (nameVal !== _originalRoomName) {
+      const ok = await _saveRoomNameIfChanged();
+      if (!ok) return;
+    }
+    if (_scaleZoneEditRoomId || warpEditRoomId) await _saveRoomScale();
   }
   _isNewRoomMode = false;
   _newRoomParentDirection = null;
@@ -9194,20 +9232,18 @@ document.getElementById('roomEditCompleteBtn').addEventListener('click', async (
 // 部屋名保存
 document.getElementById('roomNameSaveBtn').addEventListener('click', () => _saveRoomNameIfChanged());
 
-// タブ切り替え
-['Warp', 'Img', 'Code', 'Scale'].forEach(tab => {
+// タブ切り替え（3タブ構成: ImgWarp / Code / Options）
+['ImgWarp', 'Code', 'Options'].forEach(tab => {
   document.getElementById('roomEditTab' + tab).addEventListener('click', () => {
-    ['Warp', 'Img', 'Code', 'Scale'].forEach(t => {
+    ['ImgWarp', 'Code', 'Options'].forEach(t => {
       const active = t === tab;
       document.getElementById('roomEditTab' + t).style.background = active ? '#1a3a6a' : '#0d0d1a';
       document.getElementById('roomEditTab' + t).style.color = active ? '#fff' : '#888';
       document.getElementById('roomEditContent' + t).style.display = active ? 'block' : 'none';
     });
-    if (tab === 'Warp') { startWarpGlow(); _enableWarpEditMode(); }
-    else { stopWarpGlow(); _disableWarpEditMode(); }
-    if (tab === 'Img') _enableImgEditMode();
-    else _disableImgEditMode();
-    if (tab === 'Scale') {
+    if (tab === 'ImgWarp') { startWarpGlow(); _enableWarpEditMode(); _enableImgEditMode(); }
+    else { stopWarpGlow(); _disableWarpEditMode(); _disableImgEditMode(); }
+    if (tab === 'Options') {
       _scaleZoneEditRoomId = warpEditRoomId;
       updateScaleZoneList();
       const slider = document.getElementById('roomScaleSlider');
@@ -9243,20 +9279,40 @@ function stopWarpGlow() {
   if (warpZoneGfx) warpZoneGfx.alpha = 1;
 }
 
-['Rect', 'Circle', 'Ellipse'].forEach(s => {
-  document.getElementById('warpShape' + s).addEventListener('click', () => {
-    _warpPlaceShape = s.toLowerCase();
-    ['Rect', 'Circle', 'Ellipse'].forEach(t => {
-      const btn = document.getElementById('warpShape' + t);
-      const active = t === s;
-      btn.style.background = active ? '#1a3a6a' : '#0d0d1a';
-      btn.style.color = active ? '#fff' : '#888';
-    });
-    _disableWarpEditMode();
-    startWarpPlaceMode();
-    document.getElementById('warpPlaceBtn').style.display = 'none';
-    document.getElementById('warpPlaceStopBtn').style.display = '';
+// warpShape ボタンは新UIでは各ワープ行内の □/○ アイコンに移行済み
+
+function _calcNewWarpPos(defaultW = 30, defaultH = 30) {
+  let x = 20, y = 20;
+  const step = defaultW + 6;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const overlap = dbWarpZones.some(wz =>
+      Math.abs(wz.x - x) < defaultW && Math.abs(wz.y - y) < defaultH
+    );
+    if (!overlap) return { x, y };
+    x += step;
+    if (x + defaultW > 640) { x = 20; y += step; }
+  }
+  return { x: 20, y: 20 };
+}
+
+document.getElementById('warpAddBtn').addEventListener('click', async () => {
+  if (!warpEditRoomId) return;
+  const { x, y } = _calcNewWarpPos(30, 30);
+  const errEl = document.getElementById('warpDelErr');
+  if (errEl) errEl.textContent = '';
+  const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+    body: JSON.stringify({ warp_type: 'normal', shape: 'rect', x, y, width: 30, height: 30, visual_opacity: 0.2 }),
   });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    if (errEl) errEl.textContent = d.error || '追加失敗';
+    return;
+  }
+  await loadDbWarpZones(warpEditRoomId);
+  updateWarpList();
+  drawWarpZones();
 });
 
 document.getElementById('warpPlaceBtn').addEventListener('click', () => {
@@ -9286,17 +9342,52 @@ _roomScaleInput.addEventListener('input', () => {
   _roomAvatarScale = parseFloat(_roomScaleInput.value) || 1;
 });
 
-document.getElementById('roomScaleSaveBtn').addEventListener('click', async () => {
+// 背景色ピッカー
+document.getElementById('bgColorInput').addEventListener('input', () => {
+  const color = document.getElementById('bgColorInput').value;
+  _applyRoomBgColor(color);
+});
+document.getElementById('bgColorInput').addEventListener('change', async () => {
+  if (!warpEditRoomId) return;
+  const color = document.getElementById('bgColorInput').value;
+  _applyRoomBgColor(color);
+  await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword, 'X-Lock-Token': _roomEditLockToken },
+    body: JSON.stringify({ background_color: color }),
+  });
+});
+
+// allow_video / allow_audio チェックボックス
+document.getElementById('allowVideoChk').addEventListener('change', async () => {
+  if (!warpEditRoomId) return;
+  await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword, 'X-Lock-Token': _roomEditLockToken },
+    body: JSON.stringify({ allowVideo: document.getElementById('allowVideoChk').checked ? 1 : 0 }),
+  });
+});
+document.getElementById('allowAudioChk').addEventListener('change', async () => {
+  if (!warpEditRoomId) return;
+  await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword, 'X-Lock-Token': _roomEditLockToken },
+    body: JSON.stringify({ allowAudio: document.getElementById('allowAudioChk').checked ? 1 : 0 }),
+  });
+});
+
+// スケール保存は「保存」「完了」ボタン押時に一括保存（roomScaleSaveBtn は廃止）
+async function _saveRoomScale() {
   const s = Math.max(0.01, Math.min(10, parseFloat(_roomScaleInput.value) || 1));
   _roomScaleInput.value = s;
   _roomScaleSlider.value = s;
-  await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId), {
+  await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId || warpEditRoomId), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
     body: JSON.stringify({ avatar_scale: s }),
   });
   _roomAvatarScale = s;
-});
+}
 
 document.getElementById('scaleZonePlaceBtn').addEventListener('click', () => {
   _scaleZonePlaceMode = true;
@@ -9364,9 +9455,29 @@ document.getElementById('roomDeleteConfirmBtn').addEventListener('click', async 
 
 // ===== 画像タブ =====
 
-document.getElementById('imgUploadBtn').addEventListener('click', () => {
+// セクション別アップロードボタン（imgType を設定してからファイルダイアログを開く）
+function _triggerImgUpload(type) {
+  document.getElementById('imgType').value = type;
   document.getElementById('imgFileInput').click();
-});
+}
+function _triggerImgDoodle(type) {
+  document.getElementById('imgType').value = type;
+  const area = document.getElementById('doodleArea');
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    _startImgDoodleMode();
+  } else {
+    area.style.display = 'none';
+    _stopImgDoodleMode();
+    _clearImgDoodle();
+  }
+}
+document.getElementById('imgUploadBtnBg').addEventListener('click', () => _triggerImgUpload('background'));
+document.getElementById('imgUploadBtnPlatform').addEventListener('click', () => _triggerImgUpload('platform'));
+document.getElementById('imgUploadBtnObject').addEventListener('click', () => _triggerImgUpload('object'));
+document.getElementById('imgDoodleBtnBg').addEventListener('click', () => _triggerImgDoodle('background'));
+document.getElementById('imgDoodleBtnPlatform').addEventListener('click', () => _triggerImgDoodle('platform'));
+document.getElementById('imgDoodleBtnObject').addEventListener('click', () => _triggerImgDoodle('object'));
 
 document.getElementById('imgFileInput').addEventListener('change', async () => {
   const fileInput = document.getElementById('imgFileInput');
@@ -9641,17 +9752,7 @@ async function _imgDoodleSave() {
   if (_imgTabIsActive()) _enableImgEditMode();
 }
 
-document.getElementById('imgDoodleBtn').addEventListener('click', () => {
-  const area = document.getElementById('doodleArea');
-  if (area.style.display === 'none') {
-    area.style.display = 'block';
-    _startImgDoodleMode();
-  } else {
-    area.style.display = 'none';
-    _stopImgDoodleMode();
-    _clearImgDoodle();
-  }
-});
+// imgDoodleBtn は新UIでは imgDoodleBtnBg/Platform/Object に分割済み
 
 document.getElementById('doodleClearBtn').addEventListener('click', () => {
   if (_imgDoodleMode) {
@@ -9690,7 +9791,7 @@ document.getElementById('doodleSaveBtn').addEventListener('click', async () => {
 });
 
 function _imgTabIsActive() {
-  const el = document.getElementById('roomEditContentImg');
+  const el = document.getElementById('roomEditContentImgWarp');
   return el && el.style.display !== 'none';
 }
 
@@ -9809,8 +9910,14 @@ async function _onImgDragEnd() {
 async function refreshImgList() {
   const res = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images');
   const images = res.ok ? await res.json() : [];
-  const list = document.getElementById('imgList');
-  list.innerHTML = '';
+  // セクション別リストをクリア
+  ['imgListBackground', 'imgListPlatform', 'imgListObject', 'imgList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  // imgType→セクションID のマップ
+  const TYPE_LIST_ID = { background: 'imgListBackground', platform: 'imgListPlatform', object: 'imgListObject' };
+  const _getList = (type) => document.getElementById(TYPE_LIST_ID[type] || 'imgList');
 
   const TYPE_CFG = {
     background: { label: '背景',       color: '#4a90d9', bg: '#0d2040' },
@@ -9916,7 +10023,7 @@ async function refreshImgList() {
     right.appendChild(delBtn);
     row.appendChild(right);
 
-    list.appendChild(row);
+    _getList(img.type).appendChild(row);
   });
 }
 

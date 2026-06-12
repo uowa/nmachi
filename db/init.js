@@ -115,6 +115,8 @@ const alterCmds = [
   "ALTER TABLE room_images ADD COLUMN is_warp INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE rooms ADD COLUMN avatar_scale REAL DEFAULT NULL",
   "ALTER TABLE rooms ADD COLUMN lifetime_hours INTEGER DEFAULT NULL",
+  "ALTER TABLE rooms ADD COLUMN background_color TEXT DEFAULT NULL",
+  "ALTER TABLE warp_zones ADD COLUMN color TEXT DEFAULT NULL",
 ];
 for (const cmd of alterCmds) {
   try { db.exec(cmd); } catch (_e) {}

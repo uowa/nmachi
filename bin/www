@@ -128,7 +128,7 @@ server.on('listening', onListening);
 setInterval(() => {
   try {
     const staleRooms = db.all(
-      "SELECT id FROM rooms WHERE is_system_room = 0 AND COALESCE(last_activity, created_at) < datetime('now', '-' || COALESCE(lifetime_hours, 24) || ' hours')"
+      "SELECT id FROM rooms WHERE is_system_room = 0 AND (lifetime_hours IS NULL OR lifetime_hours > 0) AND COALESCE(last_activity, created_at) < datetime('now', '-' || COALESCE(lifetime_hours, 24) || ' hours')"
     );
     for (const r of (staleRooms || [])) {
       if (rooms[r.id]?.usersToken.size > 0) continue;
@@ -403,12 +403,12 @@ io.on('connection', socket => {
 
     // ユーザー投稿部屋：DBに存在しない場合は弾く
     if (!rooms[data.toRoom] && !roomNameList.includes(data.toRoom)) {
-      const exists = db.get('SELECT id, name FROM rooms WHERE id = ?', data.toRoom);
+      const exists = db.get('SELECT id, name, background_color FROM rooms WHERE id = ?', data.toRoom);
       if (!exists) {
         io.to(socket.id).emit("roomNotFound");
         return;
       }
-      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name };
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name, background_color: exists.background_color || null };
     } else if (!rooms[data.toRoom]) {
       rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
     }
@@ -633,6 +633,7 @@ io.on('connection', socket => {
       random: random,
       starColors: starColors,
       signs: rooms[data.toRoom].signs,
+      background_color: rooms[data.toRoom].background_color || null,
     });
     scheduleTrainUpdate();
 

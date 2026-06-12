@@ -11,7 +11,7 @@ const DIRECTION_LIFETIMES = {
   '東の部屋': 24,
   '南の部屋': 24 * 7,
   '西の部屋': 24 * 30,
-  '北の部屋': 24 * 365,
+  '北の部屋': 0,  // 0 = 消えない
 };
 
 // GET /api/direction/:roomName/gates

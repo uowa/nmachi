@@ -201,15 +201,20 @@
                   <div id="gateCreateSection" style="display:none;"></div>
                   <!-- 部屋編集セクション -->
                   <div id="roomEditSection" style="display:none;padding:8px;">
+                    <!-- タイトル行（JS から動的に内容を変更） -->
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #4a90d9;padding-bottom:6px;">
-                      <span style="color:#4a90d9;font-weight:bold;font-size:13px;">部屋を編集：<span id="roomEditNameDisplay" style="color:#fff;"></span></span>
+                      <span id="roomEditTitle" style="font-weight:bold;font-size:13px;color:#4a90d9;">部屋を編集：<span id="roomEditNameDisplay" style="color:#fff;"></span></span>
                       <button id="roomEditCloseBtn" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;line-height:1;">✕</button>
                     </div>
-                    <div style="margin-bottom:6px;font-size:11px;color:#888;">部屋ID: <span id="roomEditRoomIdDisplay" style="color:#88aaff;font-family:monospace;word-break:break-all;"></span></div>
-                    <div style="display:flex;gap:4px;margin-bottom:6px;">
-                      <input type="password" id="roomEditPw" placeholder="パスワード未入力の場合、誰でも部屋を編集できます" style="flex:1;background:#111;border:1px solid #555;color:#fff;padding:4px;font-size:11px;min-width:0;" class="placeholder-gray">
-                      <button id="roomEditPwToggle" style="font-size:11px;padding:2px 6px;white-space:nowrap;">表示</button>
-                      <button id="roomEditAuthBtn" style="font-size:11px;padding:3px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;white-space:nowrap;">読込</button>
+                    <!-- 部屋ID（非表示・JS参照用） -->
+                    <div style="display:none;"><span id="roomEditRoomIdDisplay"></span></div>
+                    <!-- パスワード行 -->
+                    <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
+                      <span style="font-size:11px;color:#aaa;white-space:nowrap;">パスワード</span>
+                      <div style="position:relative;flex:1;min-width:0;">
+                        <input type="password" id="roomEditPw" placeholder="未設定の場合、誰でも編集できます" style="width:100%;background:#111;border:1px solid #555;color:#fff;padding:4px 28px 4px 4px;font-size:11px;box-sizing:border-box;" class="placeholder-gray">
+                        <button id="roomEditPwToggle" type="button" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;line-height:1;padding:0;">👁</button>
+                      </div>
                     </div>
                     <div id="roomEditErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
                     <div id="roomEditMain" style="display:none;">
@@ -219,38 +224,51 @@
                         <input id="roomNameEditInput" type="text" maxlength="30" style="flex:1;background:#111;border:1px solid #4a90d9;color:#fff;padding:3px;font-size:11px;min-width:0;">
                         <button id="roomNameSaveBtn" style="font-size:11px;padding:2px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">保存</button>
                       </div>
+                      <!-- タブ（3タブ構成） -->
                       <div style="display:flex;gap:2px;border-bottom:1px solid #4a90d9;margin-bottom:0;">
-                        <button id="roomEditTabWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">ワープ</button>
-                        <button id="roomEditTabImg" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">画像</button>
+                        <button id="roomEditTabImgWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">画像とワープゲート</button>
                         <button id="roomEditTabCode" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">コード</button>
-                        <button id="roomEditTabScale" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">スケール</button>
+                        <button id="roomEditTabOptions" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">オプション</button>
                       </div>
-                      <!-- ワープタブ -->
-                      <div id="roomEditContentWarp" style="padding-top:6px;">
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">
-                          <span style="font-size:11px;color:#aaa;">形状:</span>
-                          <button type="button" id="warpShapeRect" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 6px;">矩形</button>
-                          <button type="button" id="warpShapeCircle" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">円</button>
-                          <button type="button" id="warpShapeEllipse" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">楕円</button>
-                          <button type="button" id="warpPlaceBtn" style="font-size:11px;margin-left:4px;">配置</button>
-                          <button type="button" id="warpPlaceStopBtn" style="font-size:11px;display:none;">終了</button>
+                      <!-- 画像とワープゲートタブ -->
+                      <div id="roomEditContentImgWarp" style="padding-top:6px;">
+                        <!-- 共通: 非表示のimgType（JSから操作） -->
+                        <select id="imgType" style="display:none;">
+                          <option value="background">背景</option>
+                          <option value="platform">足場</option>
+                          <option value="object">オブジェクト</option>
+                        </select>
+                        <input type="file" id="imgFileInput" accept="image/png,image/jpeg" style="display:none">
+                        <!-- 背景セクション -->
+                        <div style="margin-bottom:8px;border:1px solid #223355;border-radius:3px;padding:5px;">
+                          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#4a90d9;font-weight:bold;flex:1;">背景</span>
+                            <span style="font-size:11px;color:#aaa;">色:</span>
+                            <input type="color" id="bgColorInput" value="#ffffff" style="width:28px;height:22px;padding:0;border:1px solid #555;cursor:pointer;border-radius:3px;" title="背景色">
+                            <button type="button" id="imgUploadBtnBg" style="font-size:11px;">ファイルから</button>
+                            <button type="button" id="imgDoodleBtnBg" style="font-size:11px;">落書き</button>
+                          </div>
+                          <div id="imgListBackground" style="max-height:200px;overflow-y:auto;"></div>
                         </div>
-                        <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
-                        <div id="warpList" style="max-height:400px;overflow-y:auto;margin-top:2px;"></div>
-                      </div>
-                      <!-- 画像タブ -->
-                      <div id="roomEditContentImg" style="display:none;padding-top:6px;">
-                        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
-                          <select id="imgType" style="background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
-                            <option value="background">背景</option>
-                            <option value="platform">足場</option>
-                            <option value="object">オブジェクト</option>
-                          </select>
-                          <input type="file" id="imgFileInput" accept="image/png,image/jpeg" style="display:none">
-                          <button type="button" id="imgUploadBtn" style="font-size:11px;">ファイルから</button>
-                          <button type="button" id="imgDoodleBtn" style="font-size:11px;">落書き</button>
+                        <!-- 足場セクション -->
+                        <div style="margin-bottom:8px;border:1px solid #1a3320;border-radius:3px;padding:5px;">
+                          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#50c878;font-weight:bold;flex:1;">足場</span>
+                            <button type="button" id="imgUploadBtnPlatform" style="font-size:11px;">ファイルから</button>
+                            <button type="button" id="imgDoodleBtnPlatform" style="font-size:11px;">落書き</button>
+                          </div>
+                          <div id="imgListPlatform" style="max-height:200px;overflow-y:auto;"></div>
                         </div>
-                        <!-- 落書きキャンバス（toggle） -->
+                        <!-- オブジェクトセクション -->
+                        <div style="margin-bottom:8px;border:1px solid #332200;border-radius:3px;padding:5px;">
+                          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#f0a030;font-weight:bold;flex:1;">オブジェクト</span>
+                            <button type="button" id="imgUploadBtnObject" style="font-size:11px;">ファイルから</button>
+                            <button type="button" id="imgDoodleBtnObject" style="font-size:11px;">落書き</button>
+                          </div>
+                          <div id="imgListObject" style="max-height:200px;overflow-y:auto;"></div>
+                        </div>
+                        <!-- 落書きキャンバス（共通・toggle） -->
                         <div id="doodleArea" style="display:none;border:1px solid #4a90d9;margin-bottom:6px;">
                           <div style="display:flex;gap:4px;align-items:center;padding:4px;flex-wrap:wrap;">
                             <span style="font-size:11px;color:#aaa;">名前:</span>
@@ -266,7 +284,20 @@
                           <div id="doodleCanvasInstruction" style="display:none;padding:20px;text-align:center;color:#aaa;font-size:12px;background:#111;border-top:1px solid #333;">画面に直接描いてください。描き終えたら「画像として追加」を押してください。</div>
                           <canvas id="doodleCanvas" width="330" height="230" style="display:block;background:#fff;cursor:crosshair;touch-action:none;max-width:100%;"></canvas>
                         </div>
-                        <div id="imgList" style="max-height:400px;overflow-y:auto;margin-top:4px;"></div>
+                        <!-- ワープゲートセクション -->
+                        <div style="border:1px solid #223366;border-radius:3px;padding:5px;">
+                          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#88aaff;font-weight:bold;flex:1;">ワープゲート</span>
+                            <button type="button" id="warpAddBtn" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 8px;cursor:pointer;">追加</button>
+                          </div>
+                          <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
+                          <div id="warpList" style="max-height:400px;overflow-y:auto;margin-top:2px;"></div>
+                        </div>
+                        <!-- 旧warpPlaceBtn（display:none で残す・JSの参照を壊さないため） -->
+                        <button type="button" id="warpPlaceBtn" style="display:none;"></button>
+                        <button type="button" id="warpPlaceStopBtn" style="display:none;"></button>
+                        <!-- 旧imgList（refreshImgList のフォールバック用） -->
+                        <div id="imgList" style="display:none;"></div>
                       </div>
                       <!-- コードタブ -->
                       <div id="roomEditContentCode" style="display:none;padding-top:6px;">
@@ -284,32 +315,45 @@
                           <button type="button" id="codeRulesCopyBtn" style="font-size:11px;margin-top:4px;">ルールをコピー（AIに貼り付け用）</button>
                         </details>
                       </div>
-                      <!-- スケールタブ -->
-                      <div id="roomEditContentScale" style="display:none;padding-top:6px;">
-                        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-                          <span style="font-size:11px;color:#aaa;white-space:nowrap;">全体スケール:</span>
-                          <input type="range" id="roomScaleSlider" min="0.1" max="3" step="0.05" value="1" style="flex:1;min-width:80px;">
-                          <input type="number" id="roomScaleInput" min="0.1" max="10" step="0.05" value="1" style="width:52px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
-                          <button type="button" id="roomScaleSaveBtn" style="font-size:11px;">保存</button>
-                        </div>
-                        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
-                          <button type="button" id="scaleZonePlaceBtn" style="font-size:11px;">エリア追加</button>
-                          <button type="button" id="scaleZonePlaceStopBtn" style="font-size:11px;display:none;">終了</button>
-                        </div>
-                        <div id="scaleZoneErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
-                        <div id="scaleZoneList" style="max-height:300px;overflow-y:auto;margin-top:2px;"></div>
-                      </div>
-                      <div style="margin-top:12px;border-top:1px solid #333;padding-top:8px;">
-                        <button id="roomDeleteBtn" type="button" style="font-size:11px;background:#3a0a0a;border:1px solid #a03030;color:#ffaaaa;padding:3px 10px;cursor:pointer;">この部屋を削除</button>
-                        <div id="roomDeleteConfirm" style="display:none;margin-top:6px;background:#1a0000;border:1px solid #c04040;padding:8px;border-radius:3px;">
-                          <div style="font-size:12px;color:#ff8888;margin-bottom:6px;">本当に削除しますか？<br><span style="font-size:10px;color:#aaa;">元に戻せません。部屋・画像・ワープがすべて消えます。</span></div>
-                          <div id="roomDeletePassWrap" style="display:none;margin-bottom:6px;">
-                            <input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;">
+                      <!-- オプションタブ -->
+                      <div id="roomEditContentOptions" style="display:none;padding-top:6px;">
+                        <!-- アバターの大きさ（スケール） -->
+                        <div style="margin-bottom:10px;border:1px solid #2a2a2a;border-radius:3px;padding:6px;">
+                          <div style="font-size:11px;color:#aaa;margin-bottom:4px;font-weight:bold;">アバターの大きさ</div>
+                          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                            <input type="range" id="roomScaleSlider" min="0.1" max="3" step="0.05" value="1" style="flex:1;min-width:80px;">
+                            <input type="number" id="roomScaleInput" min="0.1" max="10" step="0.05" value="1" style="width:52px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
                           </div>
-                          <div id="roomDeleteErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
-                          <div style="display:flex;gap:6px;">
-                            <button id="roomDeleteConfirmBtn" type="button" style="font-size:11px;background:#800;border:1px solid #c04040;color:#fff;padding:3px 12px;cursor:pointer;">削除する</button>
-                            <button id="roomDeleteCancelBtn" type="button" style="font-size:11px;background:#222;border:1px solid #666;color:#aaa;padding:3px 12px;cursor:pointer;">キャンセル</button>
+                          <div style="display:flex;gap:4px;align-items:center;margin-top:6px;">
+                            <button type="button" id="scaleZonePlaceBtn" style="font-size:11px;">大きさ変更エリア追加</button>
+                            <button type="button" id="scaleZonePlaceStopBtn" style="font-size:11px;display:none;">終了</button>
+                          </div>
+                          <div id="scaleZoneErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
+                          <div id="scaleZoneList" style="max-height:200px;overflow-y:auto;margin-top:2px;"></div>
+                        </div>
+                        <!-- 配信設定 -->
+                        <div style="margin-bottom:10px;border:1px solid #2a2a2a;border-radius:3px;padding:6px;">
+                          <div style="font-size:11px;color:#aaa;margin-bottom:4px;font-weight:bold;">配信設定</div>
+                          <label style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px;cursor:pointer;">
+                            <input type="checkbox" id="allowVideoChk" checked> 動画配信を許可
+                          </label>
+                          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
+                            <input type="checkbox" id="allowAudioChk" checked> 音声配信を許可
+                          </label>
+                        </div>
+                        <!-- 削除 -->
+                        <div style="margin-top:8px;border-top:1px solid #333;padding-top:8px;">
+                          <button id="roomDeleteBtn" type="button" style="font-size:11px;background:#3a0a0a;border:1px solid #a03030;color:#ffaaaa;padding:3px 10px;cursor:pointer;">この部屋を削除</button>
+                          <div id="roomDeleteConfirm" style="display:none;margin-top:6px;background:#1a0000;border:1px solid #c04040;padding:8px;border-radius:3px;">
+                            <div style="font-size:12px;color:#ff8888;margin-bottom:6px;">本当に削除しますか？<br><span style="font-size:10px;color:#aaa;">元に戻せません。部屋・画像・ワープがすべて消えます。</span></div>
+                            <div id="roomDeletePassWrap" style="display:none;margin-bottom:6px;">
+                              <input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;">
+                            </div>
+                            <div id="roomDeleteErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
+                            <div style="display:flex;gap:6px;">
+                              <button id="roomDeleteConfirmBtn" type="button" style="font-size:11px;background:#800;border:1px solid #c04040;color:#fff;padding:3px 12px;cursor:pointer;">削除する</button>
+                              <button id="roomDeleteCancelBtn" type="button" style="font-size:11px;background:#222;border:1px solid #666;color:#aaa;padding:3px 12px;cursor:pointer;">キャンセル</button>
+                            </div>
                           </div>
                         </div>
                       </div>
