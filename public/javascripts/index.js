@@ -912,22 +912,20 @@ const _DIR_ROOM_NAMES = new Set(['東の部屋', '南の部屋', '西の部屋',
 
 function _applyDirectionBg(roomName, url) {
   if (!room || room.name !== roomName) return;
-  const roomObj = objMap[roomName];
-  if (!roomObj) return;
-  if (roomObj.dirBgSprite) {
-    if (roomObj.dirBgSprite.parent) roomObj.dirBgSprite.parent.removeChild(roomObj.dirBgSprite);
-    roomObj.dirBgSprite.destroy();
-    roomObj.dirBgSprite = null;
+  if (room.dirBgSprite) {
+    if (room.dirBgSprite.parent) room.dirBgSprite.parent.removeChild(room.dirBgSprite);
+    room.dirBgSprite.destroy();
+    room.dirBgSprite = null;
   }
   if (!url) return;
   const tex = PIXI.Texture.from(url + '?t=' + Date.now());
   const sp = new PIXI.Sprite(tex);
   sp.zIndex = 6;
   sp.eventMode = 'none';
-  sp.width = 660;
-  sp.height = 480;
-  roomObj.dirBgSprite = sp;
-  roomObj.container.addChild(sp);
+  const _setSize = () => { sp.width = 660; sp.height = 480; };
+  if (tex.baseTexture.valid) { _setSize(); } else { tex.baseTexture.once('loaded', _setSize); }
+  room.dirBgSprite = sp;
+  room.container.addChild(sp);
 }
 
 function updateDirectionGateTints(roomName) {
@@ -3889,6 +3887,7 @@ class Room extends GameObject {
         this.container.addChild(dirChar);
 
         this.dirBgSprite = null;
+        this.container.sortableChildren = true;
 
         const dirGatePositions = [
           { x: 0,   y: 0,   ax: 0, ay: 0 },

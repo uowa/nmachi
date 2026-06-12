@@ -444,6 +444,16 @@
               <div id="contextMenuPosWrap">
                 タップメニュー位置：<select id="contextMenuPos" onchange="changeContextMenuPos(this.value)"><option value="tapLeft">タップ位置の左</option><option value="tapRight">タップ位置の右</option><option value="left">画面の左上</option><option value="right">画面の右上</option></select>
               </div>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
+                <select id="ttsMode" onchange="changeTTSSetting()">
+                  <option value="ikebo">低音</option>
+                  <option value="normal">高音</option>
+                  <option value="pitch">超高音</option>
+                  <option value="soundfont">どうぶつの森風</option>
+                </select>
+                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
+              </div>
               <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
                 <span style="white-space:nowrap; font-size:11px;">部屋リンク</span>
                 <span id="roomLinkInput" style="flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#333; border-bottom:1px solid #aaa; padding-bottom:1px;"></span>
@@ -531,16 +541,6 @@
 
 
             <div class="flexContainerColumn">
-              <div style="display:flex; align-items:center; gap:4px;">
-                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
-                <select id="ttsMode" onchange="changeTTSSetting()">
-                  <option value="ikebo">低音</option>
-                  <option value="normal">高音</option>
-                  <option value="pitch">超高音</option>
-                  <option value="soundfont">どうぶつの森風</option>
-                </select>
-                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
-              </div>
               <p>
                 SE音量調整：
                 <input type="range" value="0.3" id="effectVolume" min="0" max="1" step="0.001"
