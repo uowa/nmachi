@@ -12416,7 +12416,7 @@ function _addVideoInteraction(fromToken) {
 document.getElementById('videoTransparentDefault').checked = videoTransparentDefault;
 document.getElementById('videoTransparentOpacitySlider').value = videoTransparentOpacity;
 document.getElementById('streamSurfaceAllowed').checked = _streamSurfaceAllowed;
-document.getElementById('videoAutoReset').checked = _videoAutoReset;
+if (document.getElementById('videoAutoReset')) document.getElementById('videoAutoReset').checked = _videoAutoReset;
 
 //フォントサイズ
 if (localStorage.getItem("fontSize")) {
@@ -13669,7 +13669,9 @@ function changeStreamSurface() {
 }
 
 function changeVideoAutoReset() {
-  _videoAutoReset = document.getElementById('videoAutoReset').checked;
+  const _el = document.getElementById('videoAutoReset');
+  if (!_el) return;
+  _videoAutoReset = _el.checked;
   localStorage.setItem('videoAutoReset', _videoAutoReset);
 }
 
