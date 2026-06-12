@@ -15500,12 +15500,11 @@ async function onCameraDeviceSelectN(n, sel) {
     test.getTracks().forEach(t => t.stop());
     _xc.deviceId = sel.value;
     localStorage.setItem('cameraDeviceId_' + n, sel.value);
-    const prevRunning = n === 2 ? videoStatus : (_xcam[n - 1] && _xcam[n - 1].status);
     if (_xc.status) {
       // 既に配信中: 停止してから新しいカメラで再開
       stopVideoN(n);
       await startVideoN(n, sel.value);
-    } else if (prevRunning) {
+    } else if (videoStatus) {
       await startVideoN(n, sel.value);
     }
     populateDeviceSelects();
