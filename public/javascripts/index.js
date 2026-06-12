@@ -13836,9 +13836,10 @@ let _settingPreviewCurrentDeviceId = '';
 let _settingPreviewVisibilityHandler = null;
 let _settingPreviewFrameCheckInterval = null;
 
-function onSettingPreviewCheckChange(checkbox) {
-  if (checkbox.checked) {
+function onSettingPreviewBtnClick() {
+  if (!_settingPreviewActive) {
     _settingPreviewActive = true;
+    document.getElementById('settingPreviewBtn').style.backgroundColor = 'skyblue';
     _settingPreviewOrigCameraDeviceId = cameraDeviceId;
     _settingPreviewOrigCameraDeviceLabel = cameraDeviceLabel;
     _settingPreviewCurrentDeviceId = '';
@@ -13856,8 +13857,8 @@ function onSettingPreviewCheckChange(checkbox) {
 async function stopSettingPreview() {
   if (!_settingPreviewActive) {
     _settingPreviewCurrentDeviceId = '';
-    const _chk = document.getElementById('settingPreviewCheck');
-    if (_chk) _chk.checked = false;
+    const _btn = document.getElementById('settingPreviewBtn');
+    if (_btn) _btn.style.backgroundColor = '';
     return;
   }
   const previewedId = _settingPreviewCurrentDeviceId;
@@ -13899,8 +13900,8 @@ async function stopSettingPreview() {
   previewWrapEl.style.display = 'none';
   previewWrapEl.style.minHeight = '';
   document.getElementById('settingPreviewBlackOverlay').style.display = 'none';
-  const check = document.getElementById('settingPreviewCheck');
-  if (check) check.checked = false;
+  const _btn = document.getElementById('settingPreviewBtn');
+  if (_btn) _btn.style.backgroundColor = '';
 
   if (keepPreviewCamera) {
     if (videoStatus) switchVideoDevice(previewedId);

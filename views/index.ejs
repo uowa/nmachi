@@ -351,7 +351,7 @@
                   <option value="always">毎回選ぶ</option>
                   <option value="fixed">固定</option>
                 </select>
-                <label><input type="checkbox" id="settingPreviewCheck" onchange="onSettingPreviewCheckChange(this)"> プレビュー</label>
+                <button type="button" id="settingPreviewBtn" onclick="onSettingPreviewBtnClick()">プレビュー</button>
                 <label style="margin-left:8px;"><input type="checkbox" id="multiCameraCheck" onchange="onMultiCameraCheckChange(this)"> 複数カメラ</label>
                 <br>
                 <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)" style="width:auto; max-width:100%; margin-top:3px; box-sizing:border-box"></select>
@@ -418,6 +418,9 @@
                   </div>
                 </div>
               </details>
+              <!-- <div>
+                <input type="checkbox" id="videoAutoReset" onchange="changeVideoAutoReset()"><label for="videoAutoReset">動画数変更時に位置をリセット</label>
+              </div> -->
               <div style="display:flex; align-items:center; gap:4px;">
                 <input type="checkbox" id="videoTransparentDefault" onchange="changeVideoTransparentDefault()"><label for="videoTransparentDefault" style="white-space:nowrap;">透過配信モードを許可（ダブルタップ切替）</label>
                 <span style="white-space:nowrap;">透過度</span><input type="range" id="videoTransparentOpacitySlider" min="0.3" max="0.99" step="0.01" value="0.5" onchange="changeVideoTransparentOpacity(this.value)" style="flex:1; min-width:0;">
@@ -426,7 +429,10 @@
                 <input type="checkbox" id="streamSurfaceAllowed" onchange="changeStreamSurface()"><label for="streamSurfaceAllowed">配信画面への乗上げとラクガキ</label>
               </div>
               <div>
-                <input type="checkbox" id="videoAutoReset" onchange="changeVideoAutoReset()"><label for="videoAutoReset">動画追加・削除時に動画の位置をリセット</label>
+                <input type="checkbox" id="allowOthersOekaki" onchange="changeAllowOthersOekaki()"><label for="allowOthersOekaki">他の人からのアバター落書きを受け付ける</label>
+              </div>
+              <div>
+                <input type="checkbox" id="oekakiPerStateMode" onchange="changeOekakiPerStateMode()"><label for="oekakiPerStateMode">ラクガキをアニメーションごとに切り替える</label>
               </div>
               <br>
               <div>
@@ -435,24 +441,8 @@
               <div id="logHighlightWrap">
                 <input type="checkbox" id="useLogHighlight" onchange="changeLogHighlight()"><label for="useLogHighlight">ログのハイライト</label><span id="logHighlightSubs">（<span id="avatarHighlightSpan"><input type="checkbox" id="useAvatarHighlight" onchange="changeLogHighlight()"><label for="useAvatarHighlight">アバタークリック</label></span>、<span id="logItemHighlightSpan"><input type="checkbox" id="useLogItemHighlight" onchange="changeLogHighlight()"><label for="useLogItemHighlight">ログクリック</label></span>）</span>
               </div>
-              <div>
-                <input type="checkbox" id="allowOthersOekaki" onchange="changeAllowOthersOekaki()"><label for="allowOthersOekaki">他の人からのアバター落書きを受け付ける</label>
-              </div>
-              <div>
-                <input type="checkbox" id="oekakiPerStateMode" onchange="changeOekakiPerStateMode()"><label for="oekakiPerStateMode">ラクガキをアニメーションごとに切り替える</label>
-              </div>
               <div id="contextMenuPosWrap">
                 タップメニュー位置：<select id="contextMenuPos" onchange="changeContextMenuPos(this.value)"><option value="tapLeft">タップ位置の左</option><option value="tapRight">タップ位置の右</option><option value="left">画面の左上</option><option value="right">画面の右上</option></select>
-              </div>
-              <div style="display:flex; align-items:center; gap:4px;">
-                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
-                <select id="ttsMode" onchange="changeTTSSetting()">
-                  <option value="ikebo">低音</option>
-                  <option value="normal">高音</option>
-                  <option value="pitch">超高音</option>
-                  <option value="soundfont">どうぶつの森風</option>
-                </select>
-                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
               </div>
               <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
                 <span style="white-space:nowrap; font-size:11px;">部屋リンク</span>
@@ -541,6 +531,16 @@
 
 
             <div class="flexContainerColumn">
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
+                <select id="ttsMode" onchange="changeTTSSetting()">
+                  <option value="ikebo">低音</option>
+                  <option value="normal">高音</option>
+                  <option value="pitch">超高音</option>
+                  <option value="soundfont">どうぶつの森風</option>
+                </select>
+                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
+              </div>
               <p>
                 SE音量調整：
                 <input type="range" value="0.3" id="effectVolume" min="0" max="1" step="0.001"
