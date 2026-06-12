@@ -1318,7 +1318,7 @@ ridingObjectがない場合:
 
 ---
 
-### 45. 東西南北部屋の大幅改修
+### 45. 東西南北部屋の大幅改修 ✅ (2026-06-13 実装完了)
 **Compass rooms: major redesign**
 - 部屋の真ん中に大きな文字を表示（東の部屋なら「東」、白文字）
 - 背景黒
@@ -1330,6 +1330,14 @@ ridingObjectがない場合:
   - 南の部屋: 上の真ん中 → むげんへ
   - 西の部屋: 右の真ん中 → むげんへ
   - 北の部屋: 下の真ん中 → むげんへ
+
+#### 現状
+2026-06-13 実装完了。むげん部屋と同等の画面端ループ・ゴースト・dead reckoning も追加。
+- `index.js`: Room constructor（黒背景・漢字大テキスト・GATE斜め4隅）、ROOM_PHYSICS追加、Avatar scale 0.82、warpPoints変更、`loadDirectionGates`+`_applyDirectionBg`、`_updateMugenGhosts`/dead reckoning ticker/tapMap受信/keyMoveTickerFn を方角部屋対応に拡張
+- `routes/direction.js`: GET/POST/DELETE `/api/direction/:roomName/bg`
+- `db/init.js`: `direction_bg_images` テーブル追加
+- `bin/www`: `dirBgUpdate` socket relay
+- `views/index.ejs`: 右クリックメニューに「背景画像を変更/消す」追加、`#dirBgFileInput`
 
 ---
 
