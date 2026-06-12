@@ -661,7 +661,7 @@ CREATE TABLE editing_sessions (
 
 ---
 
-### 14. 複数カメラ ✅ (2026-06-12 実装完了)
+### 14. 複数カメラ ✅ (2026-06-12 実装完了、2026-06-13 バグ修正)
 **Multi-camera support**
 - 複数カメラを同時使用可能にする / Allow using multiple cameras simultaneously
 
@@ -679,6 +679,11 @@ CREATE TABLE editing_sessions (
 - `videoStartOrder[myToken+'_N']` でcam1より後のタイムスタンプを付与し、パネル順を保証
 - 各カメラは完全独立（cam N=none にすると cam N のみ停止・クリア、他カメラに影響なし）
 - `populateDeviceSelects` は「最後にdeviceIdが設定されているcam+1」まで動的にセレクターを表示（中抜けがあっても高番号camのセレクターが消えない）
+- cam N 選択時、cam1が配信中（`videoStatus`）なら即起動（前のcamが配信中かは不問）
+- `複数カメラ` チェックOFF時は cam2+ の deviceId を localStorage からも削除・previewStream も停止
+- `_pendingExtraCameraIds` をオブジェクト形式に変更し中抜けcam番号に対応
+- `remove video button` 受信時、cam2+ボタンが表示中なら `removeMediaElementButton` を呼ばない
+- `createVideoButton` のonclickで `stream[fromToken]` が既にあれば直接 attach（再配信後に押せない問題を修正）
 
 ---
 
