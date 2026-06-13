@@ -10023,14 +10023,11 @@ function _imgTabIsActive() {
 }
 
 function _redrawImgOverlay(ov) {
-  const s = ov.sprite, hs = 12;
+  const s = ov.sprite;
   ov.borderGfx.clear();
   ov.borderGfx.lineStyle(2, 0x4a90d9, 0.9);
   ov.borderGfx.drawRect(s.x, s.y, s.width, s.height);
   ov.handleGfx.clear();
-  ov.handleGfx.beginFill(0x4a90d9);
-  ov.handleGfx.drawRect(s.x + s.width - hs, s.y + s.height - hs, hs, hs);
-  ov.handleGfx.endFill();
 }
 
 function _enableImgEditMode() {
@@ -10051,7 +10048,7 @@ function _enableImgEditMode() {
     borderGfx.zIndex = 1000; borderGfx.eventMode = 'none';
     room.container.addChild(borderGfx);
     const handleGfx = new PIXI.Graphics();
-    handleGfx.zIndex = 1001; handleGfx.eventMode = 'static'; handleGfx.cursor = 'se-resize';
+    handleGfx.zIndex = 1001; handleGfx.eventMode = 'none';
     room.container.addChild(handleGfx);
     const ov = { imgData, sprite, borderGfx, handleGfx };
     _imgOverlays.push(ov);
@@ -10061,7 +10058,12 @@ function _enableImgEditMode() {
       if (_imgDragging) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
-      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) { sprite.cursor = 'se-resize'; return; }
+      const ctl = p.x < sprite.x + hs && p.y < sprite.y + hs;
+      const ctr = p.x > sprite.x + sprite.width - hs && p.y < sprite.y + hs;
+      const cbl = p.x < sprite.x + hs && p.y > sprite.y + sprite.height - hs;
+      const cbr = p.x > sprite.x + sprite.width - hs && p.y > sprite.y + sprite.height - hs;
+      if (ctl || cbr) { sprite.cursor = 'nwse-resize'; return; }
+      if (ctr || cbl) { sprite.cursor = 'nesw-resize'; return; }
       if (p.x < sprite.x + edge || p.x > sprite.x + sprite.width - edge) { sprite.cursor = 'ew-resize'; return; }
       if (p.y < sprite.y + edge || p.y > sprite.y + sprite.height - edge) { sprite.cursor = 'ns-resize'; return; }
       sprite.cursor = 'grab';
@@ -10070,8 +10072,17 @@ function _enableImgEditMode() {
       if (!_imgDragMode || _imgDragging) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
-      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
       e.stopPropagation();
+      const ctlC = p.x < sprite.x + hs && p.y < sprite.y + hs;
+      const ctrC = p.x > sprite.x + sprite.width - hs && p.y < sprite.y + hs;
+      const cblC = p.x < sprite.x + hs && p.y > sprite.y + sprite.height - hs;
+      const cbrC = p.x > sprite.x + sprite.width - hs && p.y > sprite.y + sprite.height - hs;
+      const ratio = sprite.width / sprite.height;
+      const base = { idx, ratio, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      if (cbrC) { _imgDragging = { ...base, type: 'resize_corner_br' }; return; }
+      if (cblC) { _imgDragging = { ...base, type: 'resize_corner_bl' }; return; }
+      if (ctrC) { _imgDragging = { ...base, type: 'resize_corner_tr' }; return; }
+      if (ctlC) { _imgDragging = { ...base, type: 'resize_corner_tl' }; return; }
       const near_left = p.x < sprite.x + edge;
       const near_right = p.x > sprite.x + sprite.width - edge;
       const near_top = p.y < sprite.y + edge;
@@ -10081,15 +10092,8 @@ function _enableImgEditMode() {
       else if (near_right) type = 'resize_right';
       else if (near_top) type = 'resize_top';
       else if (near_bottom) type = 'resize_bottom';
-      _imgDragging = { idx, type, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      _imgDragging = { ...base, type };
       if (type === 'move') sprite.cursor = 'grabbing';
-    });
-    handleGfx.on('pointerdown', e => {
-      if (!_imgDragMode || _imgDragging) return;
-      e.stopPropagation();
-      const p = room.container.toLocal(e.global);
-      const ratio = sprite.width / sprite.height;
-      _imgDragging = { idx, type: 'resize_corner', ratio, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
     });
   });
   app.stage.on('pointermove', _onImgDragMove);
@@ -10125,10 +10129,27 @@ function _onImgDragMove(e) {
   if (_imgDragging.type === 'move') {
     s.x = _imgDragging.origX + dx;
     s.y = _imgDragging.origY + dy;
-  } else if (_imgDragging.type === 'resize_corner') {
+  } else if (_imgDragging.type === 'resize_corner_br') {
     const scale = Math.max(0.05, (_imgDragging.origW + dx) / _imgDragging.origW);
     s.width = Math.max(20, _imgDragging.origW * scale);
     s.height = Math.max(20, s.width / _imgDragging.ratio);
+  } else if (_imgDragging.type === 'resize_corner_bl') {
+    const newW = Math.max(20, _imgDragging.origW - dx);
+    const newH = Math.max(20, newW / _imgDragging.ratio);
+    s.x = _imgDragging.origX + _imgDragging.origW - newW;
+    s.width = newW; s.height = newH;
+  } else if (_imgDragging.type === 'resize_corner_tr') {
+    const scale = Math.max(0.05, (_imgDragging.origW + dx) / _imgDragging.origW);
+    const newW = Math.max(20, _imgDragging.origW * scale);
+    const newH = Math.max(20, newW / _imgDragging.ratio);
+    s.y = _imgDragging.origY + _imgDragging.origH - newH;
+    s.width = newW; s.height = newH;
+  } else if (_imgDragging.type === 'resize_corner_tl') {
+    const newW = Math.max(20, _imgDragging.origW - dx);
+    const newH = Math.max(20, newW / _imgDragging.ratio);
+    s.x = _imgDragging.origX + _imgDragging.origW - newW;
+    s.y = _imgDragging.origY + _imgDragging.origH - newH;
+    s.width = newW; s.height = newH;
   } else if (_imgDragging.type === 'resize_right') {
     s.width = Math.max(20, _imgDragging.origW + dx);
   } else if (_imgDragging.type === 'resize_bottom') {
