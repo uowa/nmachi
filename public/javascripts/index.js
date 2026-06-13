@@ -10112,12 +10112,6 @@ async function refreshImgList() {
   const TYPE_LIST_ID = { background: 'imgListBackground', platform: 'imgListPlatform', object: 'imgListObject' };
   const _getList = (type) => document.getElementById(TYPE_LIST_ID[type] || 'imgList');
 
-  const TYPE_CFG = {
-    background: { label: '背景',       color: '#4a90d9', bg: '#0d2040' },
-    platform:   { label: '足場',       color: '#50c878', bg: '#0d2a15' },
-    object:     { label: 'オブジェクト', color: '#f0a030', bg: '#2a1a00' },
-  };
-
   images.forEach(img => {
     const row = document.createElement('div');
     row.dataset.imgId = img.id;
@@ -10129,7 +10123,7 @@ async function refreshImgList() {
     row.appendChild(thumb);
 
     const right = document.createElement('div');
-    right.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    right.style.cssText = 'display:flex;align-items:center;gap:4px;flex-wrap:wrap;';
 
     const displayName = img.filename.replace(/^\d+_/, '');
     const fname = document.createElement('span');
@@ -10138,34 +10132,14 @@ async function refreshImgList() {
     fname.style.cssText = 'font-size:11px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;';
     right.appendChild(fname);
 
-    const typeSel = document.createElement('select');
-    const initCfg = TYPE_CFG[img.type] || TYPE_CFG.background;
-    typeSel.style.cssText = `background:#1a1a1a;border:1px solid ${initCfg.color};color:${initCfg.color};padding:2px 3px;font-size:10px;cursor:pointer;margin-left:32px;`;
-    Object.entries(TYPE_CFG).forEach(([key, cfg]) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = cfg.label;
-      if (key === img.type) opt.selected = true;
-      typeSel.appendChild(opt);
-    });
-    typeSel.addEventListener('change', async () => {
-      const cfg = TYPE_CFG[typeSel.value];
-      typeSel.style.borderColor = cfg.color;
-      typeSel.style.color = cfg.color;
-      await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + img.id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
-        body: JSON.stringify({ type: typeSel.value }),
-      });
-      _disableImgEditMode();
-      await loadDbImages(imgEditRoomId);
-      if (_imgTabIsActive()) _enableImgEditMode();
-    });
-    right.appendChild(typeSel);
-
-    const mkNumInput = (placeholder, field, val) => {
+    const mkNumInput = (label, field, val) => {
+      const wrap = document.createElement('span');
+      wrap.style.cssText = 'display:inline-flex;align-items:center;gap:1px;';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:10px;color:#888;';
       const inp = document.createElement('input');
-      inp.type = 'number'; inp.value = val ?? 0; inp.placeholder = placeholder;
+      inp.type = 'number'; inp.value = val ?? 0;
       inp.dataset.field = field;
       inp.style.cssText = 'width:38px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:1px 2px;font-size:10px;';
       inp.addEventListener('change', async () => {
@@ -10178,12 +10152,14 @@ async function refreshImgList() {
         await loadDbImages(imgEditRoomId);
         if (_imgTabIsActive()) _enableImgEditMode();
       });
-      return inp;
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      return wrap;
     };
-    right.appendChild(mkNumInput('X', 'x', img.x));
-    right.appendChild(mkNumInput('Y', 'y', img.y));
-    right.appendChild(mkNumInput('W', 'width', img.width));
-    right.appendChild(mkNumInput('H', 'height', img.height));
+    right.appendChild(mkNumInput('X:', 'x', img.x));
+    right.appendChild(mkNumInput('Y:', 'y', img.y));
+    right.appendChild(mkNumInput('W:', 'width', img.width));
+    right.appendChild(mkNumInput('H:', 'height', img.height));
 
     const warpBtn = document.createElement('button');
     warpBtn.textContent = img.is_warp ? 'ワープON' : 'ワープ';
