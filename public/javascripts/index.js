@@ -1305,7 +1305,9 @@ function drawDbImages() {
     if (img.y != null) sprite.y = img.y;
     const _setSize = () => {
       if (img.width) sprite.width = img.width;
+      else if (img.type === 'background') sprite.width = 660;
       if (img.height) sprite.height = img.height;
+      else if (img.type === 'background') sprite.height = 460;
     };
     if (sprite.texture.baseTexture.valid) {
       _setSize();

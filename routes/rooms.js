@@ -11,7 +11,7 @@ try { sharp = require('sharp'); } catch (_e) { sharp = null; }
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads/rooms');
 const ROOM_W = 660;
 const ROOM_H = 460;
-const WARP_MAX = 60;
+const WARP_MAX = 80;
 
 function hashPassword(password) {
     const salt = crypto.randomBytes(16).toString('hex');
