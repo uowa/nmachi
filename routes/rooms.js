@@ -11,7 +11,7 @@ try { sharp = require('sharp'); } catch (_e) { sharp = null; }
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads/rooms');
 const ROOM_W = 660;
 const ROOM_H = 460;
-const WARP_MAX = 100;
+const WARP_MAX = 60;
 
 function hashPassword(password) {
     const salt = crypto.randomBytes(16).toString('hex');
@@ -304,7 +304,7 @@ router.post('/:id/images', authRoom, async (req, res) => {
     try {
         if (sharp) {
             outBuffer = await sharp(buffer)
-                .resize({ width: 1320, height: 960, fit: 'inside', withoutEnlargement: true })
+                .resize({ width: 660, height: 460, fit: 'inside', withoutEnlargement: true })
                 .webp({ quality: 92 })
                 .toBuffer();
             savedFilename = baseName + '.webp';
