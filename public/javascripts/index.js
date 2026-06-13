@@ -795,7 +795,6 @@ function _enableScaleZoneEditMode() {
     _redraw();
     gfx.on('pointerdown', e => {
       if (e.button !== undefined && e.button !== 0) return;
-      e.stopPropagation();
       const p = e.data.getLocalPosition(room.container);
       const lx = p.x - z.x, ly = p.y - z.y;
       const base = { z, gfx, _redraw, startX: p.x, startY: p.y, origX: z.x, origY: z.y, origW: z.width, origH: z.height };
@@ -5605,7 +5604,6 @@ function _enableWarpEditMode() {
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
       if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
-      e.stopPropagation();
       const near_left = p.x < sprite.x + edge;
       const near_right = p.x > sprite.x + sprite.width - edge;
       const near_top = p.y < sprite.y + edge;
@@ -5620,7 +5618,6 @@ function _enableWarpEditMode() {
     });
     handleGfx.on('pointerdown', e => {
       if (!_warpDragMode || _warpDragging) return;
-      e.stopPropagation();
       const p = room.container.toLocal(e.global);
       _warpDragging = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
     });
@@ -8235,6 +8232,7 @@ function stageMove(value) {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (floorPolyMode) return;
     if (_imgDoodleMode) return;
+    if (_warpDragging || _imgDragging || _scaleZoneDragging) return;
     const targetX = e.data.getLocalPosition(value).x;
     const targetY = e.data.getLocalPosition(value).y;
     _doStageTap(targetX, targetY);
@@ -10195,7 +10193,6 @@ function _enableImgEditMode() {
       if (!_imgDragMode || _imgDragging) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
-      e.stopPropagation();
       const ctlC = p.x < sprite.x + hs && p.y < sprite.y + hs;
       const ctrC = p.x > sprite.x + sprite.width - hs && p.y < sprite.y + hs;
       const cblC = p.x < sprite.x + hs && p.y > sprite.y + sprite.height - hs;
