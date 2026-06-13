@@ -593,9 +593,8 @@ function drawWarpZones() {
     sprite.x = wz.x ?? 0;
     sprite.y = wz.y ?? 0;
     const _setSize = () => {
-      const w = (wz.width && wz.width > 30) ? wz.width : 60;
-      const h = (wz.height && wz.height > 30) ? wz.height : 60;
-      sprite.width = w; sprite.height = h;
+      const sz = gateTex ? Math.round(gateTex.width / 4) : 62;
+      sprite.width = sz; sprite.height = sz;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
     else { sprite.texture.baseTexture.once('loaded', _setSize); }
@@ -1304,10 +1303,16 @@ function drawDbImages() {
     if (img.x != null) sprite.x = img.x;
     if (img.y != null) sprite.y = img.y;
     const _setSize = () => {
-      if (img.width) sprite.width = img.width;
-      else if (img.type === 'background') sprite.width = 660;
-      if (img.height) sprite.height = img.height;
-      else if (img.type === 'background') sprite.height = 460;
+      if (img.width || img.height) {
+        if (img.width) sprite.width = img.width;
+        if (img.height) sprite.height = img.height;
+      } else if (img.type === 'background') {
+        const tw = sprite.texture.width || 660;
+        const th = sprite.texture.height || 460;
+        const scale = Math.min(660 / tw, 460 / th, 1);
+        sprite.width = tw * scale;
+        sprite.height = th * scale;
+      }
     };
     if (sprite.texture.baseTexture.valid) {
       _setSize();
@@ -9150,7 +9155,8 @@ let imgEditRoomId = '';
 let imgEditPassword = '';
 let _imgDragMode = false;
 const _imgOverlays = []; // {imgData, sprite, borderGfx, handleGfx}
-let _imgDragging = null; // {idx, type:'move'|'resize', startX, startY, origX, origY, origW, origH}
+let _imgDragging = null;
+let _imgDragPending = null;
 let _imgDoodleMode = false;
 let _replaceImgData = null;
 let _imgDoodleGfx = null;
@@ -10162,8 +10168,8 @@ function _enableImgEditMode() {
     const sprite = dbImageSprites[idx];
     if (!sprite) return;
     if (sprite.texture.baseTexture.valid) {
-      if (!imgData.width) imgData.width = Math.round(sprite.texture.width) || null;
-      if (!imgData.height) imgData.height = Math.round(sprite.texture.height) || null;
+      if (!imgData.width) imgData.width = Math.round(sprite.width) || null;
+      if (!imgData.height) imgData.height = Math.round(sprite.height) || null;
       if (imgData.width) sprite.width = imgData.width;
       if (imgData.height) sprite.height = imgData.height;
     }
@@ -10178,7 +10184,7 @@ function _enableImgEditMode() {
     _redrawImgOverlay(ov);
     sprite.eventMode = 'static'; sprite.cursor = 'grab';
     sprite.on('pointermove', e => {
-      if (_imgDragging) return;
+      if (_imgDragging || _imgDragPending) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
       const ctl = p.x < sprite.x + hs && p.y < sprite.y + hs;
@@ -10192,7 +10198,7 @@ function _enableImgEditMode() {
       sprite.cursor = 'grab';
     });
     sprite.on('pointerdown', e => {
-      if (!_imgDragMode || _imgDragging) return;
+      if (!_imgDragMode || _imgDragging || _imgDragPending) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
       const ctlC = p.x < sprite.x + hs && p.y < sprite.y + hs;
@@ -10201,10 +10207,10 @@ function _enableImgEditMode() {
       const cbrC = p.x > sprite.x + sprite.width - hs && p.y > sprite.y + sprite.height - hs;
       const ratio = sprite.width / sprite.height;
       const base = { idx, ratio, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
-      if (cbrC) { _imgDragging = { ...base, type: 'resize_corner_br' }; return; }
-      if (cblC) { _imgDragging = { ...base, type: 'resize_corner_bl' }; return; }
-      if (ctrC) { _imgDragging = { ...base, type: 'resize_corner_tr' }; return; }
-      if (ctlC) { _imgDragging = { ...base, type: 'resize_corner_tl' }; return; }
+      if (cbrC) { _imgDragPending = { ...base, type: 'resize_corner_br' }; return; }
+      if (cblC) { _imgDragPending = { ...base, type: 'resize_corner_bl' }; return; }
+      if (ctrC) { _imgDragPending = { ...base, type: 'resize_corner_tr' }; return; }
+      if (ctlC) { _imgDragPending = { ...base, type: 'resize_corner_tl' }; return; }
       const near_left = p.x < sprite.x + edge;
       const near_right = p.x > sprite.x + sprite.width - edge;
       const near_top = p.y < sprite.y + edge;
@@ -10214,7 +10220,7 @@ function _enableImgEditMode() {
       else if (near_right) type = 'resize_right';
       else if (near_top) type = 'resize_top';
       else if (near_bottom) type = 'resize_bottom';
-      _imgDragging = { ...base, type };
+      _imgDragPending = { ...base, type };
       if (type === 'move') sprite.cursor = 'grabbing';
     });
   });
@@ -10224,7 +10230,7 @@ function _enableImgEditMode() {
 }
 
 function _disableImgEditMode() {
-  _imgDragMode = false; _imgDragging = null;
+  _imgDragMode = false; _imgDragging = null; _imgDragPending = null;
   if (typeof app !== 'undefined') {
     app.stage.off('pointermove', _onImgDragMove);
     app.stage.off('pointerup', _onImgDragEnd);
@@ -10242,7 +10248,14 @@ function _disableImgEditMode() {
 }
 
 function _onImgDragMove(e) {
-  if (!_imgDragging || !room) return;
+  if (!_imgDragPending && !_imgDragging || !room) return;
+  if (_imgDragPending && !_imgDragging) {
+    const p = room.container.toLocal(e.global);
+    if (Math.abs(p.x - _imgDragPending.startX) < 4 && Math.abs(p.y - _imgDragPending.startY) < 4) return;
+    _imgDragging = _imgDragPending;
+    _imgDragPending = null;
+  }
+  if (!_imgDragging) return;
   const ov = _imgOverlays[_imgDragging.idx];
   if (!ov) return;
   const p = room.container.toLocal(e.global);
@@ -10289,6 +10302,7 @@ function _onImgDragMove(e) {
 }
 
 async function _onImgDragEnd() {
+  _imgDragPending = null;
   if (!_imgDragging) return;
   const ov = _imgOverlays[_imgDragging.idx];
   _imgDragging = null;
