@@ -1158,11 +1158,19 @@ io.on('connection', socket => {
   });
 
   socket.on("startRoomEdit", (data) => {
-    if (data && data.roomId) socket._editingRoomId = data.roomId;
+    if (data && data.roomId) {
+      socket._editingRoomId = data.roomId;
+      socket._editingRoomIsNew = !!(data.isNew);
+    }
+  });
+
+  socket.on("confirmRoomEdit", () => {
+    socket._editingRoomIsNew = false;
   });
 
   socket.on("endRoomEdit", () => {
     socket._editingRoomId = null;
+    socket._editingRoomIsNew = false;
   });
 
   socket.on('videoSurface', data => {
@@ -1227,15 +1235,20 @@ io.on('connection', socket => {
   });
 
   socket.on("disconnect", () => {
-    if (socket._editingRoomId) {
-      const r = db.get('SELECT name FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);
-      if (r && r.name === '') {
-        db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [socket._editingRoomId]);
-        db.run('DELETE FROM direction_gates WHERE room_id = ?', [socket._editingRoomId]);
-        db.run('DELETE FROM rooms WHERE id = ?', [socket._editingRoomId]);
+    if (socket._editingRoomIsNew && socket._editingRoomId) {
+      const r = db.get('SELECT id FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);
+      if (r) {
+        try {
+          db.run('UPDATE warp_zones SET target_room_id = NULL WHERE target_room_id = ?', [socket._editingRoomId]);
+          db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [socket._editingRoomId]);
+          db.run('DELETE FROM direction_gates WHERE room_id = ?', [socket._editingRoomId]);
+          db.run('DELETE FROM room_images WHERE room_id = ?', [socket._editingRoomId]);
+          db.run('DELETE FROM rooms WHERE id = ?', [socket._editingRoomId]);
+        } catch (_e) {}
       }
-      socket._editingRoomId = null;
     }
+    socket._editingRoomId = null;
+    socket._editingRoomIsNew = false;
 
     if (!checkUser()) return;
     const _dcRoom = user[token].room;

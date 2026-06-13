@@ -9212,7 +9212,7 @@ async function _openRoomEditPanelDirect(roomId, pw) {
     authRes = _authRes;
   }
 
-  socket.emit('startRoomEdit', { roomId });
+  socket.emit('startRoomEdit', { roomId, isNew: _isNewRoomMode });
 
   if (codeRes && codeRes.ok) {
     const d = await codeRes.json();
@@ -9324,6 +9324,7 @@ async function _saveRoomNameIfChanged() {
     document.getElementById('roomEditNameDisplay').textContent = newName;
     _originalRoomName = newName;
     _updateRoomSaveBtnState();
+    socket.emit('confirmRoomEdit');
     // むげんGATEの表示名も更新
     if (_isNewRoomMode && _newRoomGateIndex >= 0) {
       const mg = document.querySelector('#mugenGateBtn' + _newRoomGateIndex);
@@ -9619,7 +9620,9 @@ document.getElementById('roomDeleteConfirmBtn').addEventListener('click', async 
   });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
-    document.getElementById('roomDeleteErr').textContent = d.error || '削除失敗';
+    const errMsg = d.error || '削除失敗';
+    document.getElementById('roomDeleteErr').textContent = errMsg;
+    alert(errMsg);
     return;
   }
   socket.emit('roomDeleted', { roomId });
@@ -9640,7 +9643,7 @@ document.getElementById('roomDeleteConfirmBtn').addEventListener('click', async 
   _newRoomParentDirection = null;
   _closeRoomPanel();
   stopWarpPlaceMode();
-  goSelfToRoomSpot('entranceMainSpot');
+  goSelfToRoomSpot(_prevRoomSpot || 'entranceMainSpot');
 });
 
 // ===== 画像タブ =====

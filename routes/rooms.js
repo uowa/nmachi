@@ -363,10 +363,15 @@ router.delete('/:id/images/:imageId', authRoom, (req, res) => {
 // DELETE /api/rooms/:id - 部屋削除
 router.delete('/:id', authRoom, (req, res) => {
     try { fs.rmSync(path.join(UPLOADS_DIR, req.params.id), { recursive: true, force: true }); } catch (_e) {}
-    db.run('UPDATE warp_zones SET target_room_id = NULL WHERE target_room_id = ?', [req.params.id]);
-    db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [req.params.id]);
-    db.run('DELETE FROM direction_gates WHERE room_id = ?', [req.params.id]);
-    db.run('DELETE FROM rooms WHERE id = ?', [req.params.id]);
+    try {
+        db.run('UPDATE warp_zones SET target_room_id = NULL WHERE target_room_id = ?', [req.params.id]);
+        db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [req.params.id]);
+        db.run('DELETE FROM direction_gates WHERE room_id = ?', [req.params.id]);
+        db.run('DELETE FROM room_images WHERE room_id = ?', [req.params.id]);
+        db.run('DELETE FROM rooms WHERE id = ?', [req.params.id]);
+    } catch (e) {
+        return res.status(500).json({ error: '削除失敗: ' + e.message });
+    }
     res.json({ ok: true });
 });
 
