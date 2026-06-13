@@ -594,11 +594,12 @@ function drawWarpZones() {
     sprite.x = wz.x ?? 0;
     sprite.y = wz.y ?? 0;
     const _setSize = () => {
-      const sz = gateTex ? Math.round(gateTex.width * 2 / 5) : 100;
-      sprite.width = sz; sprite.height = sz;
-      if (sprite.x + sz > 660) sprite.x = 660 - sz;
-      if (sprite.y + sz > 460) sprite.y = 460 - sz;
-      wz.x = sprite.x; wz.y = sprite.y; wz.width = sz; wz.height = sz;
+      const szW = gateTex ? Math.round(gateTex.width * 2 / 5) : 100;
+      const szH = gateTex ? Math.round(gateTex.height * 2 / 5) : 100;
+      sprite.width = szW; sprite.height = szH;
+      sprite.x = (wz.x ?? 0) > 330 ? 660 - szW : 0;
+      sprite.y = (wz.y ?? 0) > 230 ? 480 - szH : 0;
+      wz.x = sprite.x; wz.y = sprite.y; wz.width = szW; wz.height = szH;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
     else { sprite.texture.baseTexture.once('loaded', _setSize); }
