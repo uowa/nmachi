@@ -422,6 +422,7 @@ const warpPoints = [
 // DBワープゾーン関連
 let dbWarpZones = [];
 let warpZoneGfx = null;
+let _warpGateSprites = [];
 
 // DB部屋画像関連
 let dbRoomImages = [];
@@ -579,43 +580,49 @@ function _applyRoomBgColor(colorHex) {
 }
 
 function drawWarpZones() {
-  if (!warpZoneGfx) {
-    warpZoneGfx = new PIXI.Graphics();
-    warpZoneGfx.zIndex = 999;
-  }
-  warpZoneGfx.clear();
-  if (room && room.container) room.container.addChild(warpZoneGfx);
+  _warpGateSprites.forEach(s => { if (s.parent) s.parent.removeChild(s); s.destroy(); });
+  _warpGateSprites = [];
+  if (!room) return;
+  const GATE_URL = '/img/objects/GATE.png';
   dbWarpZones.forEach(wz => {
-    if (_hiddenWarpIds.has(wz.id)) return;
-    const isBack = wz.warp_type === 'back';
-    let color;
-    if (wz.color) {
-      color = parseInt(wz.color.replace('#', ''), 16);
-    } else if (isBack) {
-      color = 0x3355ff;
-    } else {
-      color = wz.target_room_id ? 0xdd2222 : 0xff8800;
-    }
-    warpZoneGfx.lineStyle(2, color, 0.8);
-    warpZoneGfx.beginFill(color, wz.visual_opacity ?? 0.2);
-    if (wz.shape === 'circle' || wz.shape === 'ellipse') {
-      const rw = wz.width / 2;
-      const rh = (wz.height ?? wz.width) / 2;
-      warpZoneGfx.drawEllipse(wz.x + rw, wz.y + rh, rw, rh);
-    } else {
-      warpZoneGfx.drawRect(wz.x, wz.y, wz.width, wz.height ?? wz.width);
-    }
-    warpZoneGfx.endFill();
+    const sprite = PIXI.Sprite.from(GATE_URL);
+    sprite.x = wz.x ?? 0;
+    sprite.y = wz.y ?? 0;
+    const h = wz.height ?? wz.width;
+    if (wz.width) sprite.width = wz.width;
+    if (h) sprite.height = h;
+    sprite.zIndex = 998;
+    sprite.eventMode = 'static';
+    sprite.cursor = 'pointer';
+    sprite.on('pointerdown', e => {
+      if (_warpDragMode) return;
+      if (_inRoomTransition) return;
+      if (document.getElementById('roomEditPanel').style.display !== 'none') return;
+      if (e.button !== undefined && e.button !== 0) return;
+      e.stopPropagation();
+      if (wz.warp_type === 'back') {
+        goSelfToRoomSpot(_prevRoomSpot || 'entranceMainSpot');
+      } else if (wz.target_room_id) {
+        const sysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot', '東の部屋': '東の部屋Spot', '南の部屋': '南の部屋Spot', '西の部屋': '西の部屋Spot', '北の部屋': '北の部屋Spot' };
+        _prevRoomSpot = _roomToSpot(room.name);
+        goSelfToRoomSpot(sysSpot[wz.target_room_id] || ('userRoom:' + wz.target_room_id));
+      } else {
+        _warpPortalCreateRoom();
+      }
+    });
+    room.container.addChild(sprite);
+    _warpGateSprites.push(sprite);
   });
 }
 
 function clearWarpZones() {
+  _warpGateSprites.forEach(s => { if (s.parent) s.parent.removeChild(s); s.destroy(); });
+  _warpGateSprites = [];
   if (warpZoneGfx) {
     if (warpZoneGfx.parent) warpZoneGfx.parent.removeChild(warpZoneGfx);
     warpZoneGfx.clear();
   }
   dbWarpZones = [];
-  _hiddenWarpIds.clear();
 }
 
 async function loadDbScaleZones(roomId) {
@@ -5428,21 +5435,14 @@ function stopWarpPlaceMode() {
 }
 
 function _redrawWarpEditOverlay(ov) {
-  const wz = ov.warpData;
+  const s = ov.sprite;
   const hs = 12;
-  const h = wz.height ?? wz.width;
-  ov.hitGfx.clear();
-  ov.hitGfx.lineStyle(2, 0x00ffcc, 0.9);
-  ov.hitGfx.beginFill(0x00ffcc, 0.05);
-  if (wz.shape === 'circle' || wz.shape === 'ellipse') {
-    ov.hitGfx.drawEllipse(wz.x + wz.width / 2, wz.y + h / 2, wz.width / 2, h / 2);
-  } else {
-    ov.hitGfx.drawRect(wz.x, wz.y, wz.width, h);
-  }
-  ov.hitGfx.endFill();
+  ov.borderGfx.clear();
+  ov.borderGfx.lineStyle(2, 0x00ffcc, 0.9);
+  ov.borderGfx.drawRect(s.x, s.y, s.width, s.height);
   ov.handleGfx.clear();
   ov.handleGfx.beginFill(0x00ffcc);
-  ov.handleGfx.drawRect(wz.x + wz.width - hs, wz.y + h - hs, hs, hs);
+  ov.handleGfx.drawRect(s.x + s.width - hs, s.y + s.height - hs, hs, hs);
   ov.handleGfx.endFill();
 }
 
@@ -5452,56 +5452,51 @@ function _enableWarpEditMode() {
   _warpDragMode = true;
   app.stage.eventMode = 'static';
   dbWarpZones.forEach((wz, idx) => {
-    if (wz.warp_type === 'back') return;
-    const hitGfx = new PIXI.Graphics();
-    hitGfx.zIndex = 1002;
-    hitGfx.eventMode = 'static';
-    hitGfx.cursor = 'grab';
-    room.container.addChild(hitGfx);
+    const sprite = _warpGateSprites[idx];
+    if (!sprite) return;
+    const borderGfx = new PIXI.Graphics();
+    borderGfx.zIndex = 1002; borderGfx.eventMode = 'none';
+    room.container.addChild(borderGfx);
     const handleGfx = new PIXI.Graphics();
-    handleGfx.zIndex = 1003;
-    handleGfx.eventMode = 'static';
-    handleGfx.cursor = 'se-resize';
+    handleGfx.zIndex = 1003; handleGfx.eventMode = 'static'; handleGfx.cursor = 'se-resize';
     room.container.addChild(handleGfx);
-    const ov = { warpData: wz, hitGfx, handleGfx };
+    const ov = { warpData: wz, sprite, borderGfx, handleGfx };
     _warpEditOverlays.push(ov);
     _redrawWarpEditOverlay(ov);
     const ovIdx = _warpEditOverlays.length - 1;
-    hitGfx.on('pointermove', e => {
+    sprite.cursor = 'grab';
+    sprite.on('pointermove', e => {
       if (_warpDragging) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
-      const h = wz.height ?? wz.width;
-      if (p.x >= wz.x + wz.width - hs && p.y >= wz.y + h - hs) { hitGfx.cursor = 'se-resize'; return; }
-      if (p.x < wz.x + edge || p.x > wz.x + wz.width - edge) { hitGfx.cursor = 'ew-resize'; return; }
-      if (p.y < wz.y + edge || p.y > wz.y + h - edge) { hitGfx.cursor = 'ns-resize'; return; }
-      hitGfx.cursor = 'grab';
+      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) { sprite.cursor = 'se-resize'; return; }
+      if (p.x < sprite.x + edge || p.x > sprite.x + sprite.width - edge) { sprite.cursor = 'ew-resize'; return; }
+      if (p.y < sprite.y + edge || p.y > sprite.y + sprite.height - edge) { sprite.cursor = 'ns-resize'; return; }
+      sprite.cursor = 'grab';
     });
-    hitGfx.on('pointerdown', e => {
+    sprite.on('pointerdown', e => {
       if (!_warpDragMode || _warpDragging) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
-      const h = wz.height ?? wz.width;
-      if (p.x >= wz.x + wz.width - hs && p.y >= wz.y + h - hs) return;
+      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
       e.stopPropagation();
-      const near_left = p.x < wz.x + edge;
-      const near_right = p.x > wz.x + wz.width - edge;
-      const near_top = p.y < wz.y + edge;
-      const near_bottom = p.y > wz.y + h - edge;
+      const near_left = p.x < sprite.x + edge;
+      const near_right = p.x > sprite.x + sprite.width - edge;
+      const near_top = p.y < sprite.y + edge;
+      const near_bottom = p.y > sprite.y + sprite.height - edge;
       let type = 'move';
       if (near_left) type = 'resize_left';
       else if (near_right) type = 'resize_right';
       else if (near_top) type = 'resize_top';
       else if (near_bottom) type = 'resize_bottom';
-      _warpDragging = { idx: ovIdx, type, startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
-      if (type === 'move') hitGfx.cursor = 'grabbing';
+      _warpDragging = { idx: ovIdx, type, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      if (type === 'move') sprite.cursor = 'grabbing';
     });
     handleGfx.on('pointerdown', e => {
       if (!_warpDragMode || _warpDragging) return;
       e.stopPropagation();
       const p = room.container.toLocal(e.global);
-      const h = wz.height ?? wz.width;
-      _warpDragging = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
+      _warpDragging = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
     });
   });
   app.stage.on('pointermove', _onWarpDragMove);
@@ -5518,10 +5513,15 @@ function _disableWarpEditMode() {
     app.stage.off('pointerupoutside', _onWarpDragEnd);
   }
   _warpEditOverlays.forEach(ov => {
-    if (ov.hitGfx.parent) ov.hitGfx.parent.removeChild(ov.hitGfx);
+    if (ov.borderGfx.parent) ov.borderGfx.parent.removeChild(ov.borderGfx);
     if (ov.handleGfx.parent) ov.handleGfx.parent.removeChild(ov.handleGfx);
-    ov.hitGfx.destroy();
+    ov.borderGfx.destroy();
     ov.handleGfx.destroy();
+    if (ov.sprite) {
+      ov.sprite.removeAllListeners('pointerdown');
+      ov.sprite.removeAllListeners('pointermove');
+      ov.sprite.cursor = 'pointer';
+    }
   });
   _warpEditOverlays.length = 0;
 }
@@ -5532,28 +5532,27 @@ function _onWarpDragMove(e) {
   if (!ov) return;
   const p = room.container.toLocal(e.global);
   const dx = p.x - _warpDragging.startX, dy = p.y - _warpDragging.startY;
-  const wz = ov.warpData;
+  const s = ov.sprite;
   if (_warpDragging.type === 'move') {
-    wz.x = _warpDragging.origX + dx;
-    wz.y = _warpDragging.origY + dy;
+    s.x = _warpDragging.origX + dx;
+    s.y = _warpDragging.origY + dy;
   } else if (_warpDragging.type === 'resize') {
-    wz.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
-    wz.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+    s.width = Math.max(10, _warpDragging.origW + dx);
+    s.height = Math.max(10, _warpDragging.origH + dy);
   } else if (_warpDragging.type === 'resize_right') {
-    wz.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
+    s.width = Math.max(10, _warpDragging.origW + dx);
   } else if (_warpDragging.type === 'resize_bottom') {
-    wz.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+    s.height = Math.max(10, _warpDragging.origH + dy);
   } else if (_warpDragging.type === 'resize_left') {
-    const newW = Math.min(250, Math.max(5, _warpDragging.origW - dx));
-    wz.x = _warpDragging.origX + (_warpDragging.origW - newW);
-    wz.width = newW;
+    const newW = Math.max(10, _warpDragging.origW - dx);
+    s.x = _warpDragging.origX + (_warpDragging.origW - newW);
+    s.width = newW;
   } else if (_warpDragging.type === 'resize_top') {
-    const newH = Math.min(250, Math.max(5, _warpDragging.origH - dy));
-    wz.y = _warpDragging.origY + (_warpDragging.origH - newH);
-    wz.height = newH;
+    const newH = Math.max(10, _warpDragging.origH - dy);
+    s.y = _warpDragging.origY + (_warpDragging.origH - newH);
+    s.height = newH;
   }
   _redrawWarpEditOverlay(ov);
-  drawWarpZones();
 }
 
 async function _onWarpDragEnd() {
@@ -5561,13 +5560,18 @@ async function _onWarpDragEnd() {
   const ov = _warpEditOverlays[_warpDragging.idx];
   _warpDragging = null;
   if (!ov) return;
-  ov.hitGfx.cursor = 'grab';
+  ov.sprite.cursor = 'grab';
+  const s = ov.sprite;
+  const x = Math.round(s.x), y = Math.round(s.y);
+  const w = Math.round(s.width), h = Math.round(s.height);
   const wz = ov.warpData;
-  const x = Math.round(wz.x), y = Math.round(wz.y);
-  const w = Math.round(wz.width), h = Math.round(wz.height ?? wz.width);
   wz.x = x; wz.y = y; wz.width = w; wz.height = h;
   _redrawWarpEditOverlay(ov);
-  drawWarpZones();
+  const row = document.querySelector('#warpList [data-warp-id="' + wz.id + '"]');
+  if (row) row.querySelectorAll('input[data-field]').forEach(inp => {
+    const v = { x, y, width: w, height: h }[inp.dataset.field];
+    if (v !== undefined) inp.value = v;
+  });
   const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
@@ -5631,88 +5635,58 @@ function updateWarpList() {
   const errEl = document.getElementById('warpDelErr');
   if (errEl) errEl.textContent = '';
 
-  dbWarpZones.forEach(wz => {
+  dbWarpZones.forEach((wz, wzIdx) => {
     const isBack = wz.warp_type === 'back';
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:4px;align-items:center;margin:3px 0;font-size:11px;flex-wrap:wrap;padding:3px;border:1px solid ' + (isBack ? '#88ff44' : '#223366') + ';border-radius:3px;';
+    row.dataset.warpId = wz.id;
+    row.style.cssText = 'display:flex;align-items:center;gap:4px;margin:3px 0;font-size:11px;flex-wrap:wrap;padding:3px;border:1px solid ' + (isBack ? '#88ff44' : '#223366') + ';border-radius:3px;';
 
-    // □/○ 形状トグルボタン
-    const isRect = wz.shape === 'rect';
-    const rectBtn = document.createElement('button');
-    rectBtn.textContent = '□';
-    rectBtn.title = '矩形';
-    rectBtn.style.cssText = 'font-size:12px;padding:0 5px;cursor:pointer;border:1px solid #4a90d9;background:' + (isRect ? '#1a3a6a' : '#0d0d1a') + ';color:#fff;';
-    const circBtn = document.createElement('button');
-    circBtn.textContent = '○';
-    circBtn.title = '円';
-    circBtn.style.cssText = 'font-size:12px;padding:0 5px;cursor:pointer;border:1px solid #4a90d9;background:' + (!isRect ? '#1a3a6a' : '#0d0d1a') + ';color:#fff;';
-    const _setShape = async (shape) => {
-      await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
-        body: JSON.stringify({ shape }),
+    const typeLabel = document.createElement('span');
+    typeLabel.textContent = isBack ? '↩いりぐち' : '→でぐち';
+    typeLabel.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';font-size:10px;min-width:46px;';
+    row.appendChild(typeLabel);
+
+    const mkNumInput = (label, field, val) => {
+      const wrap = document.createElement('span');
+      wrap.style.cssText = 'display:inline-flex;align-items:center;gap:1px;';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:10px;color:#888;';
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.value = Math.round(val ?? 0);
+      inp.dataset.field = field;
+      inp.style.cssText = 'width:38px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:1px 2px;font-size:10px;';
+      inp.addEventListener('change', async () => {
+        const x = Math.round(Number(row.querySelector('[data-field="x"]').value));
+        const y = Math.round(Number(row.querySelector('[data-field="y"]').value));
+        const w = Math.round(Number(row.querySelector('[data-field="width"]').value));
+        const h = Math.round(Number(row.querySelector('[data-field="height"]').value));
+        wz.x = x; wz.y = y; wz.width = w; wz.height = h;
+        const s = _warpGateSprites[wzIdx];
+        if (s) { s.x = x; s.y = y; s.width = w; s.height = h; }
+        const activeOv = _warpEditOverlays.find(o => o.warpData === wz);
+        if (activeOv) _redrawWarpEditOverlay(activeOv);
+        await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+          body: JSON.stringify({ x, y, width: w, height: h }),
+        });
       });
-      await loadDbWarpZones(warpEditRoomId);
-      updateWarpList();
-      drawWarpZones();
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      return wrap;
     };
-    rectBtn.addEventListener('click', () => _setShape('rect'));
-    circBtn.addEventListener('click', () => _setShape('circle'));
-    row.appendChild(rectBtn);
-    row.appendChild(circBtn);
+    const h = wz.height ?? wz.width;
+    row.appendChild(mkNumInput('X:', 'x', wz.x));
+    row.appendChild(mkNumInput('Y:', 'y', wz.y));
+    row.appendChild(mkNumInput('W:', 'width', wz.width));
+    row.appendChild(mkNumInput('H:', 'height', h));
 
-    // 表示/非表示トグル
-    const isHidden = _hiddenWarpIds.has(wz.id);
-    const visBtn = document.createElement('button');
-    visBtn.textContent = isHidden ? '表示' : '非表示';
-    visBtn.style.cssText = 'font-size:10px;padding:1px 5px;cursor:pointer;background:' + (isHidden ? '#333' : '#0d0d1a') + ';color:' + (isHidden ? '#888' : '#fff') + ';border:1px solid #4a90d9;';
-    visBtn.addEventListener('click', () => {
-      if (_hiddenWarpIds.has(wz.id)) {
-        _hiddenWarpIds.delete(wz.id);
-        visBtn.textContent = '非表示';
-        visBtn.style.background = '#0d0d1a';
-        visBtn.style.color = '#fff';
-      } else {
-        _hiddenWarpIds.add(wz.id);
-        visBtn.textContent = '表示';
-        visBtn.style.background = '#333';
-        visBtn.style.color = '#888';
-      }
-      drawWarpZones();
-    });
-    row.appendChild(visBtn);
-
-    // 色変更ピッカー
-    const defaultCol = isBack ? '#3355ff' : '#dd2222';
-    const colorInput = document.createElement('input');
-    colorInput.type = 'color';
-    colorInput.value = wz.color || defaultCol;
-    colorInput.title = '色';
-    colorInput.style.cssText = 'width:24px;height:20px;padding:0;border:1px solid #4a90d9;cursor:pointer;background:none;';
-    colorInput.addEventListener('change', async () => {
-      await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
-        body: JSON.stringify({ color: colorInput.value }),
-      });
-      await loadDbWarpZones(warpEditRoomId);
-      updateWarpList();
-      drawWarpZones();
-    });
-    row.appendChild(colorInput);
-
-    // 情報テキスト
-    const info = document.createElement('span');
-    info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:60px;';
-    info.textContent = (isBack ? '↩いりぐち ' : '→でぐち ') + `(${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
-    row.appendChild(info);
-
-    // 削除ボタン（back ワープは無効）※最後に配置
     const delBtn = document.createElement('button');
     delBtn.textContent = '✖';
     delBtn.style.cssText = 'color:#fff;border:none;cursor:pointer;padding:1px 5px;font-size:11px;background:' + (isBack ? '#444' : '#600') + ';';
     delBtn.disabled = isBack;
-    delBtn.title = isBack ? 'リターンゲートは削除できません' : '削除';
+    delBtn.title = isBack ? 'いりぐちは削除できません' : '削除';
     delBtn.addEventListener('click', async () => {
       if (errEl) errEl.textContent = '';
       const res = await fetch('/api/rooms/' + encodeURIComponent(warpEditRoomId) + '/warps/' + wz.id, {
@@ -5725,8 +5699,10 @@ function updateWarpList() {
         return;
       }
       await loadDbWarpZones(warpEditRoomId);
-      updateWarpList();
+      _disableWarpEditMode();
       drawWarpZones();
+      updateWarpList();
+      if (_warpDragMode) _enableWarpEditMode();
     });
     row.appendChild(delBtn);
 
@@ -9495,7 +9471,6 @@ function startWarpGlow() {
 }
 function stopWarpGlow() {
   if (_warpGlowTicker) { app.ticker.remove(_warpGlowTicker); _warpGlowTicker = null; }
-  if (warpZoneGfx) warpZoneGfx.alpha = 1;
 }
 
 // warpShape ボタンは新UIでは各ワープ行内の □/○ アイコンに移行済み
