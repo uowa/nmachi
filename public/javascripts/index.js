@@ -1102,17 +1102,26 @@ function _showCreateRoomConfirm() {
   return new Promise(resolve => {
     const modal = document.getElementById('createRoomConfirmModal');
     const input = document.getElementById('createRoomNameInput');
-    input.value = '';
-    modal.style.display = 'flex';
-    setTimeout(() => input.focus(), 50);
     const yes = document.getElementById('createRoomConfirmYes');
     const no = document.getElementById('createRoomConfirmNo');
+    const defaultName = 'By ' + (localStorage.getItem('userName') || 'player') + ' room';
+    input.value = defaultName;
+    modal.style.display = 'flex';
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+    const _updateBtn = () => {
+      const empty = !input.value.trim();
+      yes.disabled = empty;
+      yes.style.opacity = empty ? '0.4' : '';
+    };
+    _updateBtn();
+    input.addEventListener('input', _updateBtn);
     const cleanup = (result) => {
       _createRoomConfirmPending = false;
       modal.style.display = 'none';
       yes.removeEventListener('click', onYes);
       no.removeEventListener('click', onNo);
       input.removeEventListener('keydown', onKey);
+      input.removeEventListener('input', _updateBtn);
       resolve(result);
     };
     const onYes = () => {
