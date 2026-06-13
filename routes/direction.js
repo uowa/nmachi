@@ -55,7 +55,7 @@ router.post('/:roomName/gates/:index', (req, res) => {
         [id, newRoomName, creatorToken || null, lifetimeHours]
     );
 
-    const ROOM_W = 660, ROOM_H = 460, WARP_SZ = 30;
+    const ROOM_W = 660, ROOM_H = 460, WARP_SZ = 100;
     const corners = [
         { x: 0,              y: 0,              type: 'normal' },
         { x: ROOM_W - WARP_SZ, y: 0,              type: 'normal' },

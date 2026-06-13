@@ -596,6 +596,8 @@ function drawWarpZones() {
     const _setSize = () => {
       const sz = gateTex ? Math.round(gateTex.width * 2 / 5) : 100;
       sprite.width = sz; sprite.height = sz;
+      if (sprite.x + sz > 660) sprite.x = 660 - sz;
+      if (sprite.y + sz > 460) sprite.y = 460 - sz;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
     else { sprite.texture.baseTexture.once('loaded', _setSize); }
