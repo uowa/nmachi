@@ -9189,19 +9189,6 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   document.getElementById('roomDeleteConfirm').style.display = 'none';
   document.getElementById('codeRulesBox').textContent = CODE_RULES;
 
-  // タイトル切り替え（新規作成 vs 既存編集）
-  const titleEl = document.getElementById('roomEditTitle');
-  if (_isNewRoomMode) {
-    titleEl.style.color = '#ff8800';
-    titleEl.innerHTML = '新しく部屋を作る：<span id="roomEditNameDisplay" style="color:#fff;font-weight:normal;"></span>';
-  } else {
-    titleEl.style.color = '#4a90d9';
-    titleEl.innerHTML = '部屋を編集：<span id="roomEditNameDisplay" style="color:#fff;"></span>';
-  }
-
-  // 認証前から部屋名を表示
-  const knownName = (window._allRooms || []).find(r => r.id === roomId);
-  document.getElementById('roomEditNameDisplay').textContent = knownName ? knownName.name : (_pendingRoomName || '');
 
   // デフォルトタブを ImgWarp に設定
   ['ImgWarp', 'Code', 'Options'].forEach(t => {
@@ -9227,7 +9214,6 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   _sessionRoomPasswords.set(roomId, pw);
 
   const displayName = _pendingRoomName || '';
-  document.getElementById('roomEditNameDisplay').textContent = displayName;
   _originalRoomName = displayName;
   document.getElementById('roomNameEditInput').value = displayName;
   _updateRoomSaveBtnState();
