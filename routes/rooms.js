@@ -393,12 +393,18 @@ router.post('/:id/scale-zones', authRoom, (req, res) => {
     res.json({ ok: true, id: result.lastInsertRowid });
 });
 
-// PUT /api/rooms/:id/scale-zones/:zoneId - スケール値更新
+// PUT /api/rooms/:id/scale-zones/:zoneId
 router.put('/:id/scale-zones/:zoneId', authRoom, (req, res) => {
-    const { scale } = req.body || {};
-    if (scale == null) return res.status(400).json({ error: 'scale が必要です' });
-    const s = Math.max(0.01, Math.min(10, parseFloat(scale)));
-    db.run('UPDATE scale_zones SET scale = ? WHERE id = ? AND room_id = ?', [s, req.params.zoneId, req.params.id]);
+    const { scale, x, y, width, height } = req.body || {};
+    const fields = [], vals = [];
+    if (scale  != null) { fields.push('scale = ?');  vals.push(Math.max(0.01, Math.min(10, parseFloat(scale)))); }
+    if (x      != null) { fields.push('x = ?');      vals.push(Number(x)); }
+    if (y      != null) { fields.push('y = ?');      vals.push(Number(y)); }
+    if (width  != null) { fields.push('width = ?');  vals.push(Math.max(1, Number(width))); }
+    if (height != null) { fields.push('height = ?'); vals.push(Math.max(1, Number(height))); }
+    if (!fields.length) return res.status(400).json({ error: '更新フィールドがありません' });
+    vals.push(req.params.zoneId, req.params.id);
+    db.run('UPDATE scale_zones SET ' + fields.join(', ') + ' WHERE id = ? AND room_id = ?', vals);
     res.json({ ok: true });
 });
 

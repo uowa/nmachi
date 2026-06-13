@@ -666,6 +666,7 @@ function drawScaleZones() {
 }
 
 function clearScaleZones() {
+  _disableScaleZoneEditMode();
   if (_scaleZoneGfx) {
     if (_scaleZoneGfx.parent) _scaleZoneGfx.parent.removeChild(_scaleZoneGfx);
     _scaleZoneGfx.clear();
@@ -680,12 +681,43 @@ function updateScaleZoneList() {
   list.innerHTML = '';
   dbScaleZones.forEach(z => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:4px;align-items:center;margin:3px 0;font-size:11px;padding:3px;border:1px solid #442266;border-radius:3px;';
+    row.style.cssText = 'display:flex;flex-direction:column;gap:3px;margin:3px 0;font-size:11px;padding:4px;border:1px solid #442266;border-radius:3px;';
 
-    const info = document.createElement('span');
-    info.style.cssText = 'color:#cc88ff;white-space:nowrap;';
-    info.textContent = `#${z.id} (${Math.round(z.x)},${Math.round(z.y)}) ${Math.round(z.width)}×${Math.round(z.height)}`;
-    row.appendChild(info);
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;align-items:center;gap:3px;flex-wrap:wrap;';
+
+    const mkXYWHInput = (label, field) => {
+      const wrap = document.createElement('span');
+      wrap.style.cssText = 'display:inline-flex;align-items:center;gap:1px;';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:10px;color:#888;';
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.value = Math.round(z[field] ?? 0);
+      inp.dataset.zoneId = z.id;
+      inp.dataset.field = field;
+      inp.style.cssText = 'width:42px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:1px 2px;font-size:10px;';
+      inp.addEventListener('change', async () => {
+        z[field] = Number(inp.value);
+        const overlay = _scaleZoneGraphics.find(o => o.z.id === z.id);
+        if (overlay) overlay._redraw();
+        await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId) + '/scale-zones/' + z.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+          body: JSON.stringify({ [field]: Number(inp.value) }),
+        });
+      });
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      return wrap;
+    };
+    topRow.appendChild(mkXYWHInput('X:', 'x'));
+    topRow.appendChild(mkXYWHInput('Y:', 'y'));
+    topRow.appendChild(mkXYWHInput('W:', 'width'));
+    topRow.appendChild(mkXYWHInput('H:', 'height'));
+
+    const bottomRow = document.createElement('div');
+    bottomRow.style.cssText = 'display:flex;align-items:center;gap:4px;';
 
     const scaleSlider = document.createElement('input');
     scaleSlider.type = 'range';
@@ -699,11 +731,7 @@ function updateScaleZoneList() {
     scaleNum.value = z.scale;
     scaleNum.style.cssText = 'width:46px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;font-size:10px;padding:1px 3px;';
 
-    const syncScale = (s) => {
-      z.scale = s;
-      scaleSlider.value = s;
-      scaleNum.value = s;
-    };
+    const syncScale = (s) => { z.scale = s; scaleSlider.value = s; scaleNum.value = s; };
     const saveScale = async () => {
       const s = Math.max(0.01, Math.min(10, parseFloat(scaleNum.value) || 1));
       syncScale(s);
@@ -716,8 +744,8 @@ function updateScaleZoneList() {
     scaleSlider.addEventListener('input', () => { syncScale(parseFloat(scaleSlider.value)); });
     scaleSlider.addEventListener('change', saveScale);
     scaleNum.addEventListener('change', saveScale);
-    row.appendChild(scaleSlider);
-    row.appendChild(scaleNum);
+    bottomRow.appendChild(scaleSlider);
+    bottomRow.appendChild(scaleNum);
 
     const delBtn = document.createElement('button');
     delBtn.textContent = '×';
@@ -727,12 +755,103 @@ function updateScaleZoneList() {
         method: 'DELETE',
         headers: { 'X-Edit-Password': warpEditPassword },
       });
+      _disableScaleZoneEditMode();
       await loadDbScaleZones(_scaleZoneEditRoomId);
       updateScaleZoneList();
+      _enableScaleZoneEditMode();
     });
-    row.appendChild(delBtn);
+    bottomRow.appendChild(delBtn);
 
+    row.appendChild(topRow);
+    row.appendChild(bottomRow);
     list.appendChild(row);
+  });
+}
+
+function _enableScaleZoneEditMode() {
+  _disableScaleZoneEditMode();
+  if (!room || !room.container) return;
+  const HS = 10;
+  dbScaleZones.forEach(z => {
+    const gfx = new PIXI.Graphics();
+    gfx.zIndex = 999;
+    gfx.eventMode = 'static';
+    gfx.cursor = 'move';
+    const _redraw = () => {
+      gfx.clear();
+      gfx.lineStyle(2, 0xbb44ff, 0.9);
+      gfx.beginFill(0xbb44ff, 0.12);
+      gfx.drawRect(0, 0, z.width, z.height);
+      gfx.endFill();
+      gfx.lineStyle(1, 0xffffff, 0.8);
+      gfx.beginFill(0xffffff, 0.9);
+      [[0, 0], [z.width - HS, 0], [0, z.height - HS], [z.width - HS, z.height - HS]].forEach(([hx, hy]) => {
+        gfx.drawRect(hx, hy, HS, HS);
+      });
+      gfx.endFill();
+      gfx.x = z.x; gfx.y = z.y;
+      gfx.hitArea = new PIXI.Rectangle(0, 0, z.width, z.height);
+    };
+    _redraw();
+    gfx.on('pointerdown', e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.stopPropagation();
+      const p = e.data.getLocalPosition(room.container);
+      const lx = p.x - z.x, ly = p.y - z.y;
+      const base = { z, gfx, _redraw, startX: p.x, startY: p.y, origX: z.x, origY: z.y, origW: z.width, origH: z.height };
+      if      (lx <= HS && ly <= HS)                           _scaleZoneDragging = { ...base, type: 'tl' };
+      else if (lx >= z.width - HS && ly <= HS)                 _scaleZoneDragging = { ...base, type: 'tr' };
+      else if (lx <= HS && ly >= z.height - HS)                _scaleZoneDragging = { ...base, type: 'bl' };
+      else if (lx >= z.width - HS && ly >= z.height - HS)     _scaleZoneDragging = { ...base, type: 'br' };
+      else                                                      _scaleZoneDragging = { ...base, type: 'move' };
+    });
+    _scaleZoneGraphics.push({ z, gfx, _redraw });
+    room.container.addChild(gfx);
+  });
+  room.container.on('pointermove', _scaleZoneOnMove);
+  room.container.on('pointerup', _scaleZoneOnUp);
+  room.container.on('pointerupoutside', _scaleZoneOnUp);
+}
+
+function _disableScaleZoneEditMode() {
+  _scaleZoneGraphics.forEach(({ gfx }) => { if (gfx.parent) gfx.parent.removeChild(gfx); gfx.destroy(); });
+  _scaleZoneGraphics.length = 0;
+  _scaleZoneDragging = null;
+  if (room && room.container) {
+    room.container.off('pointermove', _scaleZoneOnMove);
+    room.container.off('pointerup', _scaleZoneOnUp);
+    room.container.off('pointerupoutside', _scaleZoneOnUp);
+  }
+}
+
+function _scaleZoneOnMove(e) {
+  if (!_scaleZoneDragging) return;
+  const p = e.data.getLocalPosition(room.container);
+  const { z, _redraw, type, startX, startY, origX, origY, origW, origH } = _scaleZoneDragging;
+  const dx = p.x - startX, dy = p.y - startY;
+  if      (type === 'move') { z.x = origX + dx; z.y = origY + dy; }
+  else if (type === 'br')   { z.width = Math.max(20, origW + dx); z.height = Math.max(20, origH + dy); }
+  else if (type === 'bl')   { z.x = origX + dx; z.width = Math.max(20, origW - dx); z.height = Math.max(20, origH + dy); }
+  else if (type === 'tr')   { z.y = origY + dy; z.width = Math.max(20, origW + dx); z.height = Math.max(20, origH - dy); }
+  else if (type === 'tl')   { z.x = origX + dx; z.y = origY + dy; z.width = Math.max(20, origW - dx); z.height = Math.max(20, origH - dy); }
+  _redraw();
+  _updateScaleZoneListXYWH(z);
+}
+
+async function _scaleZoneOnUp() {
+  if (!_scaleZoneDragging) return;
+  const { z } = _scaleZoneDragging;
+  _scaleZoneDragging = null;
+  await fetch('/api/rooms/' + encodeURIComponent(_scaleZoneEditRoomId) + '/scale-zones/' + z.id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': warpEditPassword },
+    body: JSON.stringify({ x: Math.round(z.x), y: Math.round(z.y), width: Math.round(z.width), height: Math.round(z.height) }),
+  });
+}
+
+function _updateScaleZoneListXYWH(z) {
+  document.querySelectorAll('[data-zone-id="' + z.id + '"]').forEach(inp => {
+    inp.value = Math.round(z[inp.dataset.field] ?? 0);
   });
 }
 
@@ -5631,8 +5750,10 @@ async function saveScaleZone(x, y, w, h, scale) {
   if (_scaleZonePlacePreview) _scaleZonePlacePreview.clear();
   document.getElementById('scaleZonePlaceStopBtn').style.display = 'none';
   document.getElementById('scaleZonePlaceBtn').style.display = '';
+  _disableScaleZoneEditMode();
   await loadDbScaleZones(_scaleZoneEditRoomId);
   updateScaleZoneList();
+  _enableScaleZoneEditMode();
 }
 
 function updateWarpList() {
@@ -9457,7 +9578,8 @@ document.getElementById('roomNameSaveBtn').addEventListener('click', () => _save
       const input = document.getElementById('roomScaleInput');
       if (slider) slider.value = _roomAvatarScale;
       if (input) input.value = _roomAvatarScale;
-      if (_scaleZoneGfx) _scaleZoneGfx.visible = true;
+      if (_scaleZoneGfx) _scaleZoneGfx.visible = false;
+      _enableScaleZoneEditMode();
     } else {
       _scaleZonePlaceMode = false;
       _scaleZonePlaceStart = null;
@@ -9465,6 +9587,7 @@ document.getElementById('roomNameSaveBtn').addEventListener('click', () => _save
       document.getElementById('scaleZonePlaceBtn').style.display = '';
       document.getElementById('scaleZonePlaceStopBtn').style.display = 'none';
       if (_scaleZoneGfx) _scaleZoneGfx.visible = false;
+      _disableScaleZoneEditMode();
     }
   });
 });
@@ -9588,10 +9711,8 @@ async function _saveRoomScale() {
   _roomAvatarScale = s;
 }
 
-document.getElementById('scaleZonePlaceBtn').addEventListener('click', () => {
-  _scaleZonePlaceMode = true;
-  document.getElementById('scaleZonePlaceBtn').style.display = 'none';
-  document.getElementById('scaleZonePlaceStopBtn').style.display = '';
+document.getElementById('scaleZonePlaceBtn').addEventListener('click', async () => {
+  await saveScaleZone(280, 190, 100, 80, 1.0);
 });
 
 document.getElementById('scaleZonePlaceStopBtn').addEventListener('click', () => {
