@@ -588,9 +588,14 @@ function drawWarpZones() {
     const sprite = PIXI.Sprite.from(GATE_URL);
     sprite.x = wz.x ?? 0;
     sprite.y = wz.y ?? 0;
-    const h = wz.height ?? wz.width;
-    if (wz.width) sprite.width = wz.width;
-    if (h) sprite.height = h;
+    const _setSize = () => {
+      const natW = sprite.texture.width, natH = sprite.texture.height;
+      const w = (wz.width && wz.width > 30) ? wz.width : natW;
+      const h = (wz.height && wz.height > 30) ? wz.height : ((wz.height ?? wz.width) > 30 ? (wz.height ?? wz.width) : natH);
+      sprite.width = w; sprite.height = h;
+    };
+    if (sprite.texture.baseTexture.valid) { _setSize(); }
+    else { sprite.texture.baseTexture.once('loaded', _setSize); }
     sprite.zIndex = 998;
     sprite.eventMode = 'static';
     sprite.cursor = 'pointer';
@@ -9024,6 +9029,7 @@ let _imgDragMode = false;
 const _imgOverlays = []; // {imgData, sprite, borderGfx, handleGfx}
 let _imgDragging = null; // {idx, type:'move'|'resize', startX, startY, origX, origY, origW, origH}
 let _imgDoodleMode = false;
+let _replaceImgData = null;
 let _imgDoodleGfx = null;
 let _imgDoodleDrawingGfx = null;
 const _imgDoodleHistory = [];
@@ -9173,9 +9179,6 @@ async function _openRoomEditPanelDirect(roomId, pw) {
     document.getElementById('roomEditTab' + t).style.color = active ? '#fff' : '#888';
     document.getElementById('roomEditContent' + t).style.display = active ? 'block' : 'none';
   });
-  startWarpGlow();
-  _enableWarpEditMode();
-
   if (!window._allRooms) {
     fetch('/api/rooms').then(r => r.ok ? r.json() : []).then(d => { window._allRooms = d; }).catch(() => { window._allRooms = []; });
   }
@@ -9205,7 +9208,7 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   if (_isNewRoomMode) {
     const [lockResult, , _authRes] = await Promise.all([
       _acquireRoomEditLock(roomId, pw),
-      loadDbWarpZones(roomId).then(() => updateWarpList()),
+      loadDbWarpZones(roomId).then(() => { updateWarpList(); _enableWarpEditMode(); }),
       _authFetch,
     ]);
     if (!lockResult.ok) { document.getElementById('roomEditErr').textContent = lockResult.error; return; }
@@ -9213,7 +9216,7 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   } else {
     const [lockResult, , , _codeRes, _authRes] = await Promise.all([
       _acquireRoomEditLock(roomId, pw),
-      loadDbWarpZones(roomId).then(() => updateWarpList()),
+      loadDbWarpZones(roomId).then(() => { updateWarpList(); _enableWarpEditMode(); }),
       refreshImgList(),
       fetch('/api/rooms/' + encodeURIComponent(roomId) + '/code'),
       _authFetch,
@@ -9661,11 +9664,13 @@ function _triggerImgDoodle(type) {
   const area = document.getElementById('doodleArea');
   if (area.style.display === 'none') {
     area.style.display = 'block';
+    _disableImgEditMode();
     _startImgDoodleMode();
   } else {
     area.style.display = 'none';
     _stopImgDoodleMode();
     _clearImgDoodle();
+    if (_imgTabIsActive()) _enableImgEditMode();
   }
 }
 document.getElementById('imgUploadBtnBg').addEventListener('click', () => _triggerImgUpload('background'));
@@ -10166,23 +10171,65 @@ async function _onImgDragEnd() {
 async function refreshImgList() {
   const res = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images');
   const images = res.ok ? await res.json() : [];
-  // セクション別リストをクリア
   ['imgListBackground', 'imgListPlatform', 'imgListObject', 'imgList'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
   });
-  // imgType→セクションID のマップ
   const TYPE_LIST_ID = { background: 'imgListBackground', platform: 'imgListPlatform', object: 'imgListObject' };
   const _getList = (type) => document.getElementById(TYPE_LIST_ID[type] || 'imgList');
+
+  let _listDragSrc = null;
+
+  const _saveListOrder = async (listEl) => {
+    const rows = Array.from(listEl.children);
+    for (let i = 0; i < rows.length; i++) {
+      const id = rows[i].dataset.imgId;
+      if (!id) continue;
+      await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+        body: JSON.stringify({ z_index: i }),
+      });
+    }
+    _disableImgEditMode();
+    await loadDbImages(imgEditRoomId);
+    if (_imgTabIsActive()) _enableImgEditMode();
+  };
 
   images.forEach(img => {
     const row = document.createElement('div');
     row.dataset.imgId = img.id;
-    row.style.cssText = 'display:flex;align-items:center;gap:5px;padding:4px 6px;margin:3px 0;background:#111;border:1px solid #333;border-radius:3px;';
+    row.draggable = true;
+    row.style.cssText = 'display:flex;align-items:center;gap:5px;padding:4px 6px;margin:3px 0;background:#111;border:1px solid #333;border-radius:3px;cursor:grab;';
+
+    row.addEventListener('dragstart', e => {
+      _listDragSrc = row;
+      e.dataTransfer.effectAllowed = 'move';
+      row.style.opacity = '0.4';
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '';
+      const listEl = row.parentElement;
+      if (listEl) _saveListOrder(listEl);
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (_listDragSrc && _listDragSrc !== row) {
+        const listEl = row.parentElement;
+        const rows = Array.from(listEl.children);
+        const srcIdx = rows.indexOf(_listDragSrc);
+        const tgtIdx = rows.indexOf(row);
+        if (srcIdx < tgtIdx) listEl.insertBefore(_listDragSrc, row.nextSibling);
+        else listEl.insertBefore(_listDragSrc, row);
+      }
+    });
 
     const thumb = document.createElement('img');
     thumb.src = img.url;
-    thumb.style.cssText = 'width:28px;height:28px;object-fit:cover;flex-shrink:0;border:1px solid #444;';
+    thumb.style.cssText = 'width:28px;height:28px;object-fit:cover;flex-shrink:0;border:1px solid #444;cursor:pointer;';
+    thumb.title = 'クリックで画像を差し替え';
+    thumb.addEventListener('click', () => { _replaceImgData = img; document.getElementById('imgReplaceInput').click(); });
     row.appendChild(thumb);
 
     const right = document.createElement('div');
@@ -10191,8 +10238,9 @@ async function refreshImgList() {
     const displayName = img.filename.replace(/^\d+_/, '');
     const fname = document.createElement('span');
     fname.textContent = displayName;
-    fname.title = displayName;
-    fname.style.cssText = 'font-size:11px;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;';
+    fname.title = 'クリックで差し替え';
+    fname.style.cssText = 'font-size:11px;color:#4af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;cursor:pointer;text-decoration:underline;';
+    fname.addEventListener('click', () => { _replaceImgData = img; document.getElementById('imgReplaceInput').click(); });
     right.appendChild(fname);
 
     const mkNumInput = (label, field, val) => {
@@ -10227,21 +10275,6 @@ async function refreshImgList() {
     numRow.appendChild(mkNumInput('H:', 'height', img.height));
     right.appendChild(numRow);
 
-    const warpBtn = document.createElement('button');
-    warpBtn.textContent = img.is_warp ? 'ワープON' : 'ワープ';
-    warpBtn.title = 'この画像をワープとして使う';
-    warpBtn.style.cssText = `font-size:10px;padding:1px 4px;cursor:pointer;border:1px solid ${img.is_warp ? '#00ccff' : '#555'};background:${img.is_warp ? '#003344' : '#111'};color:${img.is_warp ? '#00ccff' : '#888'};`;
-    warpBtn.addEventListener('click', async () => {
-      const newVal = img.is_warp ? 0 : 1;
-      await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + img.id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
-        body: JSON.stringify({ is_warp: newVal }),
-      });
-      await refreshImgList();
-    });
-    right.appendChild(warpBtn);
-
     const delBtn = document.createElement('button');
     delBtn.textContent = '×';
     delBtn.style.cssText = 'background:#600;color:#fff;border:none;cursor:pointer;padding:2px 6px;font-size:12px;';
@@ -10261,6 +10294,39 @@ async function refreshImgList() {
     _getList(img.type).appendChild(row);
   });
 }
+
+document.getElementById('imgReplaceInput').addEventListener('change', async () => {
+  const input = document.getElementById('imgReplaceInput');
+  const file = input.files[0];
+  if (!file || !_replaceImgData) { input.value = ''; return; }
+  const old = _replaceImgData;
+  input.value = '';
+  _replaceImgData = null;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const postRes = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+      body: JSON.stringify({ imageBase64: e.target.result, type: old.type }),
+    });
+    if (!postRes.ok) return;
+    const newImg = await postRes.json();
+    await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + newImg.id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+      body: JSON.stringify({ x: old.x, y: old.y, width: old.width, height: old.height, z_index: old.z_index }),
+    });
+    await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + old.id, {
+      method: 'DELETE',
+      headers: { 'X-Edit-Password': imgEditPassword },
+    });
+    await refreshImgList();
+    _disableImgEditMode();
+    await loadDbImages(imgEditRoomId);
+    if (_imgTabIsActive()) _enableImgEditMode();
+  };
+  reader.readAsDataURL(file);
+});
 
 // ===== コードタブ =====
 
