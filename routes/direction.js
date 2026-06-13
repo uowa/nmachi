@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const db = require('../db/index');
+let sharp; try { sharp = require('sharp'); } catch (_e) {}
 
 const DIR_BG_DIR = path.join(__dirname, '../public/uploads/dir');
 
@@ -119,19 +120,35 @@ router.get('/:roomName/bg', (req, res) => {
 });
 
 // POST /api/direction/:roomName/bg
-router.post('/:roomName/bg', (req, res) => {
+router.post('/:roomName/bg', async (req, res) => {
     const { roomName } = req.params;
     if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
     const { imageBase64 } = req.body || {};
     if (!imageBase64) return res.status(400).json({ error: 'imageBase64が必要です' });
     const match = imageBase64.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
     if (!match) return res.status(400).json({ error: '画像形式が不正です' });
-    const ext = match[1].replace('jpeg', 'jpg');
     const buffer = Buffer.from(match[2], 'base64');
     fs.mkdirSync(DIR_BG_DIR, { recursive: true });
-    const filename = roomName + '.' + ext;
+
+    let outBuffer, filename;
+    try {
+        if (sharp) {
+            outBuffer = await sharp(buffer)
+                .resize({ width: 660, height: 480, fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 80 })
+                .toBuffer();
+            filename = roomName + '.webp';
+        } else {
+            outBuffer = buffer;
+            filename = roomName + '.' + match[1].replace('jpeg', 'jpg');
+        }
+    } catch (_e) {
+        outBuffer = buffer;
+        filename = roomName + '.' + match[1].replace('jpeg', 'jpg');
+    }
+
     const filepath = path.join(DIR_BG_DIR, filename);
-    fs.writeFileSync(filepath, buffer);
+    fs.writeFileSync(filepath, outBuffer);
     const url = '/uploads/dir/' + filename;
     db.run('INSERT OR REPLACE INTO direction_bg_images (room_name, filename, url) VALUES (?, ?, ?)', [roomName, filename, url]);
     res.json({ url });

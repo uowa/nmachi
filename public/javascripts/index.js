@@ -93,6 +93,23 @@ let _inRoomTransition = false;
 let objMap = {};
 const _directLinkRoom = new URLSearchParams(location.search).get('room');
 
+// 直リンクがユーザー部屋の場合: ページ読み込み直後にHTTPキャッシュを温める
+if (_directLinkRoom) {
+  const _sysRoomSet = new Set(['エントランス', '草原', 'うちゅー', '文字の部屋', '粉の部屋', '星1', 'むげんのいりぐち', 'むげん', '東の部屋', '南の部屋', '西の部屋', '北の部屋']);
+  if (!_sysRoomSet.has(_directLinkRoom)) {
+    (async () => {
+      try {
+        const r = await fetch('/api/rooms/' + encodeURIComponent(_directLinkRoom) + '/images');
+        if (r.ok) { const imgs = await r.json(); imgs.forEach(img => { new Image().src = img.url; }); }
+      } catch (_e) {}
+    })();
+  }
+}
+
+const _dirBgUrlCache = {};
+const _dirBgPreSprites = {};
+const _dirBgPreloadPromises = {}; // ログイン後に開始する部屋ごとのBGプリロードPromise
+
 const gomaneco = {};
 gomaneco.name = "gomaneco";
 
@@ -917,41 +934,110 @@ async function showGateCreateDialog(gateIndex, prevRoom) {
 
 async function loadDirectionGates(roomName) {
   try {
-    const [gatesRes, bgRes] = await Promise.all([
-      fetch('/api/direction/' + encodeURIComponent(roomName) + '/gates'),
-      fetch('/api/direction/' + encodeURIComponent(roomName) + '/bg'),
-    ]);
+    // BGがキャッシュ済みなら即適用、未キャッシュならAPIと並行取得
+    const cachedBg = _dirBgUrlCache[roomName];
+    if (cachedBg !== undefined) {
+      _applyDirectionBg(roomName, cachedBg || null);
+    }
+
+    const fetches = [fetch('/api/direction/' + encodeURIComponent(roomName) + '/gates')];
+    if (cachedBg === undefined) fetches.push(fetch('/api/direction/' + encodeURIComponent(roomName) + '/bg'));
+
+    const [gatesRes, bgRes] = await Promise.all(fetches);
     if (gatesRes.ok) {
       const gates = await gatesRes.json();
       directionGateRooms[roomName] = [null, null, null, null];
       gates.forEach(g => { directionGateRooms[roomName][g.gate_index] = g.room_id; });
       updateDirectionGateTints(roomName);
     }
-    if (bgRes.ok) {
+    if (bgRes && bgRes.ok) {
       const bgData = await bgRes.json();
-      _applyDirectionBg(roomName, bgData.url || null);
+      _dirBgUrlCache[roomName] = bgData.url || '';
+      if (cachedBg === undefined) {
+        _applyDirectionBg(roomName, bgData.url || null);
+      }
     }
   } catch (_e) {}
 }
 
 const _DIR_ROOM_NAMES = new Set(['東の部屋', '南の部屋', '西の部屋', '北の部屋']);
+const _SYSTEM_ROOM_NAMES = new Set(['エントランス', '草原', 'うちゅー', '文字の部屋', '粉の部屋', '星1', 'むげんのいりぐち', 'むげん', '東の部屋', '南の部屋', '西の部屋', '北の部屋']);
+
+// ログイン後に呼ぶ。まだプリロードしていない方角部屋のBGを全て並行ロードして_dirBgPreSpritesを生成する
+function _startDirBgPreloads() {
+  for (const roomName of _DIR_ROOM_NAMES) {
+    if (_dirBgPreloadPromises[roomName]) continue; // 起動済みならスキップ
+    _dirBgPreloadPromises[roomName] = (async () => {
+      try {
+        const r = await fetch('/api/direction/' + encodeURIComponent(roomName) + '/bg');
+        if (!r.ok) { _dirBgUrlCache[roomName] = ''; return; }
+        const d = await r.json();
+        _dirBgUrlCache[roomName] = d.url || '';
+        if (!d.url) return;
+        await new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth || 660;
+              canvas.height = img.naturalHeight || 480;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              const base = PIXI.BaseTexture.from(canvas);
+              const tex = new PIXI.Texture(base);
+              const sp = new PIXI.Sprite(tex);
+              sp.zIndex = 6;
+              sp.eventMode = 'none';
+              sp.width = 660;
+              sp.height = 480;
+              _dirBgPreSprites[roomName] = sp;
+            } catch (_e) {}
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = d.url;
+        });
+      } catch (_e) {}
+    })();
+  }
+}
 
 function _applyDirectionBg(roomName, url) {
   if (!room || room.name !== roomName) return;
   if (room.dirBgSprite) {
     if (room.dirBgSprite.parent) room.dirBgSprite.parent.removeChild(room.dirBgSprite);
-    room.dirBgSprite.destroy();
+    // pre-spriteは使い回すので破棄しない、それ以外は破棄
+    if (room.dirBgSprite !== _dirBgPreSprites[roomName]) room.dirBgSprite.destroy();
     room.dirBgSprite = null;
   }
   if (!url) return;
-  const tex = PIXI.Texture.from(url + '?t=' + Date.now());
-  const sp = new PIXI.Sprite(tex);
-  sp.zIndex = 6;
-  sp.eventMode = 'none';
-  const _setSize = () => { sp.width = 660; sp.height = 480; };
-  if (tex.baseTexture.valid) { _setSize(); } else { tex.baseTexture.once('loaded', _setSize); }
-  room.dirBgSprite = sp;
-  room.container.addChild(sp);
+  // ログイン前に生成済みのスプライトがあれば即addChild（同期・RAFなし）
+  const pre = _dirBgPreSprites[roomName];
+  if (pre && !pre.destroyed) {
+    room.dirBgSprite = pre;
+    room.container.addChild(pre);
+    return;
+  }
+  // フォールバック: canvas経由で非同期ロード（アップロード直後等）
+  const img = new Image();
+  img.onload = () => {
+    if (!room || room.name !== roomName) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 660;
+      canvas.height = img.naturalHeight || 480;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      const base = PIXI.BaseTexture.from(canvas);
+      const tex = new PIXI.Texture(base);
+      const sp = new PIXI.Sprite(tex);
+      sp.zIndex = 6;
+      sp.eventMode = 'none';
+      sp.width = 660;
+      sp.height = 480;
+      room.dirBgSprite = sp;
+      room.container.addChild(sp);
+    } catch (_e) {}
+  };
+  img.src = url;
 }
 
 function updateDirectionGateTints(roomName) {
@@ -1495,9 +1581,10 @@ function parseColorCode(colorString) {
   return false;
 }
 
-PIXI.Assets.load(['img/allgraphics.png', 'img/roomAtlas.png', 'img/objectAtlas.png', 'img/objects/GATE.png']).then((assets) => {
+(async () => {
+  const assets = await PIXI.Assets.load(['img/allgraphics.png', 'img/roomAtlas.png', 'img/objectAtlas.png', 'img/objects/GATE.png']);
   setUp(assets);
-});
+})();
 // #endregion
 
 async function setUp(assets) {//画像読み込み後の処理はここに書いていく
@@ -1527,7 +1614,6 @@ async function setUp(assets) {//画像読み込み後の処理はここに書い
     setUpFlag[0] = true;
   } catch (err) {
     console.error('初期データ取得失敗:', err);
-    // エラー時もゲーム続行
     socket.emit("getMyUser", {});
     setUpFlag[0] = true;
   }
@@ -5022,7 +5108,7 @@ socket.on("userInit", data => {//Tokenを受け取ったら
 });
 
 //ログイン時の処理
-function login() {
+async function login() {
   tickerListeners.forEach(fn => app.ticker.remove(fn));
   tickerListeners.length = 0;
   //もしカメラやマイクをonにしてたら切る
@@ -5032,6 +5118,9 @@ function login() {
   if (audioStatus) {
     stopAudio();
   }
+
+  // 方角部屋BGをログイン後すぐにバックグラウンドでプリロード開始
+  _startDirBgPreloads();
 
   if (setUpFlag[0] && setUpFlag[1]) {
     avaP[myToken].name = nameForm.userName.value;
@@ -5057,13 +5146,52 @@ function login() {
 
     if (room.container.parent) app.stage.removeChild(room.container);//移動前の部屋を消す
     _inRoomTransition = true; // joineRoom応答前にlogin座標(330,200)がtransformDataで送信されるのを防ぐ
-    // 直リンクのシステム部屋へ直接入室（エントランス経由スキップ）
-    const _dlLoginSysSprites = { 'エントランス': entranceImg, '草原': entrance, 'うちゅー': outerSpace, '文字の部屋': konaNoHeya, '粉の部屋': konaPowderRoom, '星1': star1, 'むげんのいりぐち': mugenIriguchi, 'むげん': mugenRoom };
-    const _dlLoginSysSpots = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
-    const _loginRoomName = (_directLinkRoom && _dlLoginSysSprites[_directLinkRoom]) ? _directLinkRoom : 'エントランス';
-    room = Room.getOrCreateRoom(_dlLoginSysSprites[_loginRoomName], _loginRoomName, ["standable"]);
-    if (room._konaContainer) _konaContainer = room._konaContainer;
+    // 直リンクのシステム部屋・ユーザー部屋へ直接入室（エントランス経由スキップ）
+    const _dlLoginSysSprites = { 'エントランス': entranceImg, '草原': entrance, 'うちゅー': outerSpace, '文字の部屋': konaNoHeya, '粉の部屋': konaPowderRoom, '星1': star1, 'むげんのいりぐち': mugenIriguchi, 'むげん': mugenRoom, '東の部屋': dirRoomEast, '南の部屋': dirRoomSouth, '西の部屋': dirRoomWest, '北の部屋': dirRoomNorth };
+    const _dlLoginSysSpots = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot', '東の部屋': '東の部屋Spot', '南の部屋': '南の部屋Spot', '西の部屋': '西の部屋Spot', '北の部屋': '北の部屋Spot' };
+    let _loginRoomName, _loginToSpot;
+    if (_directLinkRoom && _dlLoginSysSprites[_directLinkRoom]) {
+      // 既知のシステム部屋
+      _loginRoomName = _directLinkRoom;
+      _loginToSpot = _dlLoginSysSpots[_directLinkRoom];
+      room = Room.getOrCreateRoom(_dlLoginSysSprites[_loginRoomName], _loginRoomName, ["standable"]);
+      if (room._konaContainer) _konaContainer = room._konaContainer;
+    } else if (_directLinkRoom) {
+      // ユーザー部屋への直リンク: 直接その部屋を生成してログイン
+      _loginRoomName = _directLinkRoom;
+      _loginToSpot = undefined;
+      if (!(objMap[_directLinkRoom] instanceof Room)) {
+        const bg = new PIXI.Graphics();
+        bg.beginFill(parseColorCode(localStorage.getItem('colorCode')) || 0xffffff);
+        bg.drawRect(0, 0, 660, 460);
+        bg.endFill();
+        const floorGfx = new PIXI.Graphics();
+        floorGfx.beginFill(0x223344, 0.01);
+        floorGfx.drawRect(0, 200, 660, 260);
+        floorGfx.endFill();
+        floorGfx.hitArea = new PIXI.Polygon([0, 200, 660, 200, 660, 460, 0, 460]);
+        const floorObj = { container: floorGfx, tags: ['standable'], name: _directLinkRoom + '_floor' };
+        objMap[_directLinkRoom + '_floor'] = floorObj;
+        const _r = new Room(bg, _directLinkRoom, []);
+        _r.container.addChild(floorGfx);
+        _r.roomPolygons.push(floorObj);
+        objMap[_directLinkRoom] = _r;
+      }
+      _inUserRoom = true;
+      room = objMap[_directLinkRoom];
+    } else {
+      _loginRoomName = 'エントランス';
+      _loginToSpot = 'entranceMainSpot';
+      room = Room.getOrCreateRoom(entranceImg, 'エントランス', ["standable"]);
+    }
+    // 方角部屋への直リンク時はBGプリロードを待ってから表示（フラッシュ防止）
+    if (_DIR_ROOM_NAMES.has(_loginRoomName)) {
+      await (_dirBgPreloadPromises[_loginRoomName] || Promise.resolve());
+    }
     room.displayRoom();
+    if (_DIR_ROOM_NAMES.has(room.name) && _dirBgUrlCache[room.name] !== undefined) {
+      _applyDirectionBg(room.name, _dirBgUrlCache[room.name] || null);
+    }
 
     socket.emit("joineRoom", {
       userName: avaP[myToken].name,
@@ -5072,7 +5200,7 @@ function login() {
       avatarAlpha: avaP[myToken].avatarAlpha,
       drawHistory: avaP[myToken].drawHistory || [],
       toRoom: _loginRoomName,
-      toSpot: _dlLoginSysSpots[_loginRoomName],
+      toSpot: _loginToSpot,
       bubbleOffsetX: avaP[myToken].msg._offsetX,
       bubbleOffsetY: avaP[myToken].msg._offsetY,
     });
@@ -5119,7 +5247,7 @@ function login() {
 
 //自分自身の部屋移動
 //不要な情報を消し、サーバーに移動することを伝える。
-function goSelfToRoomSpot(toSpot, train) {
+async function goSelfToRoomSpot(toSpot, train) {
   _inRoomTransition = true;
   //配信関係の接続を切る
   stopAllConnection();
@@ -5129,7 +5257,7 @@ function goSelfToRoomSpot(toSpot, train) {
   if (audioStatus) {
     stopAudio();
   }
-  if (room.container.parent) app.stage.removeChild(room.container);//移動前の部屋を消す
+  const _prevRoomContainer = room.container; // 旧部屋コンテナ（awaitの後で削除）
   removeAllSigns();
 
   // 既存の雲システムを停止
@@ -5225,10 +5353,22 @@ function goSelfToRoomSpot(toSpot, train) {
       break;
   }
   if (!room) { _inUserRoom = false; room = Room.getOrCreateRoom(entranceImg, "エントランス", ["standable"]); }
+
+  // 方角部屋はBGが揃ってから表示（ほぼ既に完了済みなのでawaitはゼロ待ち）
+  // awaitの後で旧部屋削除→新部屋表示することでブランクフレームを防ぐ
+  if (_DIR_ROOM_NAMES.has(room.name)) {
+    await (_dirBgPreloadPromises[room.name] || Promise.resolve());
+  }
+  if (_prevRoomContainer && _prevRoomContainer.parent) app.stage.removeChild(_prevRoomContainer);
+
   try {
     room.displayRoom();
   } catch (err) {
     console.error("[goSelfToRoomSpot] displayRoom crash:", err);
+  }
+
+  if (_DIR_ROOM_NAMES.has(room.name) && _dirBgUrlCache[room.name] !== undefined) {
+    _applyDirectionBg(room.name, _dirBgUrlCache[room.name] || null);
   }
 
   socket.emit("joineRoom", {
@@ -5725,12 +5865,19 @@ socket.on("joineRoom", data => {
   // DBワープゾーン・画像・カスタムコードを取得して描画
   if (data.toRoom !== "loginRoom") {
     _applyRoomBgColor(data.background_color || null);
-    loadDbWarpZones(data.toRoom);
-    loadDbImages(data.toRoom);
-    loadDbScaleZones(data.toRoom);
-    runCustomCode(data.toRoom);
+    if (!_SYSTEM_ROOM_NAMES.has(data.toRoom)) {
+      loadDbWarpZones(data.toRoom);
+      loadDbImages(data.toRoom);
+      loadDbScaleZones(data.toRoom);
+      runCustomCode(data.toRoom);
+    } else {
+      clearWarpZones();
+      clearDbImages();
+      clearScaleZones();
+      clearCustomCode();
+    }
     if (data.toRoom === "むげん") loadMugenGates();
-    if (['東の部屋', '南の部屋', '西の部屋', '北の部屋'].includes(data.toRoom)) loadDirectionGates(data.toRoom);
+    if (_DIR_ROOM_NAMES.has(data.toRoom)) loadDirectionGates(data.toRoom);
   } else {
     clearCustomCode();
   }
@@ -5740,9 +5887,9 @@ socket.on("joineRoom", data => {
     setTimeout(() => _openRoomEditPanelDirect(data.toRoom, ''), 300);
   }
 
-  // 直リンクでまだターゲット部屋に到達していない場合のみリダイレクト（ユーザー部屋 or 方角部屋など）
+  // 直リンクでまだターゲット部屋に到達していない場合のみリダイレクト（フォールバック）
   if (_directLinkRoom && data.fromRoom === "loginRoom" && data.toRoom !== _directLinkRoom) {
-    const _dlSysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot' };
+    const _dlSysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot', '東の部屋': '東の部屋Spot', '南の部屋': '南の部屋Spot', '西の部屋': '西の部屋Spot', '北の部屋': '北の部屋Spot' };
     goSelfToRoomSpot(_dlSysSpot[_directLinkRoom] || ('userRoom:' + _directLinkRoom));
   }
 
@@ -11121,7 +11268,11 @@ document.getElementById('dirBgFileInput').addEventListener('change', async funct
       });
       if (!res.ok) return;
       const data = await res.json();
-      _applyDirectionBg(room.name, data.url);
+      delete _dirBgPreSprites[room.name];
+      delete _dirBgPreloadPromises[room.name];
+      _dirBgUrlCache[room.name] = data.url;
+      _startDirBgPreloads(); // 更新した部屋のBGを即プリロード再開
+      _applyDirectionBg(room.name, data.url + '?t=' + Date.now());
       socket.emit('dirBgUpdate', { roomName: room.name, url: data.url });
     } catch (_e) {}
   };
@@ -11242,7 +11393,19 @@ document.getElementById("signDeleteConfirm").addEventListener('pointerdown', () 
 
 // サーバーからの看板作成
 socket.on('dirBgUpdate', data => {
-  _applyDirectionBg(data.roomName, data.url || null);
+  if (data.url) {
+    delete _dirBgPreSprites[data.roomName];
+    delete _dirBgPreloadPromises[data.roomName];
+    _dirBgUrlCache[data.roomName] = data.url;
+    _startDirBgPreloads();
+    _applyDirectionBg(data.roomName, data.url + '?t=' + Date.now());
+  } else {
+    delete _dirBgPreSprites[data.roomName];
+    delete _dirBgPreloadPromises[data.roomName];
+    _dirBgUrlCache[data.roomName] = '';
+    _startDirBgPreloads();
+    _applyDirectionBg(data.roomName, null);
+  }
 });
 
 socket.on("createSign", data => {
