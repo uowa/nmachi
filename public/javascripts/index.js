@@ -10219,10 +10219,13 @@ async function refreshImgList() {
       wrap.appendChild(inp);
       return wrap;
     };
-    right.appendChild(mkNumInput('X:', 'x', img.x));
-    right.appendChild(mkNumInput('Y:', 'y', img.y));
-    right.appendChild(mkNumInput('W:', 'width', img.width));
-    right.appendChild(mkNumInput('H:', 'height', img.height));
+    const numRow = document.createElement('div');
+    numRow.style.cssText = 'width:100%;display:flex;align-items:center;gap:4px;margin-top:2px;';
+    numRow.appendChild(mkNumInput('X:', 'x', img.x));
+    numRow.appendChild(mkNumInput('Y:', 'y', img.y));
+    numRow.appendChild(mkNumInput('W:', 'width', img.width));
+    numRow.appendChild(mkNumInput('H:', 'height', img.height));
+    right.appendChild(numRow);
 
     const warpBtn = document.createElement('button');
     warpBtn.textContent = img.is_warp ? 'ワープON' : 'ワープ';
