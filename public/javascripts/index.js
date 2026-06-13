@@ -10689,6 +10689,10 @@ socket.on("train", data => {
         case "星1":            goSelfToRoomSpot("star1EntrySpot", "train"); break;
         case "むげんのいりぐち": goSelfToRoomSpot("mugenEntrySpot", "train"); break;
         case "むげん":         goSelfToRoomSpot("mugenMainSpot", "train"); break;
+        case "東の部屋":       goSelfToRoomSpot("東の部屋Spot", "train"); break;
+        case "南の部屋":       goSelfToRoomSpot("南の部屋Spot", "train"); break;
+        case "西の部屋":       goSelfToRoomSpot("西の部屋Spot", "train"); break;
+        case "北の部屋":       goSelfToRoomSpot("北の部屋Spot", "train"); break;
       }
     });
     li.appendChild(btn);
