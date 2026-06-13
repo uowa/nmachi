@@ -598,6 +598,7 @@ function drawWarpZones() {
       sprite.width = sz; sprite.height = sz;
       if (sprite.x + sz > 660) sprite.x = 660 - sz;
       if (sprite.y + sz > 460) sprite.y = 460 - sz;
+      wz.x = sprite.x; wz.y = sprite.y; wz.width = sz; wz.height = sz;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
     else { sprite.texture.baseTexture.once('loaded', _setSize); }
