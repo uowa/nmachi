@@ -589,9 +589,8 @@ function drawWarpZones() {
     sprite.x = wz.x ?? 0;
     sprite.y = wz.y ?? 0;
     const _setSize = () => {
-      const natW = sprite.texture.width, natH = sprite.texture.height;
-      const w = (wz.width && wz.width > 30) ? wz.width : natW;
-      const h = (wz.height && wz.height > 30) ? wz.height : ((wz.height ?? wz.width) > 30 ? (wz.height ?? wz.width) : natH);
+      const w = (wz.width && wz.width > 30) ? wz.width : 60;
+      const h = (wz.height && wz.height > 30) ? wz.height : 60;
       sprite.width = w; sprite.height = h;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
