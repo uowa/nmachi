@@ -10293,7 +10293,27 @@ async function refreshImgList() {
     numRow.appendChild(mkNumInput('Y:', 'y', img.y));
     numRow.appendChild(mkNumInput('W:', 'width', img.width));
     numRow.appendChild(mkNumInput('H:', 'height', img.height));
-    right.appendChild(numRow);
+
+    const mkArrowBtn = (label, move) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = 'background:#222;color:#aaa;border:1px solid #444;cursor:pointer;padding:1px 5px;font-size:12px;line-height:1;';
+      btn.addEventListener('click', () => {
+        const listEl = row.parentElement;
+        if (!listEl) return;
+        if (move === -1) {
+          const prev = row.previousElementSibling;
+          if (prev) listEl.insertBefore(row, prev);
+        } else {
+          const next = row.nextElementSibling;
+          if (next) listEl.insertBefore(next, row);
+        }
+        _saveListOrder(listEl);
+      });
+      return btn;
+    };
+    numRow.appendChild(mkArrowBtn('↑', -1));
+    numRow.appendChild(mkArrowBtn('↓', 1));
 
     const delBtn = document.createElement('button');
     delBtn.textContent = '×';
@@ -10308,7 +10328,8 @@ async function refreshImgList() {
       await loadDbImages(imgEditRoomId);
       if (_imgTabIsActive()) _enableImgEditMode();
     });
-    right.appendChild(delBtn);
+    numRow.appendChild(delBtn);
+    right.appendChild(numRow);
     row.appendChild(right);
 
     _getList(img.type).appendChild(row);
