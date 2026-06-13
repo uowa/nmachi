@@ -208,21 +208,21 @@
                     </div>
                     <!-- 部屋ID（非表示・JS参照用） -->
                     <div style="display:none;"><span id="roomEditRoomIdDisplay"></span></div>
-                    <!-- パスワード行 -->
-                    <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
-                      <span style="font-size:11px;color:#aaa;white-space:nowrap;">パスワード</span>
-                      <div style="position:relative;flex:1;min-width:0;">
-                        <input type="password" id="roomEditPw" placeholder="未設定の場合、誰でも編集できます" style="width:100%;background:#111;border:1px solid #555;color:#fff;padding:4px 28px 4px 4px;font-size:11px;box-sizing:border-box;" class="placeholder-gray">
-                        <button id="roomEditPwToggle" type="button" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;line-height:1;padding:0;">👁</button>
-                      </div>
-                    </div>
                     <div id="roomEditErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
                     <div id="roomEditMain" style="display:none;">
                       <!-- 部屋名編集 -->
-                      <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
+                      <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
                         <span style="font-size:11px;color:#aaa;white-space:nowrap;">部屋名:</span>
                         <input id="roomNameEditInput" type="text" maxlength="30" style="flex:1;background:#111;border:1px solid #4a90d9;color:#fff;padding:3px;font-size:11px;min-width:0;">
                         <button id="roomNameSaveBtn" style="font-size:11px;padding:2px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">保存</button>
+                      </div>
+                      <!-- パスワード行 -->
+                      <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:11px;color:#aaa;white-space:nowrap;">パスワード</span>
+                        <div style="position:relative;flex:1;min-width:0;">
+                          <input type="password" id="roomEditPw" placeholder="未設定の場合、誰でも編集できます" style="width:100%;background:#111;border:1px solid #555;color:#fff;padding:4px 28px 4px 4px;font-size:11px;box-sizing:border-box;" class="placeholder-gray">
+                          <button id="roomEditPwToggle" type="button" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;line-height:1;padding:0;">👁</button>
+                        </div>
                       </div>
                       <!-- タブ（3タブ構成） -->
                       <div style="display:flex;gap:2px;border-bottom:1px solid #4a90d9;margin-bottom:0;">
