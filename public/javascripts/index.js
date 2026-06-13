@@ -10259,7 +10259,7 @@ async function refreshImgList() {
     const fname = document.createElement('span');
     fname.textContent = displayName;
     fname.title = 'クリックで差し替え';
-    fname.style.cssText = 'font-size:11px;color:#4af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;cursor:pointer;text-decoration:underline;';
+    fname.style.cssText = 'font-size:11px;color:#4af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;cursor:pointer;text-decoration:underline;';
     fname.addEventListener('click', () => { _replaceImgData = img; document.getElementById('imgReplaceInput').click(); });
     right.appendChild(fname);
 
