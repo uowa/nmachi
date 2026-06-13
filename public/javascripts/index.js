@@ -445,6 +445,10 @@ let _prevRoomSpot = '';
 const _hiddenWarpIds = new Set();
 let dbScaleZones = [];
 let _scaleZoneGfx = null;
+let _scaleZoneGraphics = [];
+const _scaleZoneEditOverlays = [];
+let _scaleZoneDragging = null;
+let _scaleZoneDragMode = false;
 let _roomAvatarScale = 1.0;
 let _scaleZonePlaceMode = false;
 let _scaleZonePlaceStart = null;
@@ -603,15 +607,14 @@ function drawWarpZones() {
       if (_inRoomTransition) return;
       if (document.getElementById('roomEditPanel').style.display !== 'none') return;
       if (e.button !== undefined && e.button !== 0) return;
-      e.stopPropagation();
       if (wz.warp_type === 'back') {
+        e.stopPropagation();
         goSelfToRoomSpot(_prevRoomSpot || 'entranceMainSpot');
       } else if (wz.target_room_id) {
+        e.stopPropagation();
         const sysSpot = { 'エントランス': 'entranceMainSpot', '草原': 'entranceCloud1', 'うちゅー': 'outerSpaceMainSpot', '星1': 'star1EntrySpot', '文字の部屋': '文字の部屋EntrySpot', '粉の部屋': '粉の部屋EntrySpot', 'むげんのいりぐち': 'mugenEntrySpot', 'むげん': 'mugenMainSpot', '東の部屋': '東の部屋Spot', '南の部屋': '南の部屋Spot', '西の部屋': '西の部屋Spot', '北の部屋': '北の部屋Spot' };
         _prevRoomSpot = _roomToSpot(room.name);
         goSelfToRoomSpot(sysSpot[wz.target_room_id] || ('userRoom:' + wz.target_room_id));
-      } else {
-        _warpPortalCreateRoom();
       }
     });
     room.container.addChild(sprite);
@@ -10297,6 +10300,7 @@ async function refreshImgList() {
     const mkArrowBtn = (label, move) => {
       const btn = document.createElement('button');
       btn.textContent = label;
+      btn.className = 'img-arrow-btn';
       btn.style.cssText = 'background:#222;color:#aaa;border:1px solid #444;cursor:pointer;padding:1px 5px;font-size:12px;line-height:1;';
       btn.addEventListener('click', () => {
         const listEl = row.parentElement;
@@ -10333,6 +10337,13 @@ async function refreshImgList() {
     row.appendChild(right);
 
     _getList(img.type).appendChild(row);
+  });
+
+  ['imgListBackground', 'imgListPlatform', 'imgListObject', 'imgList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.children.length === 1) {
+      el.querySelectorAll('.img-arrow-btn').forEach(b => { b.style.display = 'none'; });
+    }
   });
 }
 
