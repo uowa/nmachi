@@ -5185,6 +5185,7 @@ async function login() {
         floorGfx.drawRect(0, 200, 660, 260);
         floorGfx.endFill();
         floorGfx.hitArea = new PIXI.Polygon([0, 200, 660, 200, 660, 460, 0, 460]);
+        floorGfx.eventMode = 'none';
         const floorObj = { container: floorGfx, tags: ['standable'], name: _directLinkRoom + '_floor' };
         objMap[_directLinkRoom + '_floor'] = floorObj;
         const _r = new Room(bg, _directLinkRoom, []);
@@ -5450,15 +5451,34 @@ function _enableWarpEditMode() {
     _warpEditOverlays.push(ov);
     _redrawWarpEditOverlay(ov);
     const ovIdx = _warpEditOverlays.length - 1;
+    hitGfx.on('pointermove', e => {
+      if (_warpDragging) return;
+      const p = room.container.toLocal(e.global);
+      const hs = 12, edge = 8;
+      const h = wz.height ?? wz.width;
+      if (p.x >= wz.x + wz.width - hs && p.y >= wz.y + h - hs) { hitGfx.cursor = 'se-resize'; return; }
+      if (p.x < wz.x + edge || p.x > wz.x + wz.width - edge) { hitGfx.cursor = 'ew-resize'; return; }
+      if (p.y < wz.y + edge || p.y > wz.y + h - edge) { hitGfx.cursor = 'ns-resize'; return; }
+      hitGfx.cursor = 'grab';
+    });
     hitGfx.on('pointerdown', e => {
       if (!_warpDragMode || _warpDragging) return;
       const p = room.container.toLocal(e.global);
-      const hs = 12;
+      const hs = 12, edge = 8;
       const h = wz.height ?? wz.width;
       if (p.x >= wz.x + wz.width - hs && p.y >= wz.y + h - hs) return;
       e.stopPropagation();
-      _warpDragging = { idx: ovIdx, type: 'move', startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
-      hitGfx.cursor = 'grabbing';
+      const near_left = p.x < wz.x + edge;
+      const near_right = p.x > wz.x + wz.width - edge;
+      const near_top = p.y < wz.y + edge;
+      const near_bottom = p.y > wz.y + h - edge;
+      let type = 'move';
+      if (near_left) type = 'resize_left';
+      else if (near_right) type = 'resize_right';
+      else if (near_top) type = 'resize_top';
+      else if (near_bottom) type = 'resize_bottom';
+      _warpDragging = { idx: ovIdx, type, startX: p.x, startY: p.y, origX: wz.x, origY: wz.y, origW: wz.width, origH: h };
+      if (type === 'move') hitGfx.cursor = 'grabbing';
     });
     handleGfx.on('pointerdown', e => {
       if (!_warpDragMode || _warpDragging) return;
@@ -5496,12 +5516,25 @@ function _onWarpDragMove(e) {
   if (!ov) return;
   const p = room.container.toLocal(e.global);
   const dx = p.x - _warpDragging.startX, dy = p.y - _warpDragging.startY;
+  const wz = ov.warpData;
   if (_warpDragging.type === 'move') {
-    ov.warpData.x = _warpDragging.origX + dx;
-    ov.warpData.y = _warpDragging.origY + dy;
-  } else {
-    ov.warpData.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
-    ov.warpData.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+    wz.x = _warpDragging.origX + dx;
+    wz.y = _warpDragging.origY + dy;
+  } else if (_warpDragging.type === 'resize') {
+    wz.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
+    wz.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+  } else if (_warpDragging.type === 'resize_right') {
+    wz.width = Math.min(250, Math.max(5, _warpDragging.origW + dx));
+  } else if (_warpDragging.type === 'resize_bottom') {
+    wz.height = Math.min(250, Math.max(5, _warpDragging.origH + dy));
+  } else if (_warpDragging.type === 'resize_left') {
+    const newW = Math.min(250, Math.max(5, _warpDragging.origW - dx));
+    wz.x = _warpDragging.origX + (_warpDragging.origW - newW);
+    wz.width = newW;
+  } else if (_warpDragging.type === 'resize_top') {
+    const newH = Math.min(250, Math.max(5, _warpDragging.origH - dy));
+    wz.y = _warpDragging.origY + (_warpDragging.origH - newH);
+    wz.height = newH;
   }
   _redrawWarpEditOverlay(ov);
   drawWarpZones();
@@ -5655,7 +5688,7 @@ function updateWarpList() {
     // 情報テキスト
     const info = document.createElement('span');
     info.style.cssText = 'color:' + (isBack ? '#88ff44' : '#aaa') + ';flex:1;min-width:60px;';
-    info.textContent = (isBack ? '↩リターンゲート ' : '') + `(${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
+    info.textContent = (isBack ? '↩いりぐち ' : '→でぐち ') + `(${Math.round(wz.x)},${Math.round(wz.y)}) ${Math.round(wz.width)}×${Math.round(wz.height ?? wz.width)}`;
     row.appendChild(info);
 
     // 削除ボタン（back ワープは無効）※最後に配置
@@ -9456,14 +9489,7 @@ document.getElementById('roomNameSaveBtn').addEventListener('click', () => _save
 // ワープ光るアニメーション
 let _warpGlowTicker = null;
 function startWarpGlow() {
-  if (_warpGlowTicker) return;
-  let t = 0;
-  _warpGlowTicker = app.ticker.add(() => {
-    t += 0.05;
-    const alpha = 0.15 + Math.abs(Math.sin(t)) * 0.5;
-    if (!warpZoneGfx) return;
-    warpZoneGfx.alpha = alpha;
-  });
+  return;
 }
 function stopWarpGlow() {
   if (_warpGlowTicker) { app.ticker.remove(_warpGlowTicker); _warpGlowTicker = null; }
@@ -9678,15 +9704,41 @@ document.getElementById('imgFileInput').addEventListener('change', async () => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async e => {
+    const type = document.getElementById('imgType').value;
+    let initW = null, initH = null, initX = null, initY = null;
+    if (type === 'platform' || type === 'object') {
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, 660 / img.naturalWidth, 460 / img.naturalHeight);
+          initW = Math.round(img.naturalWidth * scale);
+          initH = Math.round(img.naturalHeight * scale);
+          initX = Math.round((660 - initW) / 2);
+          initY = Math.round((460 - initH) / 2);
+          resolve();
+        };
+        img.src = e.target.result;
+      });
+    }
     const res = await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
-      body: JSON.stringify({ type: document.getElementById('imgType').value, imageBase64: e.target.result, filename: file.name }),
+      body: JSON.stringify({ type, imageBase64: e.target.result, filename: file.name }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(err.error || 'アップロード失敗');
       return;
+    }
+    if (initW !== null) {
+      const data = await res.json();
+      if (data.id) {
+        await fetch('/api/rooms/' + encodeURIComponent(imgEditRoomId) + '/images/' + data.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Edit-Password': imgEditPassword },
+          body: JSON.stringify({ x: initX, y: initY, width: initW, height: initH }),
+        });
+      }
     }
     await refreshImgList();
     _disableImgEditMode();
@@ -10023,20 +10075,39 @@ function _enableImgEditMode() {
     _imgOverlays.push(ov);
     _redrawImgOverlay(ov);
     sprite.eventMode = 'static'; sprite.cursor = 'grab';
+    sprite.on('pointermove', e => {
+      if (_imgDragging) return;
+      const p = room.container.toLocal(e.global);
+      const hs = 12, edge = 8;
+      if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) { sprite.cursor = 'se-resize'; return; }
+      if (p.x < sprite.x + edge || p.x > sprite.x + sprite.width - edge) { sprite.cursor = 'ew-resize'; return; }
+      if (p.y < sprite.y + edge || p.y > sprite.y + sprite.height - edge) { sprite.cursor = 'ns-resize'; return; }
+      sprite.cursor = 'grab';
+    });
     sprite.on('pointerdown', e => {
       if (!_imgDragMode || _imgDragging) return;
       const p = room.container.toLocal(e.global);
-      const hs = 12;
+      const hs = 12, edge = 8;
       if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
       e.stopPropagation();
-      _imgDragging = { idx, type: 'move', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
-      sprite.cursor = 'grabbing';
+      const near_left = p.x < sprite.x + edge;
+      const near_right = p.x > sprite.x + sprite.width - edge;
+      const near_top = p.y < sprite.y + edge;
+      const near_bottom = p.y > sprite.y + sprite.height - edge;
+      let type = 'move';
+      if (near_left) type = 'resize_left';
+      else if (near_right) type = 'resize_right';
+      else if (near_top) type = 'resize_top';
+      else if (near_bottom) type = 'resize_bottom';
+      _imgDragging = { idx, type, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      if (type === 'move') sprite.cursor = 'grabbing';
     });
     handleGfx.on('pointerdown', e => {
       if (!_imgDragMode || _imgDragging) return;
       e.stopPropagation();
       const p = room.container.toLocal(e.global);
-      _imgDragging = { idx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      const ratio = sprite.width / sprite.height;
+      _imgDragging = { idx, type: 'resize_corner', ratio, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
     });
   });
   app.stage.on('pointermove', _onImgDragMove);
@@ -10056,6 +10127,7 @@ function _disableImgEditMode() {
     if (ov.handleGfx.parent) ov.handleGfx.parent.removeChild(ov.handleGfx);
     ov.borderGfx.destroy(); ov.handleGfx.destroy();
     ov.sprite.removeAllListeners('pointerdown');
+    ov.sprite.removeAllListeners('pointermove');
     ov.sprite.eventMode = 'none'; ov.sprite.cursor = 'default';
   });
   _imgOverlays.length = 0;
@@ -10067,12 +10139,26 @@ function _onImgDragMove(e) {
   if (!ov) return;
   const p = room.container.toLocal(e.global);
   const dx = p.x - _imgDragging.startX, dy = p.y - _imgDragging.startY;
+  const s = ov.sprite;
   if (_imgDragging.type === 'move') {
-    ov.sprite.x = _imgDragging.origX + dx;
-    ov.sprite.y = _imgDragging.origY + dy;
-  } else {
-    ov.sprite.width = Math.max(20, _imgDragging.origW + dx);
-    ov.sprite.height = Math.max(20, _imgDragging.origH + dy);
+    s.x = _imgDragging.origX + dx;
+    s.y = _imgDragging.origY + dy;
+  } else if (_imgDragging.type === 'resize_corner') {
+    const scale = Math.max(0.05, (_imgDragging.origW + dx) / _imgDragging.origW);
+    s.width = Math.max(20, _imgDragging.origW * scale);
+    s.height = Math.max(20, s.width / _imgDragging.ratio);
+  } else if (_imgDragging.type === 'resize_right') {
+    s.width = Math.max(20, _imgDragging.origW + dx);
+  } else if (_imgDragging.type === 'resize_bottom') {
+    s.height = Math.max(20, _imgDragging.origH + dy);
+  } else if (_imgDragging.type === 'resize_left') {
+    const newW = Math.max(20, _imgDragging.origW - dx);
+    s.x = _imgDragging.origX + (_imgDragging.origW - newW);
+    s.width = newW;
+  } else if (_imgDragging.type === 'resize_top') {
+    const newH = Math.max(20, _imgDragging.origH - dy);
+    s.y = _imgDragging.origY + (_imgDragging.origH - newH);
+    s.height = newH;
   }
   _redrawImgOverlay(ov);
 }
