@@ -45,13 +45,14 @@ router.post('/:roomName/gates/:index', (req, res) => {
         db.run('DELETE FROM direction_gates WHERE parent_room_name = ? AND gate_index = ?', [roomName, gateIndex]);
     }
 
-    const { creatorToken } = req.body;
+    const { creatorToken, name } = req.body;
+    const newRoomName = (name || '').trim();
     const lifetimeHours = DIRECTION_LIFETIMES[roomName];
     const id = crypto.randomUUID();
 
     db.run(
         'INSERT INTO rooms (id, name, creator_token, lifetime_hours) VALUES (?, ?, ?, ?)',
-        [id, '', creatorToken || null, lifetimeHours]
+        [id, newRoomName, creatorToken || null, lifetimeHours]
     );
 
     const ROOM_W = 660, ROOM_H = 460, WARP_SZ = 30;

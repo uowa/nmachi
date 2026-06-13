@@ -1052,7 +1052,8 @@ function onDirectionGateClick(roomName, gateIndex) {
 }
 
 async function showDirectionGateCreateDialog(roomName, gateIndex) {
-  if (!await _showCreateRoomConfirm()) return;
+  const newRoomName = await _showCreateRoomConfirm();
+  if (newRoomName === null) return;
   _newRoomGateIndex = gateIndex;
   _newRoomParentDirection = roomName;
   _prevRoomName = roomName;
@@ -1060,7 +1061,7 @@ async function showDirectionGateCreateDialog(roomName, gateIndex) {
     const res = await fetch('/api/direction/' + encodeURIComponent(roomName) + '/gates/' + gateIndex, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creatorToken: myToken })
+      body: JSON.stringify({ creatorToken: myToken, name: newRoomName })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1078,7 +1079,7 @@ async function showDirectionGateCreateDialog(roomName, gateIndex) {
     }
     _isNewRoomMode = true;
     _pendingOpenEditPanel = true;
-    _pendingRoomName = '';
+    _pendingRoomName = newRoomName;
     if (!directionGateRooms[roomName]) directionGateRooms[roomName] = [null, null, null, null];
     directionGateRooms[roomName][gateIndex] = data.id;
     updateDirectionGateTints(roomName);
@@ -1096,11 +1097,14 @@ function _roomToSpot(roomName) {
 
 let _createRoomConfirmPending = false;
 function _showCreateRoomConfirm() {
-  if (_createRoomConfirmPending) return Promise.resolve(false);
+  if (_createRoomConfirmPending) return Promise.resolve(null);
   _createRoomConfirmPending = true;
   return new Promise(resolve => {
     const modal = document.getElementById('createRoomConfirmModal');
+    const input = document.getElementById('createRoomNameInput');
+    input.value = '';
     modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
     const yes = document.getElementById('createRoomConfirmYes');
     const no = document.getElementById('createRoomConfirmNo');
     const cleanup = (result) => {
@@ -1108,29 +1112,40 @@ function _showCreateRoomConfirm() {
       modal.style.display = 'none';
       yes.removeEventListener('click', onYes);
       no.removeEventListener('click', onNo);
+      input.removeEventListener('keydown', onKey);
       resolve(result);
     };
-    const onYes = () => cleanup(true);
-    const onNo = () => cleanup(false);
+    const onYes = () => {
+      const name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      cleanup(name);
+    };
+    const onNo = () => cleanup(null);
+    const onKey = e => {
+      if (e.key === 'Enter') onYes();
+      else if (e.key === 'Escape') onNo();
+    };
     yes.addEventListener('click', onYes);
     no.addEventListener('click', onNo);
+    input.addEventListener('keydown', onKey);
   });
 }
 
 async function _warpPortalCreateRoom() {
   if (document.getElementById('roomEditPanel').style.display !== 'none') return;
-  if (!await _showCreateRoomConfirm()) return;
+  const roomName = await _showCreateRoomConfirm();
+  if (roomName === null) return;
   try {
     const res = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: '', creatorToken: myToken }),
+      body: JSON.stringify({ name: roomName, creatorToken: myToken }),
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error || '部屋の作成に失敗しました'); return; }
     _isNewRoomMode = true;
     _pendingOpenEditPanel = true;
-    _pendingRoomName = '';
+    _pendingRoomName = roomName;
     _prevRoomSpot = _roomToSpot(room.name);
     goSelfToRoomSpot('userRoom:' + data.id);
   } catch (_e) {
@@ -5356,6 +5371,7 @@ async function goSelfToRoomSpot(toSpot, train) {
             floorGfx.drawRect(0, 200, 660, 260);
             floorGfx.endFill();
             floorGfx.hitArea = new PIXI.Polygon([0, 200, 660, 200, 660, 460, 0, 460]);
+            floorGfx.eventMode = 'none';
             const floorObj = { container: floorGfx, tags: ['standable'], name: targetRoomId + '_floor' };
             objMap[targetRoomId + '_floor'] = floorObj;
             const r = new Room(bg, targetRoomId, []);
