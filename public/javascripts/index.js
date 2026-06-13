@@ -422,7 +422,6 @@ const warpPoints = [
 // DBワープゾーン関連
 let dbWarpZones = [];
 let warpZoneGfx = null;
-let _roomBgGfx = null;
 
 // DB部屋画像関連
 let dbRoomImages = [];
@@ -570,21 +569,13 @@ async function loadDbWarpZones(roomId) {
 }
 
 function _applyRoomBgColor(colorHex) {
-  if (!room || !room.container) return;
-  if (!_roomBgGfx) {
-    _roomBgGfx = new PIXI.Graphics();
-    _roomBgGfx.zIndex = -1;
-  }
-  _roomBgGfx.clear();
-  if (colorHex) {
-    const col = parseInt(colorHex.replace('#', ''), 16);
-    _roomBgGfx.beginFill(col, 1);
-    _roomBgGfx.drawRect(0, 0, 660, 460);
-    _roomBgGfx.endFill();
-    room.container.addChild(_roomBgGfx);
-  } else if (_roomBgGfx.parent) {
-    _roomBgGfx.parent.removeChild(_roomBgGfx);
-  }
+  if (!room || !(room.sprite instanceof PIXI.Graphics)) return;
+  const bg = room.sprite;
+  bg.clear();
+  const col = colorHex ? parseInt(colorHex.replace('#', ''), 16) : 0xffffff;
+  bg.beginFill(col, 1);
+  bg.drawRect(0, 0, 660, 460);
+  bg.endFill();
 }
 
 function drawWarpZones() {
@@ -1061,7 +1052,7 @@ function onDirectionGateClick(roomName, gateIndex) {
 }
 
 async function showDirectionGateCreateDialog(roomName, gateIndex) {
-  if (!confirm('新しい部屋を作りますか？')) return;
+  if (!await _showCreateRoomConfirm()) return;
   _newRoomGateIndex = gateIndex;
   _newRoomParentDirection = roomName;
   _prevRoomName = roomName;
@@ -1103,9 +1094,32 @@ function _roomToSpot(roomName) {
   return m[roomName] || ('userRoom:' + roomName);
 }
 
+let _createRoomConfirmPending = false;
+function _showCreateRoomConfirm() {
+  if (_createRoomConfirmPending) return Promise.resolve(false);
+  _createRoomConfirmPending = true;
+  return new Promise(resolve => {
+    const modal = document.getElementById('createRoomConfirmModal');
+    modal.style.display = 'flex';
+    const yes = document.getElementById('createRoomConfirmYes');
+    const no = document.getElementById('createRoomConfirmNo');
+    const cleanup = (result) => {
+      _createRoomConfirmPending = false;
+      modal.style.display = 'none';
+      yes.removeEventListener('click', onYes);
+      no.removeEventListener('click', onNo);
+      resolve(result);
+    };
+    const onYes = () => cleanup(true);
+    const onNo = () => cleanup(false);
+    yes.addEventListener('click', onYes);
+    no.addEventListener('click', onNo);
+  });
+}
+
 async function _warpPortalCreateRoom() {
   if (document.getElementById('roomEditPanel').style.display !== 'none') return;
-  if (!confirm('新しい部屋を作りますか？')) return;
+  if (!await _showCreateRoomConfirm()) return;
   try {
     const res = await fetch('/api/rooms', {
       method: 'POST',
@@ -1152,7 +1166,7 @@ function drawDbImages() {
       sprite.texture.baseTexture.once('loaded', _setSize);
     }
     if (img.type === 'background') {
-      sprite.zIndex = -100;
+      sprite.zIndex = -50;
     } else if (img.type === 'object') {
       sprite.zIndex = sprite.y + sprite.height;
     } else {
@@ -5162,6 +5176,7 @@ async function login() {
       _loginToSpot = undefined;
       if (!(objMap[_directLinkRoom] instanceof Room)) {
         const bg = new PIXI.Graphics();
+        bg.zIndex = -200;
         bg.beginFill(parseColorCode(localStorage.getItem('colorCode')) || 0xffffff);
         bg.drawRect(0, 0, 660, 460);
         bg.endFill();
@@ -5331,6 +5346,7 @@ async function goSelfToRoomSpot(toSpot, train) {
         } else {
           if (!(objMap[targetRoomId] instanceof Room)) {
             const bg = new PIXI.Graphics();
+            bg.zIndex = -200;
             bg.beginFill(parseColorCode(localStorage.getItem('colorCode')) || 0xffffff);
             bg.drawRect(0, 0, 660, 460);
             bg.endFill();
@@ -5864,12 +5880,14 @@ socket.on("joineRoom", data => {
 
   // DBワープゾーン・画像・カスタムコードを取得して描画
   if (data.toRoom !== "loginRoom") {
-    _applyRoomBgColor(data.background_color || null);
+    if (!_pendingOpenEditPanel) _applyRoomBgColor(data.background_color || null);
     if (!_SYSTEM_ROOM_NAMES.has(data.toRoom)) {
-      loadDbWarpZones(data.toRoom);
-      loadDbImages(data.toRoom);
-      loadDbScaleZones(data.toRoom);
-      runCustomCode(data.toRoom);
+      if (!_pendingOpenEditPanel) {
+        loadDbWarpZones(data.toRoom);
+        loadDbImages(data.toRoom);
+        loadDbScaleZones(data.toRoom);
+        runCustomCode(data.toRoom);
+      }
     } else {
       clearWarpZones();
       clearDbImages();
@@ -5884,7 +5902,7 @@ socket.on("joineRoom", data => {
 
   if (_pendingOpenEditPanel && data.toRoom !== 'loginRoom') {
     _pendingOpenEditPanel = false;
-    setTimeout(() => _openRoomEditPanelDirect(data.toRoom, ''), 300);
+    setTimeout(() => _openRoomEditPanelDirect(data.toRoom, ''), 50);
   }
 
   // 直リンクでまだターゲット部屋に到達していない場合のみリダイレクト（フォールバック）
@@ -9146,20 +9164,9 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   startWarpGlow();
   _enableWarpEditMode();
 
-  const lockResult = await _acquireRoomEditLock(roomId, pw);
-  if (!lockResult.ok) {
-    document.getElementById('roomEditErr').textContent = lockResult.error;
-    return;
+  if (!window._allRooms) {
+    fetch('/api/rooms').then(r => r.ok ? r.json() : []).then(d => { window._allRooms = d; }).catch(() => { window._allRooms = []; });
   }
-
-  socket.emit('startRoomEdit', { roomId });
-
-  try {
-    if (!window._allRooms) {
-      const r = await fetch('/api/rooms');
-      window._allRooms = r.ok ? await r.json() : [];
-    }
-  } catch (_e) { window._allRooms = []; }
 
   warpEditRoomId = roomId;
   warpEditPassword = pw;
@@ -9177,27 +9184,63 @@ async function _openRoomEditPanelDirect(roomId, pw) {
   _updateRoomSaveBtnState();
   if (_isNewRoomMode) setTimeout(() => document.getElementById('roomNameEditInput').focus(), 50);
 
-  await loadDbWarpZones(roomId);
-  updateWarpList();
-  await refreshImgList();
-  const codeRes = await fetch('/api/rooms/' + encodeURIComponent(roomId) + '/code');
-  if (codeRes.ok) {
+  const _authFetch = fetch('/api/rooms/' + encodeURIComponent(roomId) + '/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Edit-Password': pw },
+    body: JSON.stringify({ editPassword: pw }),
+  });
+
+  let codeRes = null, authRes = null;
+  if (_isNewRoomMode) {
+    const [lockResult, , _authRes] = await Promise.all([
+      _acquireRoomEditLock(roomId, pw),
+      loadDbWarpZones(roomId).then(() => updateWarpList()),
+      _authFetch,
+    ]);
+    if (!lockResult.ok) { document.getElementById('roomEditErr').textContent = lockResult.error; return; }
+    authRes = _authRes;
+  } else {
+    const [lockResult, , , _codeRes, _authRes] = await Promise.all([
+      _acquireRoomEditLock(roomId, pw),
+      loadDbWarpZones(roomId).then(() => updateWarpList()),
+      refreshImgList(),
+      fetch('/api/rooms/' + encodeURIComponent(roomId) + '/code'),
+      _authFetch,
+    ]);
+    if (!lockResult.ok) { document.getElementById('roomEditErr').textContent = lockResult.error; return; }
+    codeRes = _codeRes;
+    authRes = _authRes;
+  }
+
+  socket.emit('startRoomEdit', { roomId });
+
+  if (codeRes && codeRes.ok) {
     const d = await codeRes.json();
     document.getElementById('codeEditor').value = d.custom_code || '';
     document.getElementById('codeMsg').textContent = '';
   }
 
-  // 部屋のオプション情報を取得して反映
   try {
-    const authRes = await fetch('/api/rooms/' + encodeURIComponent(roomId) + '/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Edit-Password': pw },
-      body: JSON.stringify({ editPassword: pw }),
-    });
-    if (authRes.ok) {
+    if (authRes && authRes.ok) {
       const authData = await authRes.json();
       const bgInput = document.getElementById('bgColorInput');
-      if (bgInput) bgInput.value = authData.background_color || '#ffffff';
+      let bgColor = authData.background_color || null;
+      if (!bgColor && _isNewRoomMode) {
+        const raw = localStorage.getItem('colorCode');
+        if (raw) {
+          bgColor = raw.startsWith('#') ? raw : '#' + raw.replace(/^0x/i, '').padStart(6, '0');
+        }
+      }
+      bgColor = bgColor || '#ffffff';
+      if (bgInput) bgInput.value = bgColor;
+      _applyRoomBgColor(bgColor);
+      if (_isNewRoomMode && !authData.background_color) {
+        fetch('/api/rooms/' + encodeURIComponent(roomId), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Edit-Password': pw, 'X-Lock-Token': _roomEditLockToken },
+          body: JSON.stringify({ background_color: bgColor }),
+        }).catch(() => {});
+      }
       const allowVideoChk = document.getElementById('allowVideoChk');
       if (allowVideoChk) allowVideoChk.checked = authData.allow_video !== 0;
       const allowAudioChk = document.getElementById('allowAudioChk');

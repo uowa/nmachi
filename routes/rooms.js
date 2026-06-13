@@ -129,7 +129,7 @@ router.post('/:id/auth', (req, res) => {
     const { id } = req.params;
     const password = (req.body && req.body.editPassword) || req.headers['x-edit-password'] || '';
 
-    const room = db.get('SELECT id, name, edit_password_hash, is_system_room, lock_token, locked_at FROM rooms WHERE id = ?', id);
+    const room = db.get('SELECT id, name, edit_password_hash, is_system_room FROM rooms WHERE id = ?', id);
     if (!room) return res.status(404).json({ error: '部屋が見つかりません' });
     if (room.is_system_room) return res.status(403).json({ error: 'システム部屋は編集できません' });
 
@@ -137,14 +137,6 @@ router.post('/:id/auth', (req, res) => {
         if (!password) return res.status(401).json({ error: 'パスワードが必要です' });
         if (!verifyPassword(password, room.edit_password_hash)) {
             return res.status(403).json({ error: 'パスワードが違います' });
-        }
-    }
-
-    // ロック確認（1分で期限切れ）
-    if (room.lock_token && room.locked_at) {
-        const lockedMs = new Date(room.locked_at + 'Z').getTime();
-        if (Date.now() - lockedMs < 60 * 1000) {
-            return res.status(409).json({ error: '誰かが編集中です。しばらく待ってから再試行してください。' });
         }
     }
 
@@ -312,8 +304,8 @@ router.post('/:id/images', authRoom, async (req, res) => {
     try {
         if (sharp) {
             outBuffer = await sharp(buffer)
-                .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 85 })
+                .resize({ width: 1320, height: 960, fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 92 })
                 .toBuffer();
             savedFilename = baseName + '.webp';
         } else {

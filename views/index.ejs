@@ -109,6 +109,17 @@
         </ul>
       </div>
 
+      <!-- 部屋作成確認モーダル -->
+      <div id="createRoomConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 16px;">新しい部屋を作りますか？</p>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button id="createRoomConfirmNo" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="createRoomConfirmYes" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">作る</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 看板削除確認モーダル -->
       <div id="signDeleteConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
         <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
@@ -226,7 +237,7 @@
                       </div>
                       <!-- タブ（3タブ構成） -->
                       <div style="display:flex;gap:2px;border-bottom:1px solid #4a90d9;margin-bottom:0;">
-                        <button id="roomEditTabImgWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">画像とワープゲート</button>
+                        <button id="roomEditTabImgWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">画像</button>
                         <button id="roomEditTabCode" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">コード</button>
                         <button id="roomEditTabOptions" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">オプション</button>
                       </div>
@@ -284,10 +295,10 @@
                           <div id="doodleCanvasInstruction" style="display:none;padding:20px;text-align:center;color:#aaa;font-size:12px;background:#111;border-top:1px solid #333;">画面に直接描いてください。描き終えたら「画像として追加」を押してください。</div>
                           <canvas id="doodleCanvas" width="330" height="230" style="display:block;background:#fff;cursor:crosshair;touch-action:none;max-width:100%;"></canvas>
                         </div>
-                        <!-- ワープゲートセクション -->
+                        <!-- 出入り口セクション -->
                         <div style="border:1px solid #223366;border-radius:3px;padding:5px;">
                           <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
-                            <span style="font-size:11px;color:#88aaff;font-weight:bold;flex:1;">ワープゲート</span>
+                            <span style="font-size:11px;color:#88aaff;font-weight:bold;flex:1;">出入り口</span>
                             <button type="button" id="warpAddBtn" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 8px;cursor:pointer;">追加</button>
                           </div>
                           <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
