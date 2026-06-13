@@ -402,13 +402,16 @@ io.on('connection', socket => {
     }
 
     // ユーザー投稿部屋：DBに存在しない場合は弾く
-    if (!rooms[data.toRoom] && !roomNameList.includes(data.toRoom)) {
+    if (!roomNameList.includes(data.toRoom)) {
       const exists = db.get('SELECT id, name, background_color FROM rooms WHERE id = ?', data.toRoom);
       if (!exists) {
         io.to(socket.id).emit("roomNotFound");
         return;
       }
-      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name, background_color: exists.background_color || null };
+      if (!rooms[data.toRoom]) {
+        rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name };
+      }
+      rooms[data.toRoom].background_color = exists.background_color || null;
     } else if (!rooms[data.toRoom]) {
       rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
     }

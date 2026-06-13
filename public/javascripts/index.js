@@ -441,6 +441,7 @@ let _warpPlaceShape = 'rect';
 let _warpDragMode = false;
 const _warpEditOverlays = [];
 let _warpDragging = null;
+let _warpDragPending = null;
 let _prevRoomSpot = '';
 const _hiddenWarpIds = new Set();
 let dbScaleZones = [];
@@ -593,7 +594,7 @@ function drawWarpZones() {
     sprite.x = wz.x ?? 0;
     sprite.y = wz.y ?? 0;
     const _setSize = () => {
-      const sz = gateTex ? Math.round(gateTex.width / 4) : 62;
+      const sz = gateTex ? Math.round(gateTex.width * 2 / 5) : 100;
       sprite.width = sz; sprite.height = sz;
     };
     if (sprite.texture.baseTexture.valid) { _setSize(); }
@@ -5607,7 +5608,7 @@ function _enableWarpEditMode() {
       sprite.cursor = 'grab';
     });
     sprite.on('pointerdown', e => {
-      if (!_warpDragMode || _warpDragging) return;
+      if (!_warpDragMode || _warpDragging || _warpDragPending) return;
       const p = room.container.toLocal(e.global);
       const hs = 12, edge = 8;
       if (p.x >= sprite.x + sprite.width - hs && p.y >= sprite.y + sprite.height - hs) return;
@@ -5620,13 +5621,13 @@ function _enableWarpEditMode() {
       else if (near_right) type = 'resize_right';
       else if (near_top) type = 'resize_top';
       else if (near_bottom) type = 'resize_bottom';
-      _warpDragging = { idx: ovIdx, type, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      _warpDragPending = { idx: ovIdx, type, startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
       if (type === 'move') sprite.cursor = 'grabbing';
     });
     handleGfx.on('pointerdown', e => {
-      if (!_warpDragMode || _warpDragging) return;
+      if (!_warpDragMode || _warpDragging || _warpDragPending) return;
       const p = room.container.toLocal(e.global);
-      _warpDragging = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
+      _warpDragPending = { idx: ovIdx, type: 'resize', startX: p.x, startY: p.y, origX: sprite.x, origY: sprite.y, origW: sprite.width, origH: sprite.height };
     });
   });
   app.stage.on('pointermove', _onWarpDragMove);
@@ -5636,7 +5637,7 @@ function _enableWarpEditMode() {
 
 function _disableWarpEditMode() {
   _warpDragMode = false;
-  _warpDragging = null;
+  _warpDragging = null; _warpDragPending = null;
   if (typeof app !== 'undefined') {
     app.stage.off('pointermove', _onWarpDragMove);
     app.stage.off('pointerup', _onWarpDragEnd);
@@ -5657,7 +5658,14 @@ function _disableWarpEditMode() {
 }
 
 function _onWarpDragMove(e) {
-  if (!_warpDragging || !room) return;
+  if (!_warpDragPending && !_warpDragging || !room) return;
+  if (_warpDragPending && !_warpDragging) {
+    const p = room.container.toLocal(e.global);
+    if (Math.abs(p.x - _warpDragPending.startX) < 4 && Math.abs(p.y - _warpDragPending.startY) < 4) return;
+    _warpDragging = _warpDragPending;
+    _warpDragPending = null;
+  }
+  if (!_warpDragging) return;
   const ov = _warpEditOverlays[_warpDragging.idx];
   if (!ov) return;
   const p = room.container.toLocal(e.global);
@@ -5686,6 +5694,7 @@ function _onWarpDragMove(e) {
 }
 
 async function _onWarpDragEnd() {
+  _warpDragPending = null;
   if (!_warpDragging) return;
   const ov = _warpEditOverlays[_warpDragging.idx];
   _warpDragging = null;
