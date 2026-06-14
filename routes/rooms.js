@@ -45,10 +45,11 @@ function authRoom(req, res, next) {
 }
 
 // 部屋のワープゾーンが削除できるか検証（削除前に呼ぶ）
-function canDeleteWarp(warpId) {
-    const warp = db.get('SELECT warp_type FROM warp_zones WHERE id = ?', warpId);
+function canDeleteWarp(warpId, roomId) {
+    const warp = db.get('SELECT id FROM warp_zones WHERE id = ?', warpId);
     if (!warp) return { ok: false, error: 'ワープゾーンが見つかりません' };
-    if (warp.warp_type === 'back') return { ok: false, error: '前の部屋に戻るワープは削除できません' };
+    const count = db.get('SELECT COUNT(*) as cnt FROM warp_zones WHERE room_id = ?', [roomId]);
+    if (count && count.cnt <= 1) return { ok: false, error: '最後の出入り口は削除できません' };
     return { ok: true };
 }
 
@@ -75,6 +76,24 @@ function validateWarpSize(w, h, roomId, excludeId) {
 router.get('/', (_req, res) => {
     const rooms = db.all('SELECT id, name, is_system_room FROM rooms ORDER BY is_system_room DESC, name');
     res.json(rooms || []);
+});
+
+// GET /api/rooms/sample-list - サンプル画像一覧
+router.get('/sample-list', (_req, res) => {
+    const sampleDir = path.join(__dirname, '../public/img/sample');
+    const files = fs.existsSync(sampleDir)
+        ? fs.readdirSync(sampleDir).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f))
+        : [];
+    res.json(files);
+});
+
+// GET /api/rooms/resolve?name=<name> - 部屋名からIDを解決
+router.get('/resolve', (req, res) => {
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const room = db.get('SELECT id FROM rooms WHERE name = ? AND is_system_room = 0', [name]);
+    if (!room) return res.status(404).json({ error: 'not found' });
+    res.json({ id: room.id });
 });
 
 // GET /api/rooms/:id - 部屋の公開情報
@@ -121,6 +140,7 @@ router.post('/', (req, res) => {
         warpStmt.finalize();
     }
 
+    req.app.get('scheduleTrainUpdate')?.();
     res.status(201).json({ id, name: roomName });
 });
 
@@ -140,8 +160,9 @@ router.post('/:id/auth', (req, res) => {
         }
     }
 
-    const fullRoom = db.get('SELECT allow_video, allow_audio, background_color FROM rooms WHERE id = ?', id);
-    res.json({ ok: true, name: room.name, allow_video: fullRoom?.allow_video ?? 1, allow_audio: fullRoom?.allow_audio ?? 1, background_color: fullRoom?.background_color ?? null });
+    const fullRoom = db.get('SELECT allow_video, allow_audio, background_color, lifetime_hours FROM rooms WHERE id = ?', id);
+    const dirGate = db.get('SELECT parent_room_name FROM direction_gates WHERE room_id = ?', id);
+    res.json({ ok: true, name: room.name, allow_video: fullRoom?.allow_video ?? 1, allow_audio: fullRoom?.allow_audio ?? 1, background_color: fullRoom?.background_color ?? null, lifetime_hours: fullRoom?.lifetime_hours ?? null, parent_direction: dirGate?.parent_room_name ?? null });
 });
 
 // POST /api/rooms/:id/lock - 編集ロック取得
@@ -197,7 +218,7 @@ router.get('/:id', (req, res) => {
 
 // PUT /api/rooms/:id - 部屋情報更新
 router.put('/:id', authRoom, (req, res) => {
-    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale, background_color } = req.body || {};
+    const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale, background_color, newEditPassword } = req.body || {};
     const sets = [];
     const vals = [];
 
@@ -209,6 +230,7 @@ router.put('/:id', authRoom, (req, res) => {
     if (customCode !== undefined) { sets.push('custom_code = ?'); vals.push(customCode); }
     if (avatar_scale !== undefined) { sets.push('avatar_scale = ?'); vals.push(avatar_scale === null ? null : parseFloat(avatar_scale)); }
     if (background_color !== undefined) { sets.push('background_color = ?'); vals.push(background_color || null); }
+    if (newEditPassword !== undefined) { sets.push('edit_password_hash = ?'); vals.push(newEditPassword ? hashPassword(newEditPassword) : null); }
 
     if (sets.length === 0) return res.status(400).json({ error: '更新フィールドがありません' });
 
@@ -216,13 +238,29 @@ router.put('/:id', authRoom, (req, res) => {
     vals.push(req.params.id);
 
     db.run(`UPDATE rooms SET ${sets.join(', ')} WHERE id = ? AND is_system_room = 0`, vals);
+    req.app.get('scheduleTrainUpdate')?.();
     res.json({ ok: true });
 });
 
 // GET /api/rooms/:id/warps - ワープゾーン一覧
 router.get('/:id/warps', (req, res) => {
-    const warps = db.all('SELECT * FROM warp_zones WHERE room_id = ? ORDER BY id', [req.params.id]);
+    const warps = db.all('SELECT * FROM warp_zones WHERE room_id = ? ORDER BY sort_order ASC, id ASC', [req.params.id]);
     res.json(warps || []);
+});
+
+// POST /api/rooms/:id/warps/reorder - 並び替え（sort_orderのみ更新、warp_typeは変更しない）
+router.post('/:id/warps/reorder', authRoom, (req, res) => {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids)) return res.status(400).json({ error: '不正なパラメータ' });
+    const stmt = db.prepare('UPDATE warp_zones SET sort_order = ? WHERE id = ? AND room_id = ?');
+    try {
+        ids.forEach((id, idx) => {
+            stmt.run([idx, id, req.params.id]);
+        });
+    } finally {
+        stmt.finalize();
+    }
+    res.json({ ok: true });
 });
 
 // POST /api/rooms/:id/warps - ワープゾーン追加
@@ -231,9 +269,6 @@ router.post('/:id/warps', authRoom, (req, res) => {
     if (x === undefined || y === undefined || width === undefined) {
         return res.status(400).json({ error: '座標が必要です' });
     }
-    const sizeCheck = validateWarpSize(width, height, req.params.id, null);
-    if (!sizeCheck.ok) return res.status(400).json({ error: sizeCheck.error });
-
     const stmt = db.prepare(
         "INSERT INTO warp_zones (room_id, target_room_id, shape, x, y, width, height, visual_opacity, warp_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'normal')"
     );
@@ -246,6 +281,38 @@ router.post('/:id/warps', authRoom, (req, res) => {
     res.status(201).json({ id: result.lastInsertRowid });
 });
 
+// POST /api/rooms/:id/warps/:warpId/image - ワープゾーン画像アップロード
+router.post('/:id/warps/:warpId/image', authRoom, async (req, res) => {
+    const { imageBase64, filename, sampleUrl } = req.body || {};
+    let url;
+    if (sampleUrl) {
+        if (!/^\/img\/sample\/[\w\-. ]+\.(png|jpe?g|webp|gif)$/i.test(sampleUrl)) return res.status(400).json({ error: 'URLが不正です' });
+        url = sampleUrl;
+    } else {
+        if (!imageBase64 || !filename) return res.status(400).json({ error: '必須パラメータが不足しています' });
+        const match = imageBase64.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
+        if (!match) return res.status(400).json({ error: '画像データが不正です' });
+        const buffer = Buffer.from(match[2], 'base64');
+        const roomDir = path.join(UPLOADS_DIR, req.params.id);
+        fs.mkdirSync(roomDir, { recursive: true });
+        const baseName = 'warp' + req.params.warpId + '_' + Date.now();
+        let savedFilename, outBuffer;
+        try {
+            if (sharp) {
+                outBuffer = await sharp(buffer).resize({ width: 660, height: 460, fit: 'inside', withoutEnlargement: true }).webp({ quality: 92 }).toBuffer();
+                savedFilename = baseName + '.webp';
+            } else {
+                outBuffer = buffer;
+                savedFilename = baseName + path.extname(filename).toLowerCase();
+            }
+        } catch (_e) { outBuffer = buffer; savedFilename = baseName + path.extname(filename).toLowerCase(); }
+        fs.writeFileSync(path.join(roomDir, savedFilename), outBuffer);
+        url = '/uploads/rooms/' + req.params.id + '/' + savedFilename;
+    }
+    db.run('UPDATE warp_zones SET custom_image_url = ? WHERE id = ? AND room_id = ?', [url, req.params.warpId, req.params.id]);
+    res.json({ ok: true, url });
+});
+
 // PUT /api/rooms/:id/warps/:warpId - ワープゾーン更新
 router.put('/:id/warps/:warpId', authRoom, (req, res) => {
     const { target_room_id, x, y, width, height, visual_opacity, shape, color } = req.body || {};
@@ -256,12 +323,8 @@ router.put('/:id/warps/:warpId', authRoom, (req, res) => {
     if (color !== undefined) { sets.push('color = ?'); vals.push(color || null); }
     if (x !== undefined) { sets.push('x = ?'); vals.push(x); }
     if (y !== undefined) { sets.push('y = ?'); vals.push(y); }
-    if (width !== undefined || height !== undefined) {
-        const sizeCheck = validateWarpSize(width ?? height, height ?? width, req.params.id, req.params.warpId);
-        if (!sizeCheck.ok) return res.status(400).json({ error: sizeCheck.error });
-        if (width !== undefined) { sets.push('width = ?'); vals.push(width); }
-        if (height !== undefined) { sets.push('height = ?'); vals.push(height); }
-    }
+    if (width !== undefined) { sets.push('width = ?'); vals.push(width); }
+    if (height !== undefined) { sets.push('height = ?'); vals.push(height); }
     if (visual_opacity !== undefined) { sets.push('visual_opacity = ?'); vals.push(visual_opacity); }
     if (sets.length === 0) return res.status(400).json({ error: '更新フィールドがありません' });
     db.run(`UPDATE warp_zones SET ${sets.join(', ')} WHERE id = ? AND room_id = ?`, [...vals, req.params.warpId, req.params.id]);
@@ -270,7 +333,7 @@ router.put('/:id/warps/:warpId', authRoom, (req, res) => {
 
 // DELETE /api/rooms/:id/warps/:warpId - ワープゾーン削除
 router.delete('/:id/warps/:warpId', authRoom, (req, res) => {
-    const check = canDeleteWarp(req.params.warpId);
+    const check = canDeleteWarp(req.params.warpId, req.params.id);
     if (!check.ok) return res.status(400).json({ error: check.error });
     db.run('DELETE FROM warp_zones WHERE id = ? AND room_id = ?', [req.params.warpId, req.params.id]);
     res.json({ ok: true });
@@ -289,7 +352,7 @@ router.post('/:id/images', authRoom, async (req, res) => {
     if (!['background', 'platform', 'object'].includes(type)) return res.status(400).json({ error: '種別が不正です' });
 
     const count = db.get('SELECT COUNT(*) as cnt FROM room_images WHERE room_id = ?', [req.params.id]);
-    if (count && count.cnt >= 10) return res.status(400).json({ error: '1部屋10枚まで' });
+    if (count && count.cnt >= 20) return res.status(400).json({ error: '1部屋20枚まで' });
 
     const match = imageBase64.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
     if (!match) return res.status(400).json({ error: '画像データが不正です' });
@@ -329,6 +392,30 @@ router.post('/:id/images', authRoom, async (req, res) => {
     }
 
     res.status(201).json({ id: result.lastInsertRowid, url, filename: savedFilename, type });
+});
+
+// POST /api/rooms/:id/images/from-sample - サンプル画像を部屋に追加
+router.post('/:id/images/from-sample', authRoom, (req, res) => {
+    const { sampleName, type } = req.body || {};
+    if (!sampleName || !type) return res.status(400).json({ error: '必須パラメータが不足しています' });
+    if (!['background', 'platform', 'object'].includes(type)) return res.status(400).json({ error: '種別が不正です' });
+    if (!/^[\w\-. ]+\.(png|jpe?g|webp|gif)$/i.test(sampleName)) return res.status(400).json({ error: 'ファイル名が不正です' });
+
+    const samplePath = path.join(__dirname, '../public/img/sample', sampleName);
+    if (!fs.existsSync(samplePath)) return res.status(404).json({ error: 'サンプルが見つかりません' });
+
+    const count = db.get('SELECT COUNT(*) as cnt FROM room_images WHERE room_id = ?', [req.params.id]);
+    if (count && count.cnt >= 20) return res.status(400).json({ error: '1部屋20枚まで' });
+
+    const url = '/img/sample/' + sampleName;
+    const stmt = db.prepare('INSERT INTO room_images (room_id, type, filename, url) VALUES (?, ?, ?, ?)');
+    let result;
+    try {
+        result = stmt.run([req.params.id, type, sampleName, url]);
+    } finally {
+        stmt.finalize();
+    }
+    res.status(201).json({ id: result.lastInsertRowid, url, filename: sampleName, type });
 });
 
 // PUT /api/rooms/:id/images/:imageId - 画像位置・サイズ・種別更新

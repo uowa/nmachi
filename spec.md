@@ -351,7 +351,7 @@ CREATE TABLE editing_sessions (
 5. **公開**: 「部屋を作成」ボタンで正式公開
 
 ##### 8.4 画像仕様
-- **制限**: 1部屋10枚まで、各1024px以下
+- **制限**: 1部屋20枚まで、各1024px以下
 - **形式**: PNG/JPEG → WebP自動変換
 - **保存先**: `/public/uploads/rooms/{roomId}/`
 - **種別**:
@@ -495,6 +495,9 @@ CREATE TABLE editing_sessions (
 **バグ修正（2026-05-31）**
 - **むげんGATEクリックで方角部屋がむげんに見える問題**: 方角部屋の見た目がむげんと同一（白背景＋同位置GATE）だったため、中央に半透明グレーの部屋名ラベルを追加（`dirLabel`、eventMode:'none'）
 - **遷移中の誤ワープ**: 部屋遷移直後にアバターの古い座標（旧部屋の位置）でwarpPoints判定が走り、方角部屋の「右下→むげん戻りワープ」がヒットしてむげんに戻される可能性があった。`_inRoomTransition` フラグで修正（`goSelfToRoomSpot` 開始時に true、`joineRoom` 受信末尾で false）
+
+**バグ修正（2026-06-14）**
+- **むげんGATEサブ部屋のbackワープが'むげん'に戻らない問題**: `routes/mugen.js` でGATEサブ部屋を作成する際、backワープの `target_room_id` が NULL で生成されていたため、踏んだ際に'むげん'ではなくエントランスに飛ばされていた。修正: backワープの `target_room_id` を `'むげん'` に設定して INSERT するよう変更。既存DBへの修正は `db/init.js` の migration クエリ（`UPDATE warp_zones SET target_room_id = 'むげん' WHERE warp_type = 'back' AND target_room_id IS NULL AND room_id IN (SELECT room_id FROM mugen_gates WHERE room_id IS NOT NULL)`）で対応
 
 **関連ファイル**
 - `index.js`: グローバル変数 `dirRoomEast/South/West/North` / `directionGateRooms` / `directionGateSprites` / `_directionGateBeingEntered` / `_newRoomParentDirection`、Room constructor case 4方角部屋、goSelfToRoomSpot `東/南/西/北の部屋Spot`、warpPoints 方角部屋→むげん、`loadDirectionGates` / `updateDirectionGateTints` / `onDirectionGateClick` / `showDirectionGateCreateDialog`
@@ -785,6 +788,13 @@ CREATE TABLE editing_sessions (
   - ユーザー部屋: `?room=<room_id>`
 - 設定パネルに「この部屋のリンクをコピー」ボタン → クリックボードにコピーしてチャットに通知
 - 実装場所: `index.js` `_directLinkRoom` 変数（グローバル）、`socket.on("joineRoom")` 末尾のリダイレクト処理、`copyRoomLink()` 関数; `index.ejs` 設定パネル内ボタン
+
+#### 改善（2026-06-14 実装完了）
+- **ユーザー部屋のリンクを部屋名ベースに変更**: `?room=<UUID>` → `?room=<表示名>` に変更。URLが人間が読める形式になる
+  - コピー側: `goSelfToRoomSpot` でユーザー部屋入室時に `GET /api/rooms/:id` で表示名を取得し `_userRoomDisplayName` に保存。`updateRoomLinkDisplay()` で `encodeURIComponent(表示名)` をURLに使用
+  - 受信側: `GET /api/rooms/resolve?name=<name>` エンドポイント（`routes/rooms.js`）で部屋名→UUIDを解決。解決失敗時は `GET /api/rooms/<param>` でUUID形式の旧リンクとして後方互換チェック
+  - `_resolvedDirectLinkId`（UUID）・`_directLinkRoomExists`（bool）の2変数でページロード時に解決
+  - 存在しない部屋への直リンク時はエントランスに普通にログインする（アバター情報が初期化されるバグを修正）
 
 ---
 
@@ -1313,8 +1323,10 @@ ridingObjectがない場合:
 #### 現状
 - `li.style.flexWrap = 'wrap'` で折り返し対応
 - `buildTrainData()` ヘルパー（bin/www）でシステム部屋＋ユーザー部屋の一覧を構築
-- `scheduleTrainUpdate()`（500ms デバウンス）が `joineRoom` / `stream`（配信開始停止）/ `disconnect` の3箇所で発火し、全クライアントに `trainUpdate` イベントを送信
-- クライアントは `_trainBtns`（roomId → button要素）で最新 train list のボタン参照を保持し、`trainUpdate` 受信時にテキストを更新
+- `scheduleTrainUpdate()`（500ms デバウンス）が `joineRoom` / `stream`（配信開始停止）/ `disconnect` の3箇所 + `PUT`/`POST /api/rooms`（名前変更・部屋作成）でも発火し、全クライアントに `trainUpdate` イベントを送信
+- クライアントは `_buildTrainButtons(li, data)` 関数でボタンを生成。`trainUpdate` 受信時に roomNameList が変わっていればボタン一覧を丸ごと再構築（部屋追加・削除・名前変更にリアルタイム対応）、変わっていなければテキストのみ更新
+- 同名部屋が複数ある場合、2件目以降に "2", "3" などのサフィックスを付与（`buildTrainData` 内 `displayNames` 処理）
+- `app.set('scheduleTrainUpdate', fn)` で routes/rooms.js から呼び出し可能にしている
 
 ---
 
@@ -1354,7 +1366,7 @@ ridingObjectがない場合:
 
 ---
 
-### 46. 部屋作成UIの大規模改修 ✅ (2026-06-13 実装完了)
+### 46. 部屋作成UIの大規模改修 ✅ (2026-06-14 実装完了)
 **Room creation/editing UI overhaul**
 
 **実装前に必ず PLANモードで計画立て。**
@@ -1405,10 +1417,27 @@ ridingObjectがない場合:
 **現状**
 - 新規作成フロー: 空きゲートクリック → 確認ポップアップ → OK → 部屋に移動 → 編集パネルを自動で開く。実装済み（2026-06-13）
 - タブ構成: 「画像とワープゲート」「コード」「オプション」の3タブ構成に変更済み
-- 画像セクション: 背景/足場/オブジェクト 別リスト。背景色ピッカー（即時反映・DB保存）
+- 画像セクション: 背景/足場/オブジェクト 別リスト。背景色ピッカー（即時反映・DB保存）。背景・足場のみ並び替えで奥行き（z_index）が変わる（ラベル「奥行き」付き）。オブジェクトは並び替え可能だがY座標+高さで描画順が自動決定されるため z_index は影響しない
 - ワープゲートセクション: □/○ 形状トグル・色変更・リターンゲート名称・✖ボタン最後・追加ボタン自動配置
 - オプションタブ: スケール・allow_video/audio チェックボックス・削除ボタン
 - 北の部屋の lifetime_hours: 0（消えない）。bin/www の期限削除クエリに `lifetime_hours > 0` ガード済み
+- パスワード設定済み部屋を右クリック→編集時は毎回パスワード入力ポップアップを表示（セッションキャッシュで自動スキップしない）
+- 部屋名の横の「保存」ボタンを削除。保存・完了ボタン押下時に一括保存（`_originalRoomName` で変更検知は継続）
+- 保存・完了時に同名部屋チェック: 既存部屋（システム部屋含む）と同じ名前が入力されていれば「同名の部屋があります」警告を出し保存ブロック
+- 直リンク入室時の出口バグ修正: 方角部屋のサブ部屋に直リンクで入った場合、リターンゲートが正しい親方角部屋に戻るよう修正（`warp_zones.target_room_id` に親方角部屋名を保存）
+- 画像・コードなし部屋ブロック（2026-06-14）: 画像を1枚も登録せず、カスタムコードもない状態では保存・完了ボタンを受け付けない（新規・既存編集どちらも）。落書きは画像扱い。エラーメッセージ: 「画像またはコードを追加してください」
+- 足場画像での移動制限（2026-06-14）: 足場 type の画像が1枚でも存在する場合、クリック移動・キーボード移動ともに足場エリア外への移動を禁止。実装は `_getPlatformZones()` / `_isOnAnyPlatform()` ヘルパー経由で `_doStageTap` と `keyMoveTickerFn` でチェック
+- ワープゾーンの足場配置チェック（2026-06-14）: 保存・完了時に `_checkPlatformWarpValidity()` を呼び出し、足場がある場合にワープゾーンが1つでも足場エリア外に置かれていれば「出入口は足場に置くようにしてください」でブロック
+- 透過PNG対応（2026-06-14）: 足場画像の透明部分には立てない。`_loadPlatformPixelData()` で各 platform 画像をオフスクリーン canvas に描画し `getImageData` でピクセルデータを取得・保存。`_isOnAnyPlatform()` はバウンディングボックスで素早く除外した後、ピクセルのアルファ値 > 127 で判定（取得失敗時はバウンディングボックスにフォールバック）
+- 画像リストの奥行きラベル（2026-06-14）: 背景・足場の並び替えボタン横に「奥行き」ラベルを表示（アイテムが1枚以下の場合は非表示）。オブジェクトの並び替えは可能だが奥行きラベルなし（Y座標+高さで描画順が自動決定）
+- 電車ボタンへのリアルタイム反映（2026-06-14 → 44番へ記載）: 部屋名変更・部屋作成時に `scheduleTrainUpdate()` を発火。同名部屋に「2」「3」サフィックスが電車ボタンにも反映。編集パネル・部屋作成モーダルのプレースホルダーにもサフィックス付き候補名を表示
+- ワープゾーンリスト ordering（2026-06-14）: backワープは常に先頭表示。`loadDbWarpZones` 取得後に `.sort()` でbackワープを先頭に移動。`_saveWarpOrder` でインデックスで `warp_type` を上書きしていた誤実装を削除
+- 浮いてるバッジ（2026-06-14）: ワープゾーンが足場に乗っていない場合、ワープリストの行をオレンジ枠で表示し「浮」バッジを付与。判定は `_loadPlatformPixelData()`（各platform画像をoffscreen canvasで描画し `getImageData` 保存）+ `_isOnAnyPlatform(cx, cy, ...)` でピクセル精度チェック。足場が1枚もない場合は判定スキップ。編集パネルを開く際は `loadDbImages` をバックグラウンドで並行実行し、完了後に `updateWarpList()` を再呼び出し（パネル開くのをブロックしない）。ワープドラッグ終了時（`_onWarpDragEnd`）も `updateWarpList()` を呼んでバッジを即更新
+- ワープ面積チェック（2026-06-14）: ワープゾーンの合計面積が部屋の2/3を超える場合のチェックを保存・完了ボタン押下時のみ実施。`_checkWarpAreaLimit()` 関数で判定（編集中のポップアップなし）。POST/PUTの `validateWarpSize` をserver側から削除
+- 入室制限・最新チャット通知を既存部屋編集中限定（2026-06-14）: `_isNewRoomMode` フラグを参照し、新規作成時は `entryLockBtn` と `_showLatestChatBar` を非表示/無効化。既存部屋の編集パネルを開いた時のみ `entryLockBtn.style.display = ''` で表示
+- 入室制限1時間再使用可能（2026-06-14）: `entryLockUsed`（bool）→ `entryLockFirstUsedAt`（timestamp ms）に変更。初回使用から1時間（3600000ms）以内なら再使用可。1時間後はボタンdisabled。`bin/www`: `user[token].entryLockFirstUsedAt` で管理し `entryLockChanged` イベントに `firstUsedAt` を含めて送信。`entryLockDenied` 受信時は `_entryLockFirstUsedAt` を「1時間以上前」に設定してUI即反映
+- エリア名のlifetimeメッセージ表示（2026-06-14）: 方角部屋のサブ部屋では「西エリアの部屋は...」のようにエリア名を付与。`GET /api/rooms/:id` の認証レスポンスに `parent_direction` フィールドを追加（`direction_gates` テーブルを `room_id` で検索）。クライアントは `_areaMap` で方角部屋名→「東/南/西/北」に変換してlifetimeMsgに表示
+
 - 未搭載（後回し）:
   - サンプル（GATE含む）ボタン: 未実装
   - オブジェクト type の透過当たり判定: 未実装
