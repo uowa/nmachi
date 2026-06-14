@@ -182,9 +182,11 @@ function buildTrainData() {
     allRoomNames.push(dbRoom.name);
     allRoomTypes.push('user');
   }
+  const _nc = {}; for (const n of allRoomNames) _nc[n] = (_nc[n] || 0) + 1;
+  const _ns = {}; const displayNames = allRoomNames.map(n => { if (_nc[n] <= 1) return n; _ns[n] = (_ns[n] || 0) + 1; return _ns[n] === 1 ? n : n + _ns[n]; });
   const trainList = [];
   for (let i = 0; i < allRoomIds.length; i++) {
-    trainList[i] = allRoomNames[i] + ":";
+    trainList[i] = displayNames[i] + ":";
     Object.keys(user).forEach(key => {
       if (user[key].room === allRoomIds[i]) {
         if (user[key].video && user[key].audio) {
@@ -206,6 +208,7 @@ function scheduleTrainUpdate() {
   clearTimeout(_trainUpdateTimer);
   _trainUpdateTimer = setTimeout(() => { io.emit("trainUpdate", buildTrainData()); }, 500);
 }
+app.set('scheduleTrainUpdate', scheduleTrainUpdate);
 
 const crypto = require("crypto");
 
@@ -403,7 +406,7 @@ io.on('connection', socket => {
 
     // ユーザー投稿部屋：DBに存在しない場合は弾く
     if (!roomNameList.includes(data.toRoom)) {
-      const exists = db.get('SELECT id, name, background_color FROM rooms WHERE id = ?', data.toRoom);
+      const exists = db.get('SELECT id, name, background_color, allow_video, allow_audio FROM rooms WHERE id = ?', data.toRoom);
       if (!exists) {
         io.to(socket.id).emit("roomNotFound");
         return;
@@ -412,9 +415,25 @@ io.on('connection', socket => {
         rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name };
       }
       rooms[data.toRoom].background_color = exists.background_color || null;
+      rooms[data.toRoom].allow_video = exists.allow_video ?? 1;
+      rooms[data.toRoom].allow_audio = exists.allow_audio ?? 1;
     } else if (!rooms[data.toRoom]) {
       rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
     }
+    // 入室制限チェック
+    const _toRoomData = rooms[data.toRoom];
+    if (_toRoomData && _toRoomData.entryLocked) {
+      if (Date.now() - (_toRoomData.entryLockedAt || 0) > 3600000) {
+        _toRoomData.entryLocked = false;
+        _toRoomData.entryLockedAt = null;
+        if (_toRoomData._entryLockTimer) { clearTimeout(_toRoomData._entryLockTimer); _toRoomData._entryLockTimer = null; }
+        io.to(data.toRoom).emit("entryLockChanged", { locked: false, expired: true });
+      } else {
+        io.to(socket.id).emit("entryBlocked");
+        return;
+      }
+    }
+
     // last_activity 更新（ユーザー投稿部屋のみ）
     try {
       db.run("UPDATE rooms SET last_activity = datetime('now') WHERE id = ? AND is_system_room = 0", data.toRoom);
@@ -637,6 +656,10 @@ io.on('connection', socket => {
       starColors: starColors,
       signs: rooms[data.toRoom].signs,
       background_color: rooms[data.toRoom].background_color || null,
+      allow_video: rooms[data.toRoom].allow_video ?? 1,
+      allow_audio: rooms[data.toRoom].allow_audio ?? 1,
+      entry_locked: rooms[data.toRoom].entryLocked ?? false,
+      entry_lock_expires_at: rooms[data.toRoom].entryLocked ? (rooms[data.toRoom].entryLockedAt || 0) + 3600000 : null,
     });
     scheduleTrainUpdate();
 
@@ -1069,6 +1092,82 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on("roomPermissionsChanged", data => {
+    if (!checkUser()) return;
+    if (user[token].room) {
+      socket.broadcast.to(user[token].room).emit("roomPermissionsChanged", data);
+      if (rooms[user[token].room]) {
+        rooms[user[token].room].allow_video = data.allow_video ?? 1;
+        rooms[user[token].room].allow_audio = data.allow_audio ?? 1;
+      }
+    }
+  });
+
+  socket.on("roomBgColorChanged", data => {
+    if (!checkUser()) return;
+    if (user[token].room) {
+      socket.broadcast.to(user[token].room).emit("roomBgColorChanged", data);
+      if (rooms[user[token].room]) rooms[user[token].room].background_color = data.color || null;
+    }
+  });
+
+  socket.on("roomAssetsChanged", (data) => {
+    if (!checkUser()) return;
+    if (user[token].room) {
+      socket.broadcast.to(user[token].room).emit("roomAssetsChanged", data ?? null);
+    }
+  });
+
+  socket.on("pendingAddImg", (data) => {
+    if (data && data.id) {
+      if (!socket._pendingImgAddIds) socket._pendingImgAddIds = new Set();
+      socket._pendingImgAddIds.add(data.id);
+    }
+  });
+
+  socket.on("pendingAddWarp", (data) => {
+    if (data && data.id) {
+      if (!socket._pendingWarpAddIds) socket._pendingWarpAddIds = new Set();
+      socket._pendingWarpAddIds.add(data.id);
+    }
+  });
+
+  socket.on("clearPendingAdds", () => {
+    socket._pendingImgAddIds = new Set();
+    socket._pendingWarpAddIds = new Set();
+  });
+
+  socket.on("entryLockToggle", () => {
+    if (!checkUser()) return;
+    const roomId = user[token].room;
+    if (!roomId || !rooms[roomId]) return;
+    const r = rooms[roomId];
+    if (r.entryLocked) {
+      r.entryLocked = false;
+      r.entryLockedAt = null;
+      if (r._entryLockTimer) { clearTimeout(r._entryLockTimer); r._entryLockTimer = null; }
+      io.to(roomId).emit("entryLockChanged", { locked: false, expired: false });
+    } else {
+      const now = Date.now();
+      if (user[token].entryLockFirstUsedAt && now - user[token].entryLockFirstUsedAt > 3600000) {
+        io.to(socket.id).emit("entryLockDenied");
+        return;
+      }
+      if (!user[token].entryLockFirstUsedAt) user[token].entryLockFirstUsedAt = now;
+      r.entryLocked = true;
+      r.entryLockedAt = now;
+      if (r._entryLockTimer) clearTimeout(r._entryLockTimer);
+      r._entryLockTimer = setTimeout(() => {
+        if (!rooms[roomId]) return;
+        rooms[roomId].entryLocked = false;
+        rooms[roomId].entryLockedAt = null;
+        rooms[roomId]._entryLockTimer = null;
+        io.to(roomId).emit("entryLockChanged", { locked: false, expired: true });
+      }, 3600000);
+      io.to(roomId).emit("entryLockChanged", { locked: true, expiresAt: r.entryLockedAt + 3600000, firstUsedAt: user[token].entryLockFirstUsedAt });
+    }
+  });
+
 
   socket.on("webRtcSignal", data => {
     if (!checkUser()) return;
@@ -1250,8 +1349,25 @@ io.on('connection', socket => {
         } catch (_e) {}
       }
     }
+    const _editingId = socket._editingRoomId;
+    const _editingWasNew = socket._editingRoomIsNew;
     socket._editingRoomId = null;
     socket._editingRoomIsNew = false;
+
+    if (_editingId && !_editingWasNew) {
+      try {
+        const rd = db.get('SELECT allow_video, allow_audio, background_color FROM rooms WHERE id = ?', [_editingId]);
+        if (rd) {
+          if (rooms[_editingId]) {
+            rooms[_editingId].allow_video = rd.allow_video ?? 1;
+            rooms[_editingId].allow_audio = rd.allow_audio ?? 1;
+            rooms[_editingId].background_color = rd.background_color || null;
+          }
+          io.to(_editingId).emit('roomPermissionsChanged', { allow_video: rd.allow_video ?? 1, allow_audio: rd.allow_audio ?? 1 });
+          io.to(_editingId).emit('roomBgColorChanged', { color: rd.background_color || null });
+        }
+      } catch (_e) {}
+    }
 
     if (!checkUser()) return;
     const _dcRoom = user[token].room;

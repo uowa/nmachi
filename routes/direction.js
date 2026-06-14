@@ -63,11 +63,11 @@ router.post('/:roomName/gates/:index', (req, res) => {
         { x: ROOM_W - WARP_SZ, y: ROOM_H - WARP_SZ, type: 'back' },
     ];
     const warpStmt = db.prepare(
-        'INSERT INTO warp_zones (room_id, warp_type, shape, x, y, width, height, visual_opacity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO warp_zones (room_id, warp_type, shape, x, y, width, height, visual_opacity, target_room_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     try {
         for (const c of corners) {
-            warpStmt.run([id, c.type, 'rect', c.x, c.y, WARP_SZ, WARP_SZ, 0.2]);
+            warpStmt.run([id, c.type, 'rect', c.x, c.y, WARP_SZ, WARP_SZ, 0.2, c.type === 'back' ? roomName : null]);
         }
     } finally {
         warpStmt.finalize();

@@ -206,16 +206,6 @@ router.get('/:id/code', (req, res) => {
     res.json({ custom_code: row ? (row.custom_code || null) : null });
 });
 
-// GET /api/rooms/:id - 部屋情報取得
-router.get('/:id', (req, res) => {
-    const room = db.get(
-        'SELECT id, name, max_users, max_streamers, allow_video, allow_audio, is_system_room, gate_index, created_at FROM rooms WHERE id = ?',
-        req.params.id
-    );
-    if (!room) return res.status(404).json({ error: '部屋が見つかりません' });
-    res.json(room);
-});
-
 // PUT /api/rooms/:id - 部屋情報更新
 router.put('/:id', authRoom, (req, res) => {
     const { name, maxUsers, maxStreamers, allowVideo, allowAudio, customCode, avatar_scale, background_color, newEditPassword } = req.body || {};

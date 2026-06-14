@@ -111,12 +111,28 @@
 
       <!-- 部屋作成確認モーダル -->
       <div id="createRoomConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:280px; color:#fff; font-family:monospace;">
+        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:360px; color:#fff; font-family:monospace;">
           <p style="margin:0 0 10px; font-size:13px; color:#aaa;">部屋がありません、部屋名を入力してください。</p>
           <input id="createRoomNameInput" type="text" maxlength="20" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px 8px; border-radius:4px; font-size:14px; margin-bottom:12px;">
           <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button id="createRoomConfirmNo" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
             <button id="createRoomConfirmYes" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">OK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 部屋編集パスワードモーダル -->
+      <div id="roomEditPwModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:280px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 10px; font-size:13px; color:#aaa;">パスワードを入力してください</p>
+          <div style="position:relative;">
+            <input type="password" id="roomEditPwModalInput" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px 28px 6px 8px; font-size:14px; border-radius:4px; margin-bottom:8px;">
+            <button id="roomEditPwModalToggle" type="button" style="position:absolute; right:6px; top:6px; background:none; border:none; color:#aaa; cursor:pointer; font-size:14px; line-height:1; padding:0;">👁</button>
+          </div>
+          <p id="roomEditPwModalErr" style="color:#f66; font-size:12px; margin:0 0 10px; display:none;">パスワードが違います</p>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button id="roomEditPwModalCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="roomEditPwModalOk" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">OK</button>
           </div>
         </div>
       </div>
@@ -152,6 +168,7 @@
                 <div id="graphic" oncontextmenu="return false">
                   <!-- <button id="loginButton" onclick="login()">LOGIN</button> -->
                    <!-- まだ残しとく前どんなんだっけって言われるかもなので、cssは消してない -->
+                  <div id="latestChatBar" style="display:none;position:absolute;top:0;left:0;right:0;z-index:15;background:rgba(0,0,0,0.6);color:#eee;font-size:12px;padding:4px 8px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
                 </div>
 
                 <div id="form">
@@ -194,6 +211,7 @@
                       </div>
                       <button type="button" id="logNoiseButton">SE📢✖</button>
                       <button type="button" id="settingButton" onclick="settingClick();">⚙🔩🔧</button>
+                      <button type="button" id="entryLockBtn" title="入室制限" style="display:none;">🔓</button>
                       <button type="button" id="usersDisplay" onclick="usersDisplayClick();">部屋人数:<span
                           id="usersNumber">0</span></button>
                     </div>
@@ -225,7 +243,6 @@
                       <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;">
                         <span style="font-size:11px;color:#aaa;white-space:nowrap;">部屋名</span>
                         <input id="roomNameEditInput" type="text" maxlength="30" style="flex:1;background:#111;border:1px solid #4a90d9;color:#fff;padding:3px;font-size:11px;min-width:0;">
-                        <button id="roomNameSaveBtn" style="font-size:11px;padding:2px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">保存</button>
                       </div>
                       <!-- パスワード行 -->
                       <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
@@ -251,6 +268,8 @@
                         </select>
                         <input type="file" id="imgFileInput" accept="image/png,image/jpeg" style="display:none">
                         <input type="file" id="imgReplaceInput" accept="image/png,image/jpeg" style="display:none">
+                        <!-- サンプルパネル（共通） -->
+                        <div id="imgSamplePanel" style="display:none;padding:4px;border:1px solid #555;border-radius:3px;margin-bottom:6px;background:#111;"></div>
                         <!-- 背景セクション -->
                         <div style="margin-bottom:8px;border:1px solid #223355;border-radius:3px;padding:5px;">
                           <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
@@ -259,6 +278,7 @@
                             <input type="color" id="bgColorInput" value="#ffffff" style="width:28px;height:22px;padding:0;border:1px solid #555;cursor:pointer;border-radius:3px;" title="背景色">
                             <button type="button" id="imgUploadBtnBg" style="font-size:11px;">ファイルから</button>
                             <button type="button" id="imgDoodleBtnBg" style="font-size:11px;">落書き</button>
+                            <button type="button" class="imgSampleBtn" data-type="background" style="font-size:11px;">サンプル</button>
                           </div>
                           <div id="imgListBackground" style="max-height:200px;overflow-y:auto;"></div>
                         </div>
@@ -268,6 +288,7 @@
                             <span style="font-size:11px;color:#50c878;font-weight:bold;flex:1;">足場</span>
                             <button type="button" id="imgUploadBtnPlatform" style="font-size:11px;">ファイルから</button>
                             <button type="button" id="imgDoodleBtnPlatform" style="font-size:11px;">落書き</button>
+                            <button type="button" class="imgSampleBtn" data-type="platform" style="font-size:11px;">サンプル</button>
                           </div>
                           <div id="imgListPlatform" style="max-height:200px;overflow-y:auto;"></div>
                         </div>
@@ -277,6 +298,7 @@
                             <span style="font-size:11px;color:#f0a030;font-weight:bold;flex:1;">オブジェクト</span>
                             <button type="button" id="imgUploadBtnObject" style="font-size:11px;">ファイルから</button>
                             <button type="button" id="imgDoodleBtnObject" style="font-size:11px;">落書き</button>
+                            <button type="button" class="imgSampleBtn" data-type="object" style="font-size:11px;">サンプル</button>
                           </div>
                           <div id="imgListObject" style="max-height:200px;overflow-y:auto;"></div>
                         </div>
@@ -297,10 +319,13 @@
                           <canvas id="doodleCanvas" width="330" height="230" style="display:block;background:#fff;cursor:crosshair;touch-action:none;max-width:100%;"></canvas>
                         </div>
                         <!-- 出入り口セクション -->
+                        <input type="file" id="warpImgFileInput" accept="image/png,image/jpeg" style="display:none">
                         <div style="border:1px solid #223366;border-radius:3px;padding:5px;">
                           <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
                             <span style="font-size:11px;color:#88aaff;font-weight:bold;flex:1;">出入り口</span>
-                            <button type="button" id="warpAddBtn" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 8px;cursor:pointer;">追加</button>
+                            <button type="button" id="warpImgUploadBtn" style="font-size:11px;">ファイルから</button>
+                            <button type="button" id="warpDoodleBtn" style="font-size:11px;">落書き</button>
+                            <button type="button" class="imgSampleBtn" data-type="warp" style="font-size:11px;">サンプル</button>
                           </div>
                           <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
                           <div id="warpList" style="max-height:400px;overflow-y:auto;margin-top:2px;"></div>
@@ -352,6 +377,7 @@
                           <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
                             <input type="checkbox" id="allowAudioChk" checked> 音声配信を許可
                           </label>
+                          <div id="streamPermLockMsg" style="display:none;font-size:10px;color:#f88;margin-top:4px;">誰かが配信中のため変更できません</div>
                         </div>
                         <!-- 削除 -->
                         <div style="margin-top:8px;border-top:1px solid #333;padding-top:8px;">
@@ -369,7 +395,7 @@
                           </div>
                         </div>
                       </div>
-                      <div style="margin-top:8px;font-size:13px;color:#ff9900;font-weight:bold;">⚠ 部屋は一日誰も出入りがなかったら消えます。</div>
+                      <div id="roomLifetimeMsg" style="margin-top:8px;font-size:13px;color:#ff9900;font-weight:bold;">⚠ 部屋は一日誰も出入りがなかったら消えます。</div>
                       <!-- 右下3ボタン（sticky） -->
                       <div id="roomEditBtns" style="position:sticky;bottom:0;background:#0d0d1a;border-top:1px solid #444;padding:8px 4px 4px;display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
                         <button id="roomEditDiscardBtn" style="font-size:12px;padding:5px 14px;background:#3a1010;border:1px solid #c04040;color:#ffaaaa;cursor:pointer;">保存せずに戻る</button>

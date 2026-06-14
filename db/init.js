@@ -117,9 +117,20 @@ const alterCmds = [
   "ALTER TABLE rooms ADD COLUMN lifetime_hours INTEGER DEFAULT NULL",
   "ALTER TABLE rooms ADD COLUMN background_color TEXT DEFAULT NULL",
   "ALTER TABLE warp_zones ADD COLUMN color TEXT DEFAULT NULL",
+  "ALTER TABLE warp_zones ADD COLUMN custom_image_url TEXT DEFAULT NULL",
+  "ALTER TABLE warp_zones ADD COLUMN sort_order INTEGER DEFAULT 0",
 ];
 for (const cmd of alterCmds) {
   try { db.exec(cmd); } catch (_e) {}
 }
+
+try {
+  db.exec("UPDATE warp_zones SET target_room_id = (SELECT parent_room_name FROM direction_gates WHERE room_id = warp_zones.room_id) WHERE warp_type = 'back' AND target_room_id IS NULL");
+} catch (_e) {}
+
+// むげんゲート部屋のbackワープに target_room_id = 'むげん' を設定
+try {
+  db.exec("UPDATE warp_zones SET target_room_id = 'むげん' WHERE warp_type = 'back' AND target_room_id IS NULL AND room_id IN (SELECT room_id FROM mugen_gates WHERE room_id IS NOT NULL)");
+} catch (_e) {}
 
 console.log('DB initialized');
