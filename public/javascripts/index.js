@@ -91,6 +91,7 @@ let _directionGateBeingEntered = null;
 let _inUserRoom = false;
 let _userRoomDisplayName = '';
 let _inRoomTransition = false;
+let _prevRoomForBlockReturn = null;
 let objMap = {};
 const _directLinkRoom = new URLSearchParams(location.search).get('room');
 let _resolvedDirectLinkId = _directLinkRoom;
@@ -5578,6 +5579,7 @@ async function login() {
 //自分自身の部屋移動
 //不要な情報を消し、サーバーに移動することを伝える。
 async function goSelfToRoomSpot(toSpot, train) {
+  _prevRoomForBlockReturn = room ? room.name : null;
   _inRoomTransition = true;
   //配信関係の接続を切る
   stopAllConnection();
@@ -14438,6 +14440,11 @@ socket.on("entryLockChanged", data => {
 
 socket.on("entryBlocked", () => {
   outputChatMsg('この部屋は現在入室制限中です。', '#f44');
+  _inRoomTransition = false;
+  const _back = _prevRoomForBlockReturn;
+  _prevRoomForBlockReturn = null;
+  if (_back) goSelfToRoomSpot(_roomToSpot(_back));
+  else goSelfToRoomSpot('entranceMainSpot');
 });
 
 socket.on("entryLockDenied", () => {
