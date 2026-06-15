@@ -11950,23 +11950,71 @@ socket.on("train", data => {
   _trainLi = li;
   _buildTrainButtons(li, data);
 
-  if (!useMainLog) {
-    useMainLog = true;
-    const mainLogHeight = localStorage.getItem("mainLogHeight") || "200";
-    mainLog.style.height = mainLogHeight + "px";
-    mainLogFrame.style.height = mainLogHeight + "px";
-    mainLogResizeBar.style.display = "block";
-    mainLogButton.style.backgroundColor = 'skyblue';
-  }
   mainLogUl.appendChild(li);
-  mainLog.scrollTop = mainLog.scrollHeight;
+  if (useMainLog) mainLog.scrollTop = mainLog.scrollHeight;
 
-  // 画面チャットにもテキストで表示
-  const _ot = new PIXI.Text(data.trainList.join('  '), { ...overlayChatStyle, fontSize: 13 });
-  _ot.y = 0;
-  const _off = Math.max(_ot.height, 14);
-  overlayChat.children.forEach(c => { c.y += _off; });
-  overlayChat.addChild(_ot);
+  const _tBtns = new PIXI.Container();
+  let _tbx = 0, _tby = 0;
+  const _tRoomTypes = data.roomTypes || data.roomNameList.map(() => 'system');
+  const _tBtnData = [];
+  for (let i = 0; i < data.trainList.length; i++) {
+    const _tRoomId = data.roomNameList[i];
+    const _tIsUser = _tRoomTypes[i] === 'user';
+    const _tt = new PIXI.Text(data.trainList[i], { fontSize: 12, fill: _tIsUser ? '#88aaff' : '#ff8c00' });
+    const _bw = _tt.width + 8, _bh = _tt.height + 6;
+    if (_tbx + _bw > 500 && _tbx > 0) { _tbx = 0; _tby += _bh + 2; }
+    const _tItem = new PIXI.Container();
+    const _tBg = new PIXI.Graphics();
+    _tBg.lineStyle(1, _tIsUser ? 0x88aaff : 0xff8c00, 0.9);
+    _tBg.beginFill(0x000000, 0.01);
+    _tBg.drawRoundedRect(0, 0, _bw, _bh, 3);
+    _tBg.endFill();
+    _tt.x = 4; _tt.y = 3;
+    _tItem.addChild(_tBg);
+    _tItem.addChild(_tt);
+    _tItem.x = _tbx; _tItem.y = _tby;
+    _tBtnData.push({ bx: _tbx, by: _tby, bw: _bw, bh: _bh, action: () => {
+      _prevRoomSpot = '';
+      if (_tIsUser) { goSelfToRoomSpot('userRoom:' + _tRoomId, 'train'); return; }
+      switch (_tRoomId) {
+        case "エントランス":    goSelfToRoomSpot("entranceTrainSpot", "train"); break;
+        case "草原":           goSelfToRoomSpot("entranceCloud1", "train"); break;
+        case "うちゅー":       goSelfToRoomSpot("outerSpaceMainSpot", "train"); break;
+        case "文字の部屋":     goSelfToRoomSpot("文字の部屋EntrySpot", "train"); break;
+        case "星1":            goSelfToRoomSpot("star1EntrySpot", "train"); break;
+        case "むげんのいりぐち": goSelfToRoomSpot("mugenEntrySpot", "train"); break;
+        case "むげん":         goSelfToRoomSpot("mugenMainSpot", "train"); break;
+        case "東の部屋":       goSelfToRoomSpot("東の部屋Spot", "train"); break;
+        case "南の部屋":       goSelfToRoomSpot("南の部屋Spot", "train"); break;
+        case "西の部屋":       goSelfToRoomSpot("西の部屋Spot", "train"); break;
+        case "北の部屋":       goSelfToRoomSpot("北の部屋Spot", "train"); break;
+      }
+    }});
+    _tbx += _bw + 2;
+    _tBtns.addChild(_tItem);
+  }
+  _tBtns.y = 0;
+  const _tOff = Math.max(_tBtns.height + 2, 14);
+  overlayChat.children.forEach(c => { c.y += _tOff; });
+  overlayChat.addChild(_tBtns);
+  const _tCanvas = app.renderer.view;
+  const _tCleanup = () => {
+    _tCanvas.removeEventListener('pointerdown', _tCanvasHandler);
+    if (_tBtns.parent) { _tBtns.parent.removeChild(_tBtns); _tBtns.destroy({ children: true }); }
+  };
+  const _tCanvasHandler = (e) => {
+    if (e.button !== 0 && !['touch', 'pen'].includes(e.pointerType)) return;
+    const rect = _tCanvas.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * (660 / rect.width);
+    const py = (e.clientY - rect.top) * (460 / rect.height) - overlayChat.y;
+    for (const { bx, by, bw, bh, action } of _tBtnData) {
+      if (px >= bx && px <= bx + bw && py >= by && py <= by + bh) {
+        action();
+        return;
+      }
+    }
+  };
+  _tCanvas.addEventListener('pointerdown', _tCanvasHandler);
 });//socket.on("train");
 
 socket.on("trainUpdate", data => {
@@ -12035,6 +12083,56 @@ socket.on("list", data => {
   } else {
     mainLogUl.insertBefore(li, logs.querySelectorAll("li")[li.length]);
   }
+
+  const _lBtns = new PIXI.Container();
+  let _lbx = 0, _lby = 0;
+  const _lBtnData = [];
+  for (let i = 0; i < data.listName.length; i++) {
+    const _lTk = data.listToken[i];
+    const _lSuffix = peerConnections[_lTk] ? "📶" : "";
+    const _lt = new PIXI.Text(data.listName[i] + _lSuffix, { fontSize: 12, fill: avaP[_lTk]?.abon ? '#ff4444' : '#00bbdd' });
+    const _bw = _lt.width + 8, _bh = _lt.height + 6;
+    if (_lbx + _bw > 500 && _lbx > 0) { _lbx = 0; _lby += _bh + 2; }
+    const _lItem = new PIXI.Container();
+    const _lBg = new PIXI.Graphics();
+    _lBg.lineStyle(1, avaP[_lTk]?.abon ? 0xff4444 : 0x00bbdd, 0.9);
+    _lBg.beginFill(0x000000, 0.01);
+    _lBg.drawRoundedRect(0, 0, _bw, _bh, 3);
+    _lBg.endFill();
+    _lt.x = 4; _lt.y = 3;
+    _lItem.addChild(_lBg);
+    _lItem.addChild(_lt);
+    _lItem.x = _lbx; _lItem.y = _lby;
+    if (myToken !== _lTk) {
+      _lBtnData.push({ bx: _lbx, by: _lby, bw: _bw, bh: _bh, action: () => {
+        socket.emit("abonSetting", { setAbon: avaP[_lTk]?.abon, token: _lTk });
+      }});
+    }
+    _lbx += _bw + 2;
+    _lBtns.addChild(_lItem);
+  }
+  _lBtns.y = 0;
+  const _lOff = Math.max(_lBtns.height + 2, 14);
+  overlayChat.children.forEach(c => { c.y += _lOff; });
+  overlayChat.addChild(_lBtns);
+  const _lCanvas = app.renderer.view;
+  const _lCleanup = () => {
+    _lCanvas.removeEventListener('pointerdown', _lCanvasHandler);
+    if (_lBtns.parent) { _lBtns.parent.removeChild(_lBtns); _lBtns.destroy({ children: true }); }
+  };
+  const _lCanvasHandler = (e) => {
+    if (e.button !== 0 && !['touch', 'pen'].includes(e.pointerType)) return;
+    const rect = _lCanvas.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * (660 / rect.width);
+    const py = (e.clientY - rect.top) * (460 / rect.height) - overlayChat.y;
+    for (const { bx, by, bw, bh, action } of _lBtnData) {
+      if (px >= bx && px <= bx + bw && py >= by && py <= by + bh) {
+        action();
+        return;
+      }
+    }
+  };
+  _lCanvas.addEventListener('pointerdown', _lCanvasHandler);
 });//socket.on("list");
 
 usersDisplay.style.backgroundColor = "rgb(200,240,240)";

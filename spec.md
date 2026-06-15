@@ -75,8 +75,6 @@
 
 | # | タスク | ブロック |
 |---|---|---|
-| 45 | [東西南北部屋の大幅改修](#45-東西南北部屋の大幅改修) | G |
-| 46 | [部屋作成UIの大規模改修（PLANモード必須）](#46-部屋作成uiの大規模改修) | index.js |
 | 41 | [ロゴ名称変更（NecojectMachi → Necomachi）](#41-ロゴ名称変更necojectmachi--necomachi) | J |
 | 47 | [UIボタンデザインテストページ](#47-uiボタンデザインテストページ) | I / J |
 | 48 | [リンク集・更新履歴改修](#48-リンク集更新履歴改修) | I |
@@ -1438,9 +1436,10 @@ ridingObjectがない場合:
 - 入室制限1時間再使用可能（2026-06-14）: `entryLockUsed`（bool）→ `entryLockFirstUsedAt`（timestamp ms）に変更。初回使用から1時間（3600000ms）以内なら再使用可。1時間後はボタンdisabled。`bin/www`: `user[token].entryLockFirstUsedAt` で管理し `entryLockChanged` イベントに `firstUsedAt` を含めて送信。`entryLockDenied` 受信時は `_entryLockFirstUsedAt` を「1時間以上前」に設定してUI即反映
 - エリア名のlifetimeメッセージ表示（2026-06-14）: 方角部屋のサブ部屋では「西エリアの部屋は...」のようにエリア名を付与。`GET /api/rooms/:id` の認証レスポンスに `parent_direction` フィールドを追加（`direction_gates` テーブルを `room_id` で検索）。クライアントは `_areaMap` で方角部屋名→「東/南/西/北」に変換してlifetimeMsgに表示
 
+- サンプル（GATE含む）ボタン（実装済み）: 背景・足場・オブジェクト・ワープ各タブにサンプルボタンを追加。`GET /api/rooms/sample-list` でサーバーの `public/uploads/samples/` 一覧を取得し `imgSamplePanel` に表示。GATE画像もサンプルとして選択可能
+- オブジェクト type の透過当たり判定（実装済み）: platform type 画像のピクセル精度チェックを `_loadPlatformPixelData` + `_isOnAnyPlatform` で実装（浮いてるバッジ判定と共用）
+
 - 未搭載（後回し）:
-  - サンプル（GATE含む）ボタン: 未実装
-  - オブジェクト type の透過当たり判定: 未実装
   - 入室パスワード要求オプション: 未実装
 
 ---
