@@ -94,7 +94,7 @@
             <option value="0">部屋移動まで</option>
           </select>
           <p style="margin:10px 0 4px; font-size:12px; color:#aac;">削除パスワード（省略可）</p>
-          <input type="password" id="signPassword" maxlength="50" placeholder="パスワードなしは誰でも削除可" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <form onsubmit="return false;" style="margin:0;"><input type="password" id="signPassword" maxlength="50" placeholder="パスワードなしは誰でも削除可" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;"></form>
           <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
             <button id="signCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
             <button id="signConfirm" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">立てる</button>
@@ -125,10 +125,10 @@
       <div id="roomEditPwModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
         <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:280px; color:#fff; font-family:monospace;">
           <p style="margin:0 0 10px; font-size:13px; color:#aaa;">パスワードを入力してください</p>
-          <div style="position:relative;">
+          <form onsubmit="return false;" style="position:relative; margin:0;">
             <input type="password" id="roomEditPwModalInput" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px 28px 6px 8px; font-size:14px; border-radius:4px; margin-bottom:8px;">
             <button id="roomEditPwModalToggle" type="button" style="position:absolute; right:6px; top:6px; background:none; border:none; color:#aaa; cursor:pointer; font-size:14px; line-height:1; padding:0;">👁</button>
-          </div>
+          </form>
           <p id="roomEditPwModalErr" style="color:#f66; font-size:12px; margin:0 0 10px; display:none;">パスワードが違います</p>
           <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button id="roomEditPwModalCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
@@ -152,7 +152,7 @@
       <div id="signDeleteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
         <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
           <p style="margin:0 0 8px;">削除パスワードを入力してください</p>
-          <input type="password" id="signDeletePassword" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #d94a4a; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <form onsubmit="return false;" style="margin:0;"><input type="password" id="signDeletePassword" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #d94a4a; color:#fff; padding:6px; font-size:14px; border-radius:4px;"></form>
           <p id="signDeleteError" style="color:#f66; font-size:12px; margin:4px 0 0; display:none;">パスワードが違います</p>
           <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
             <button id="signDeleteCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
@@ -247,10 +247,10 @@
                       <!-- パスワード行 -->
                       <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
                         <span style="font-size:11px;color:#aaa;white-space:nowrap;">パスワード</span>
-                        <div style="position:relative;flex:1;min-width:0;">
+                        <form onsubmit="return false;" style="position:relative;flex:1;min-width:0;margin:0;">
                           <input type="password" id="roomEditPw" placeholder="未設定の場合、誰でも編集できます" style="width:100%;background:#111;border:1px solid #555;color:#fff;padding:4px 28px 4px 4px;font-size:11px;box-sizing:border-box;" class="placeholder-gray">
                           <button id="roomEditPwToggle" type="button" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;line-height:1;padding:0;">👁</button>
-                        </div>
+                        </form>
                       </div>
                       <!-- タブ（3タブ構成） -->
                       <div style="display:flex;gap:2px;border-bottom:1px solid #4a90d9;margin-bottom:0;">
@@ -385,7 +385,7 @@
                           <div id="roomDeleteConfirm" style="display:none;margin-top:6px;background:#1a0000;border:1px solid #c04040;padding:8px;border-radius:3px;">
                             <div style="font-size:12px;color:#ff8888;margin-bottom:6px;">本当に削除しますか？<br><span style="font-size:10px;color:#aaa;">元に戻せません。部屋・画像・ワープがすべて消えます。</span></div>
                             <div id="roomDeletePassWrap" style="display:none;margin-bottom:6px;">
-                              <input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;">
+                              <form onsubmit="return false;" style="margin:0;"><input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;"></form>
                             </div>
                             <div id="roomDeleteErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
                             <div style="display:flex;gap:6px;">
@@ -760,6 +760,7 @@
           <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
           <option class="游ゴシック">游ゴシック</option>
           <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+          <option class="まるっかな">まるっかな</option>
         </select>
       </span> 
       <span>その他</span>

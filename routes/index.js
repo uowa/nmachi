@@ -7,7 +7,7 @@ router.get('/', (req, res, next) => {
       title: 'NecojectMachi',
     };
   res.render('index', data);
-});       
+});
 
 router.post('/post', (req, res, next) => {
   var data={
