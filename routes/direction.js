@@ -18,7 +18,7 @@ const DIRECTION_LIFETIMES = {
 // GET /api/direction/:roomName/gates
 router.get('/:roomName/gates', (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) {
+    if (!(roomName in DIRECTION_LIFETIMES)) {
         return res.status(400).json({ error: '不正な方角部屋名です' });
     }
     const gates = db.all('SELECT gate_index, room_id, room_name FROM direction_gates WHERE parent_room_name = ?', [roomName]);
@@ -28,7 +28,7 @@ router.get('/:roomName/gates', (req, res) => {
 // POST /api/direction/:roomName/gates/:index - 指定GATEにサブ部屋を作成
 router.post('/:roomName/gates/:index', (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) {
+    if (!(roomName in DIRECTION_LIFETIMES)) {
         return res.status(400).json({ error: '不正な方角部屋名です' });
     }
     const gateIndex = parseInt(req.params.index, 10);
@@ -84,7 +84,7 @@ router.post('/:roomName/gates/:index', (req, res) => {
 // DELETE /api/direction/:roomName/gates/:index
 router.delete('/:roomName/gates/:index', (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) {
+    if (!(roomName in DIRECTION_LIFETIMES)) {
         return res.status(400).json({ error: '不正な方角部屋名です' });
     }
     const gateIndex = parseInt(req.params.index, 10);
@@ -115,7 +115,7 @@ router.delete('/:roomName/gates/:index', (req, res) => {
 // GET /api/direction/:roomName/bg
 router.get('/:roomName/bg', (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    if (!(roomName in DIRECTION_LIFETIMES)) return res.status(400).json({ error: '不正な方角部屋名です' });
     const row = db.get('SELECT url FROM direction_bg_images WHERE room_name = ?', [roomName]);
     res.json(row ? { url: row.url } : {});
 });
@@ -123,7 +123,7 @@ router.get('/:roomName/bg', (req, res) => {
 // POST /api/direction/:roomName/bg
 router.post('/:roomName/bg', async (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    if (!(roomName in DIRECTION_LIFETIMES)) return res.status(400).json({ error: '不正な方角部屋名です' });
     const { imageBase64 } = req.body || {};
     if (!imageBase64) return res.status(400).json({ error: 'imageBase64が必要です' });
     const match = imageBase64.match(/^data:image\/(png|jpe?g|gif|webp);base64,(.+)$/);
@@ -158,7 +158,7 @@ router.post('/:roomName/bg', async (req, res) => {
 // DELETE /api/direction/:roomName/bg
 router.delete('/:roomName/bg', (req, res) => {
     const { roomName } = req.params;
-    if (!DIRECTION_LIFETIMES[roomName]) return res.status(400).json({ error: '不正な方角部屋名です' });
+    if (!(roomName in DIRECTION_LIFETIMES)) return res.status(400).json({ error: '不正な方角部屋名です' });
     const row = db.get('SELECT filename FROM direction_bg_images WHERE room_name = ?', [roomName]);
     if (row) {
         try { fs.unlinkSync(path.join(DIR_BG_DIR, row.filename)); } catch (_e) {}

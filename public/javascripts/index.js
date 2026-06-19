@@ -38,6 +38,29 @@ let reconnectSavedState = null;
 // #region 変数宣言
 const setUpFlag = [];
 
+let uiNewMode = localStorage.getItem('uiMode') !== 'old';
+document.body.classList.toggle('ui-new', uiNewMode);
+const _uiColorMap = {
+  'red':     '#f0a0c0',
+  'pink':    '#f0a0c0',
+  'skyblue': '#60c8e8',
+  '#6C9BD2': '#60c8e8',
+  'gray':    '#888888',
+};
+function _setBtnState(btn, color) {
+  if (uiNewMode) {
+    const c = _uiColorMap[color] || color;
+    btn.style.color = c;
+    btn.style.borderColor = c;
+    btn.style.backgroundColor = '';
+  } else {
+    btn.style.backgroundColor = color;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+}
+_setBtnState(document.getElementById('checkAllListen'), 'pink');
+
 //アバターの初期位置
 let AX = 330;
 let AY = 200;
@@ -5555,7 +5578,7 @@ async function login() {
       if (!clickedWa_iButtun) {
         isDownCtrl = e.ctrlKey;
         if (e.ctrlKey == false) {
-          wa_i.style.backgroundColor = "red";
+          _setBtnState(wa_i, "red");
         }
       }
     }, { passive: true });
@@ -5563,7 +5586,7 @@ async function login() {
     window.addEventListener("blur", () => {//ウィンドウが非アクティブになったとき
       if (!clickedWa_iButtun) {//わ～いボタンがオンだったらidDownCtrlを効かないようにしとく
         isDownCtrl = false;
-        wa_i.style.backgroundColor = "red";
+        _setBtnState(wa_i, "red");
       }
       keysPressed.clear(); // 矢印キー移動のリセット
     }, { passive: true });
@@ -9319,12 +9342,13 @@ function outputChatMsg(outputMessage, color, thisToken, announce, namePrefix) {/
 }
 
 //メインログ表示
-let useMainLog = false;
+let useMainLog = localStorage.getItem("showMainLog") === "1";
 mainLogButton.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
   e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
   useMainLog = !useMainLog;
-  mainLogButton.style.backgroundColor = useMainLog ? 'skyblue' : 'red';
+  localStorage.setItem("showMainLog", useMainLog ? "1" : "0");
+  _setBtnState(mainLogButton, useMainLog ? 'skyblue' : 'red');
   const mainLogHeight = localStorage.getItem("mainLogHeight") || "200";
   mainLog.style.height = useMainLog ? mainLogHeight + "px" : "0px";
   mainLogFrame.style.height = useMainLog ? mainLogHeight + "px" : "0px";
@@ -9332,13 +9356,14 @@ mainLogButton.addEventListener('pointerdown', e => {
 });
 
 //画面chatの表示切替
-let useOverlayChat = false;
+let useOverlayChat = localStorage.getItem("showOverlayChat") === "1";
 useOverlayChatButton.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
   e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
   useOverlayChat = !useOverlayChat;
+  localStorage.setItem("showOverlayChat", useOverlayChat ? "1" : "0");
   overlayChat.visible = useOverlayChat;
-  useOverlayChatButton.style.backgroundColor = useOverlayChat ? 'skyblue' : 'red';
+  _setBtnState(useOverlayChatButton, useOverlayChat ? 'skyblue' : 'red');
 });
 
 // 画面チャット スワイプ：左右でテキスト色切替、上下でスクロール
@@ -9396,12 +9421,12 @@ myCanvas.addEventListener('wheel', e => {
   }
 }, { passive: false });
 
-wa_i.style.backgroundColor = "red";
+_setBtnState(wa_i, "red");
 wa_i.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
   e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
   clickedWa_iButtun = !clickedWa_iButtun;
-  wa_i.style.backgroundColor = clickedWa_iButtun ? 'skyblue' : 'red';
+  _setBtnState(wa_i, clickedWa_iButtun ? 'skyblue' : 'red');
 });
 
 document.addEventListener('keydown', e => {
@@ -9413,6 +9438,35 @@ document.addEventListener('keydown', e => {
 
 //お絵描き用のシステム
 // ===== 床ポリゴン作成ツール =====
+const _uiReverseColorMap = { '#f0a0c0': 'red', '#60c8e8': 'skyblue', '#888888': 'gray' };
+function _applyUiModeToButtons() {
+  document.querySelectorAll('#switchBar button').forEach(btn => {
+    if (uiNewMode) {
+      const bg = btn.style.backgroundColor;
+      if (bg) {
+        const c = _uiColorMap[bg] || bg;
+        btn.style.color = c;
+        btn.style.borderColor = c;
+        btn.style.backgroundColor = '';
+      }
+    } else {
+      const c = btn.style.color;
+      btn.style.borderColor = '';
+      if (c) { btn.style.backgroundColor = _uiReverseColorMap[c] || c; btn.style.color = ''; }
+    }
+  });
+}
+const _uiNewModeChk = document.getElementById('uiNewModeChk');
+if (_uiNewModeChk) {
+  _uiNewModeChk.checked = !uiNewMode;
+  _uiNewModeChk.addEventListener('change', e => {
+    uiNewMode = !e.target.checked;
+    localStorage.setItem('uiMode', uiNewMode ? 'new' : 'old');
+    document.body.classList.toggle('ui-new', uiNewMode);
+    _applyUiModeToButtons();
+  });
+}
+
 document.getElementById('showCoordChk').addEventListener('change', e => {
   showCoord = e.target.checked;
   localStorage.setItem("showCoord", showCoord);
@@ -10713,8 +10767,8 @@ function _imgDoodleDoRedo() {
 }
 
 function _imgDoodleUpdateButtons() {
-  undo.style.backgroundColor = _imgDoodleHistory.length > 0 ? 'skyblue' : '#c4f1efff';
-  redo.style.backgroundColor = _imgDoodleRedoStack.length > 0 ? 'skyblue' : '#c4f1efff';
+  _setBtnState(undo, _imgDoodleHistory.length > 0 ? 'skyblue' : '#c4f1efff');
+  _setBtnState(redo, _imgDoodleRedoStack.length > 0 ? 'skyblue' : '#c4f1efff');
 }
 
 function _imgDoodleUndoCapture(e) {
@@ -11387,7 +11441,7 @@ function oekakiSystem() {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (clearState === "disabled") return;
     e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
-    clear.style.backgroundColor = '#c4f1efff';
+    _setBtnState(clear, '#c4f1efff');
   });
 
   clear.addEventListener('pointerup', e => {
@@ -11520,7 +11574,7 @@ function oekakiSystem() {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (undoState === "disabled") return;
     e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
-    undo.style.backgroundColor = '#c4f1efff';
+    _setBtnState(undo, '#c4f1efff');
   });
 
   undo.addEventListener('pointerup', e => {
@@ -11615,7 +11669,7 @@ function oekakiSystem() {
     if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
     if (redoState === "disabled") return;
     e.preventDefault(); // テキスト選択やドラッグ開始を防ぐ
-    redo.style.backgroundColor = '#c4f1efff';
+    _setBtnState(redo, '#c4f1efff');
   });
 
   // リドゥ（やり直し）ボタンの処理
@@ -11702,11 +11756,11 @@ function switchDrawing(avatarDraw) {
         (Array.isArray(line.roomMemberToken) && line.roomMemberToken.includes(myToken))
       );
       const canRedo = vfObj.redoStack && vfObj.redoStack.length > 0;
-      clear.style.backgroundColor = hasLine ? 'darkorange' : '#c4f1efff';
+      _setBtnState(clear, hasLine ? 'darkorange' : '#c4f1efff');
       clearState = hasLine ? 'enabled' : 'disabled';
-      undo.style.backgroundColor = canUndo ? 'darkorange' : '#c4f1efff';
+      _setBtnState(undo, canUndo ? 'darkorange' : '#c4f1efff');
       undoState = canUndo ? 'enabled' : 'disabled';
-      redo.style.backgroundColor = canRedo ? 'darkorange' : '#c4f1efff';
+      _setBtnState(redo, canRedo ? 'darkorange' : '#c4f1efff');
       redoState = canRedo ? 'enabled' : 'disabled';
       return;
     }
@@ -11721,21 +11775,15 @@ function switchDrawing(avatarDraw) {
   const canRedo = target.redoStack && target.redoStack.length > 0;
 
   // 全消しボタン
-  clear.style.backgroundColor = avatarDraw
-    ? (hasLine ? "blue" : "#c4f1efff")
-    : (hasLine ? "skyblue" : "#c4f1efff");
+  _setBtnState(clear, avatarDraw ? (hasLine ? "blue" : "#c4f1efff") : (hasLine ? "skyblue" : "#c4f1efff"));
   clearState = hasLine ? "enabled" : "disabled";
 
   // アンドゥボタン
-  undo.style.backgroundColor = avatarDraw
-    ? (canUndo ? "blue" : "#c4f1efff")
-    : (canUndo ? "skyblue" : "#c4f1efff");
+  _setBtnState(undo, avatarDraw ? (canUndo ? "blue" : "#c4f1efff") : (canUndo ? "skyblue" : "#c4f1efff"));
   undoState = canUndo ? "enabled" : "disabled";
 
   // リドゥボタン
-  redo.style.backgroundColor = avatarDraw
-    ? (canRedo ? "blue" : "#c4f1efff")
-    : (canRedo ? "skyblue" : "#c4f1efff");
+  _setBtnState(redo, avatarDraw ? (canRedo ? "blue" : "#c4f1efff") : (canRedo ? "skyblue" : "#c4f1efff"));
   redoState = canRedo ? "enabled" : "disabled";
 }
 
@@ -11761,7 +11809,7 @@ function setMsgSE(value) {
   });
 }
 
-logNoiseButton.style.backgroundColor = useLogChime ? 'skyblue' : 'red';
+_setBtnState(logNoiseButton, useLogChime ? 'skyblue' : 'red');
 logNoiseButton.textContent = useLogChime ? "SE🔊))" : "SE📢✖";
 
 document.getElementById('showJoinLeaveMsg').checked = showJoinLeaveMsg;
@@ -11784,7 +11832,7 @@ logNoiseButton.addEventListener('pointerdown', e => {
   if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
   e.preventDefault();
   useLogChime = !useLogChime;
-  logNoiseButton.style.backgroundColor = useLogChime ? 'skyblue' : 'red';
+  _setBtnState(logNoiseButton, useLogChime ? 'skyblue' : 'red');
   logNoiseButton.textContent = useLogChime ? "SE🔊))" : "SE📢✖";
   localStorage.setItem("useLogChime", useLogChime ? true : false);
 });
@@ -11894,7 +11942,7 @@ socket.on("emit_msg", data => {
   }
 });
 
-train.style.backgroundColor = "rgb(255,165,0)";
+_setBtnState(train, "rgb(255,165,0)");
 function trainClick() {
   if (room !== login) {
     socket.emit("emit_msg", {
@@ -11916,8 +11964,17 @@ function _buildTrainButtons(li, data) {
     const roomId = data.roomNameList[i];
     _trainBtns[roomId] = btn;
     const isUser = roomTypes[i] === 'user';
-    btn.style.backgroundColor = isUser ? '#1a2a5a' : 'rgb(255,165,0)';
-    if (isUser) btn.style.color = '#aaccff';
+    if (uiNewMode) {
+      const c = isUser ? '#aaccff' : 'rgb(255,165,0)';
+      btn.style.background = 'rgba(10, 37, 48, 1)';
+      btn.style.color = c;
+      btn.style.border = '1.2px solid ' + c;
+      btn.style.borderRadius = '2px';
+      btn.style.padding = '5px 8px';
+    } else {
+      btn.style.backgroundColor = isUser ? '#1a2a5a' : 'rgb(255,165,0)';
+      if (isUser) btn.style.color = '#aaccff';
+    }
     btn.addEventListener('pointerdown', e => {
       if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
       e.preventDefault();
@@ -12056,7 +12113,14 @@ socket.on("list", data => {
     } else {
       button[i].textContent = _listName + _suffix;
     }
-    if (avaP[data.listToken[i]].abon) {
+    if (uiNewMode) {
+      const c = avaP[data.listToken[i]].abon ? 'red' : '#60c8e8';
+      button[i].style.background = 'rgba(10, 37, 48, 1)';
+      button[i].style.color = c;
+      button[i].style.border = '1.2px solid ' + c;
+      button[i].style.borderRadius = '2px';
+      button[i].style.padding = '5px 8px';
+    } else if (avaP[data.listToken[i]].abon) {
       button[i].style.backgroundColor = "red";
     } else {
       button[i].style.backgroundColor = "skyblue";
@@ -12135,7 +12199,7 @@ socket.on("list", data => {
   _lCanvas.addEventListener('pointerdown', _lCanvasHandler);
 });//socket.on("list");
 
-usersDisplay.style.backgroundColor = "rgb(200,240,240)";
+_setBtnState(usersDisplay, "rgb(200,240,240)");
 function usersDisplayClick() {
   if (room !== login) {
     socket.emit("emit_msg", {
@@ -13995,24 +14059,26 @@ function windowResize(isInitial = false) {
     mainLogFrame.style.width = windowWidth / PMscale + "px";
     //メインログ
     if (useMainLog) {
+      _setBtnState(mainLogButton, "skyblue");
       const mainLogHeight = localStorage.getItem("mainLogHeight") ? Number(localStorage.getItem("mainLogHeight")) : 200;
       mainLog.style.height = mainLogHeight + "px";
       mainLogFrame.style.height = mainLogHeight + "px";
       mainLogResizeBar.style.display = "block";
     } else {
-      mainLogButton.style.backgroundColor = "red";
+      _setBtnState(mainLogButton, "red");
       mainLog.style.height = 0 + "px";
       mainLogFrame.style.height = 0 + "px";
       mainLogResizeBar.style.display = "none";
     }
 
-    if (isInitial) {
-      useOverlayChatButton.style.backgroundColor = "skyblue";
+    if (isInitial && localStorage.getItem("showOverlayChat") === null) {
+      _setBtnState(useOverlayChatButton, "skyblue");
       overlayChat.visible = true;
       useOverlayChat = true;
+      localStorage.setItem("showOverlayChat", "1");
     } else {
       overlayChat.visible = useOverlayChat;
-      useOverlayChatButton.style.backgroundColor = useOverlayChat ? 'skyblue' : 'red';
+      _setBtnState(useOverlayChatButton, useOverlayChat ? 'skyblue' : 'red');
     }
 
     // // mainLog.style.fontSize = "13px";
@@ -15685,14 +15751,14 @@ async function startVideo() {
     return;
   }
   videoStatus = true;
-  document.getElementById('startVideo').style.backgroundColor = 'gray';
+  _setBtnState(document.getElementById('startVideo'), 'gray');
   document.getElementById('startVideo').onclick = function buttonClick() { stopVideo(); };
   let deviceId;
   try {
     deviceId = await _getVideoDeviceId();
   } catch (_e) {
     videoStatus = false;
-    document.getElementById('startVideo').style.backgroundColor = 'red';
+    _setBtnState(document.getElementById('startVideo'), 'red');
     document.getElementById('startVideo').onclick = function buttonClick() { startVideo(); };
     return;
   }
@@ -15704,7 +15770,7 @@ async function startVideo() {
   getDeviceStream({ video: videoStatus }) // audio: false <-- ontrack once, audio:true --> ontrack twice!!
     .then(async function (stream) { // success
       if (!videoStatus) { stream.getTracks().forEach(t => t.stop()); return; }
-      document.getElementById('startVideo').style.backgroundColor = "skyblue";
+      _setBtnState(document.getElementById('startVideo'), "skyblue");
       if (!localStream) {
         localStream = stream;
       }
@@ -15757,7 +15823,7 @@ async function startVideo() {
 
     }).catch(function (error) { // error
       videoStatus = false;
-      document.getElementById('startVideo').style.backgroundColor = "red";
+      _setBtnState(document.getElementById('startVideo'), "red");
       document.getElementById('startVideo').onclick = function buttonClick() {
         startVideo();
       }
@@ -15836,7 +15902,7 @@ async function startAudio() {
     return;
   }
   audioStatus = true;
-  document.getElementById('startAudio').style.backgroundColor = 'gray';
+  _setBtnState(document.getElementById('startAudio'), 'gray');
   document.getElementById('startAudio').onclick = function buttonClick() { stopAudio(); };
   // iOS Safari: AudioContext は最初の await 前に生成しないと gesture context が失われる
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -15851,7 +15917,7 @@ async function startAudio() {
   try {
     deviceId = await _getMicDeviceId();
   } catch (_e) {
-    if (audioStatus) { audioStatus = false; _audioCtx.close(); _audioCtx = null; document.getElementById('startAudio').style.backgroundColor = 'red'; document.getElementById('startAudio').onclick = function buttonClick() { startAudio(); }; }
+    if (audioStatus) { audioStatus = false; _audioCtx.close(); _audioCtx = null; _setBtnState(document.getElementById('startAudio'), 'red'); document.getElementById('startAudio').onclick = function buttonClick() { startAudio(); }; }
     return;
   }
   if (!audioStatus) return;
@@ -15864,7 +15930,7 @@ async function startAudio() {
     }
   }).then(function (stream) { // success
     if (!audioStatus) { stream.getTracks().forEach(t => t.stop()); return; }
-    document.getElementById('startAudio').style.backgroundColor = "skyblue";
+    _setBtnState(document.getElementById('startAudio'), "skyblue");
     _audioRawStream = stream;
     const source = _audioCtx.createMediaStreamSource(stream);
     _audioGainNode = _audioCtx.createGain();
@@ -15923,7 +15989,7 @@ async function startAudio() {
     }
   }).catch(function (error) { // error
     audioStatus = false;
-    document.getElementById('startAudio').style.backgroundColor = "red";
+    _setBtnState(document.getElementById('startAudio'), "red");
     document.getElementById('startAudio').onclick = function buttonClick() {
       startAudio();
     }
@@ -15936,7 +16002,7 @@ async function startAudio() {
 
 // stop local video
 function stopVideo() {
-  document.getElementById('startVideo').style.backgroundColor = "red";
+  _setBtnState(document.getElementById('startVideo'), "red");
   videoStatus = false;
   mapPeer.forEach(function (value) {
     let senders = value.get("rtc").getSenders();
@@ -15983,7 +16049,7 @@ function stopVideo() {
 }
 
 function stopAudio() {
-  document.getElementById('startAudio').style.backgroundColor = "red";
+  _setBtnState(document.getElementById('startAudio'), "red");
   audioStatus = false;
   mapPeer.forEach(function (value) {
     let senders = value.get("rtc").getSenders();
@@ -16102,7 +16168,7 @@ function _stopRemoteVolumeViz(token) {
 function checkAllListenFunk() {
   if (checkAllListen) {//checkAllListenを止めるとき
     checkAllListen = false;
-    document.getElementById('checkAllListen').style.backgroundColor = "pink";
+    _setBtnState(document.getElementById('checkAllListen'), "pink");
     Object.keys(mediaElement).forEach(function (key) {
       if (videoButton[key] && videoButtonFlag[key]) {
         videoButton[key].style.backgroundColor = 'red';
@@ -16121,7 +16187,7 @@ function checkAllListenFunk() {
     });
   } else {//checkAllListenを動かすとき
     checkAllListen = true;
-    document.getElementById('checkAllListen').style.backgroundColor = "#6C9BD2";
+    _setBtnState(document.getElementById('checkAllListen'), "#6C9BD2");
     Object.keys(mediaElement).forEach(function (key) {
       if (videoButton[key] && videoButtonFlag[key] === undefined) {
         videoButtonFlag[key] = true;

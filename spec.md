@@ -69,14 +69,13 @@
 
 | # | タスク | ブロック |
 |---|---|---|
-| 35 | [画面チャット・ログ状態の前回状態引き継ぎ](#35-画面チャットログ状態の前回状態引き継ぎ) | index.js |
 
 #### グループ3：大規模・AI応答待ちが多いもの
 
 | # | タスク | ブロック |
 |---|---|---|
 | 41 | [ロゴ名称変更（NecojectMachi → Necomachi）](#41-ロゴ名称変更necojectmachi--necomachi) | J |
-| 47 | [UIボタンデザインテストページ](#47-uiボタンデザインテストページ) | I / J |
+| 47 | [UIボタンデザインテストページ](#47-uiボタンデザインテストページ-✅-2026-06-20-実装完了) ✅ | I / J |
 | 48 | [リンク集・更新履歴改修](#48-リンク集更新履歴改修) | I |
 | 49 | [カンパ用URLページ](#49-カンパ用urlページ) | I |
 
@@ -1196,10 +1195,15 @@ ridingObjectがない場合:
 
 ---
 
-### 35. 画面チャット・ログ状態の前回状態引き継ぎ
+### 35. 画面チャット・ログ状態の前回状態引き継ぎ ✅ (2026-06-15 実装完了)
 **Persist overlay chat / main log state across sessions**
 - 前回終了時の画面チャット表示/非表示、下ログ表示/非表示を localStorage に保存し次回起動時に引き継ぐ
 - 新しい localStorage キーが必要（`showOverlayChat`、`showMainLog` 等、実装時に確認）
+
+#### 現状
+2026-06-15 実装完了  
+`useMainLog` / `useOverlayChat` を宣言時に localStorage から読み込むよう変更。ボタン押下時に `localStorage.setItem` で保存。  
+`windowResize(isInitial=true)` で画面チャットを自動 ON にする処理は、`localStorage.getItem("showOverlayChat") === null`（未設定）の場合のみ実行し、ON にした上で localStorage に保存する。設定済みの場合は保存値を引き継ぐ。
 
 ---
 
@@ -1444,10 +1448,17 @@ ridingObjectがない場合:
 
 ---
 
-### 47. UIボタンデザインテストページ
+### 47. UIボタンデザインテストページ ✅ (2026-06-20 実装完了)
 **UI button design test page**
 - テスト用ページを新規作成、ボタンデザイン候補（白抜き文字、ネオン常時点灯等）を並べて表示
 - ユーザーが確認して選定後、本実装へ
+
+#### 現状
+- チカラヨワクフォント＋ダーク背景＋文字色/枠線でON/OFFを表現する新UIデザインを本実装
+- `body.ui-new` CSSクラスで新旧UI分岐。`_setBtnState(btn, color)` ヘルパーが両モードを統一管理
+- **新UIがデフォルト**。設定パネル（`#setting`）内に「旧UI」チェックボックスで切り替え・localStorage保存
+- switchBar内のボタン全て対応（train・usersDisplay・電車/リスト展開ボタン含む）
+- ON状態=シアン(`#60c8e8`)、OFF状態=ピンク(`#f0a0c0`)、電車=オレンジ、部屋人数=グレー
 
 ---
 

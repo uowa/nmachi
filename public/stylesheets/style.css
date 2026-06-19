@@ -1171,6 +1171,49 @@ select {
 .headIcon{
     font-size: 100px;
     content:"tes!!!";
-    
+
+}
+
+/* ===== 新UI (body.ui-new) ===== */
+body.ui-new #switchBar button {
+    background: rgba(10, 37, 48, 1);
+    color: #60c8e8;
+    border: 1.2px solid #90ddf0;
+    border-radius: 2px;
+    white-space: nowrap;
+    padding: 5px 8px;
+}
+body.ui-new #switchBar button.defaultRed {
+    color: #f0a0c0;
+    border-color: #f0a0c0;
+}
+body.ui-new #setting button {
+    background: rgba(0, 100, 150, 0.28);
+    color: #5898c0;
+    border: 1px solid #88b8d8;
+    border-radius: 2px;
+    padding: 2px 10px;
+}
+body.ui-new #switchBar button,
+body.ui-new #setting button,
+body.ui-new #setting select,
+body.ui-new #setting label,
+body.ui-new #setting span {
+    font-family: "チカラヨワク", "Meiryo", "Yu Gothic", sans-serif;
+}
+body.ui-new #switchBar button#undo,
+body.ui-new #switchBar button#redo {
+    font-family: "Arial Unicode MS", "Lucida Sans Unicode", sans-serif;
+    font-weight: bold;
+}
+body.ui-new #train {
+    color: #ffa500 !important;
+    border-color: #ffa500 !important;
+    padding: 5px 8px;
+}
+body.ui-new #usersDisplay {
+    color: #ddd !important;
+    border-color: #ddd !important;
+    font-size: 0.88em;
 }
 

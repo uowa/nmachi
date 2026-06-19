@@ -2,6 +2,7 @@
 <html lang="ja">
 
 <head>
+  <base href="/">
   <link rel="canonical" href="https:/nuco.moe">
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title>
@@ -22,6 +23,75 @@
 
   <link rel='stylesheet' href='/stylesheets/style.css' />
   <link rel="preload" as="font" type="font/ttf" href="/stylesheets/JKG-L_3.ttf" crossorigin>
+  <style>
+    /* ===== ネオンCデザイン テスト ===== */
+
+    /* switchBar内のボタン（背景 #b6a3a3 なので白系ネオン） */
+    #switchBar button {
+      background: rgba(10, 37, 48, 1);
+      color: #60c8e8;
+      border: 1px solid #90ddf0;
+      border-radius: 2px;
+      padding: 3px 9px;
+      white-space: nowrap;
+    }
+    #switchBar button.defaultRed {
+      color: #f0a0c0 !important;
+      border-color: #f0a0c0 !important;
+    }
+
+    /* settingパネル内のボタン（背景が明るいので暗色ネオン） */
+    #setting button {
+      background: rgba(0, 100, 150, 0.28) !important;
+      color: #5898c0;
+      border: 1px solid #88b8d8;
+      border-radius: 2px;
+      padding: 2px 10px;
+    }
+
+    /* デバイスピッカーダイアログ（背景白） */
+    #devicePickerOverlay button {
+      background: rgba(0, 100, 150, 0.28) !important;
+      color: #60c8e8;
+      border: 1px solid #88b8d8;
+      border-radius: 2px;
+      padding: 4px 16px;
+      box-shadow: 0 0 4px #88b8d866;
+      text-shadow: 0 0 3px #88b8d888;
+    }
+    /* フォント: チカラヨワク */
+    #switchBar button,
+    #setting button, #setting select, #setting label, #setting span {
+      font-family: "チカラヨワク", "Meiryo", "Yu Gothic", sans-serif !important;
+    }
+    #switchBar button#undo, #switchBar button#redo {
+      font-family: "Arial Unicode MS", "Lucida Sans Unicode", sans-serif !important;
+      font-weight: bold !important;
+    }
+    #train {
+      background: rgba(10, 37, 48, 1);
+    }
+    #usersDisplay {
+      background: rgba(10, 37, 48, 1);
+      font-size: 0.88em !important;
+      padding: 3px 4px !important;
+    }
+  </style>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      function bgToColor(btn) {
+        const bg = btn.style.backgroundColor;
+        if (bg) { btn.style.color = bg; btn.style.backgroundColor = ''; }
+      }
+      const bar = document.getElementById('switchBar');
+      if (bar) {
+        bar.querySelectorAll('button').forEach(bgToColor);
+        new MutationObserver(ms => ms.forEach(m => {
+          if (m.attributeName === 'style') bgToColor(m.target);
+        })).observe(bar, { attributes: true, subtree: true, attributeFilter: ['style'] });
+      }
+    });
+  </script>
   <script>
     function _assert(desc, v) {
       if (v) {
@@ -536,9 +606,6 @@
                 </select>
                 <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
               </div>
-              <div style="margin-top:6px;">
-                <label><input type="checkbox" id="uiNewModeChk"> 旧UI</label>
-              </div>
               <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
                 <span style="white-space:nowrap; font-size:11px;">部屋リンク</span>
                 <span id="roomLinkInput" style="flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#333; border-bottom:1px solid #aaa; padding-bottom:1px;"></span>
@@ -685,6 +752,7 @@
                   </div>
                 </div>
               </div>
+              <br>
               <div id="devEditSection" style="display:none">
                 <hr style="border-color: #4a90d9; margin: 8px 0;">
                 <div>
@@ -762,7 +830,6 @@
           <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
           <option class="游ゴシック">游ゴシック</option>
           <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-          <option class="まるっかな">まるっかな</option>
         </select>
       </span> 
       <span>その他</span>
