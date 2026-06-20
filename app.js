@@ -78,16 +78,6 @@ app.use("/Q-A", pagesRouter);
 app.use("/link", pagesRouter);
 app.use("/login_error_handling", pagesRouter);
 app.use("/dominionrule", pagesRouter);
-app.use("/uowamemo01", pagesRouter);
-app.use("/uowamemo02", pagesRouter);
-app.use("/uowamemo03", pagesRouter);
-app.use("/uowamemo04", pagesRouter);
-app.use("/uowamemo05", pagesRouter);
-app.use("/uowamemo06", pagesRouter);
-app.use("/uowamemo07", pagesRouter);
-app.use("/uowamemo08", pagesRouter);
-app.use("/uowamemo09", pagesRouter);
-app.use("/uowamemo10", pagesRouter);
 app.use("/button-test", pagesRouter);
 
 
