@@ -22,6 +22,18 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
+// spec.md 閲覧
+app.get('/spec', (req, res) => {
+  const fs = require('fs');
+  const content = fs.readFileSync(path.join(__dirname, 'spec.md'), 'utf-8');
+  const escaped = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>spec.md</title><link rel="stylesheet" href="/stylesheets/style.css"><style>
+body{margin:0;background:#060e16;color:#e8e8e8;font-size:18px;line-height:1.6;}
+pre{padding:20px 0;white-space:pre-wrap;word-break:break-word;margin:0;}
+</style></head><body><pre>${escaped}</pre></body></html>`);
+});
+
 // Google TTS プロキシ
 app.get('/tts', (req, res) => {
   const text = req.query.q;
