@@ -75,7 +75,6 @@
 | # | タスク | ブロック |
 |---|---|---|
 | 41 | [ロゴ名称変更（NecojectMachi → Necomachi）](#41-ロゴ名称変更necojectmachi--necomachi) | J |
-| 49 | [カンパ用URLページ](#49-カンパ用urlページ) ✅ | I |
 
 #### やりかけ・動作不安定（要修正）
 
@@ -1186,9 +1185,9 @@ ridingObjectがない場合:
 
 ---
 
-### 34. 404ページ やせアボン設置 ✅ (2026-06-04 実装完了)
-**404 page: skinny Abon + index link**
-- 「そんにゃぺーじないよ」404ページにやせアボン画像を設置
+### 34.やせアボン設置 ✅ (2026-06-04 実装完了)
+**skinny Abon + index link**
+- 「そんにゃぺーじないよ」にやせアボンを設置
 - 誘導URLとして、サイトURL変更に対応した相対URL（インデックスページへ）を画像の下に掲載
 
 #### 現状
@@ -1545,6 +1544,22 @@ ridingObjectがない場合:
 - `views/index.ejs`: SE音量スライダー
 - `public/javascripts/index.js`: Avatar constructor 内の入室SE再生
 - `bin/www`: `volumeRandom` 用SE配列長定義
+
+---
+
+### 55. SEミュートトグルボタン ✅ (2026-06-21 実装完了)
+
+#### 現状（2026-06-21 実装完了）
+- 設定パネルのSE音量スライダー左に「🔊 / 🔇」トグルボタンを追加（`#seMuteBtn`）
+- ボタンクリックで一瞬でミュート・解除を切り替え。ミュート時に直前の音量を記憶し、解除時に復元（保存値なければ 0.3 にフォールバック）
+- スライダーを手動操作してもボタン表示が連動更新（`setSEVolume` から `_updateSEMuteBtn()` を呼ぶ）
+- ボタン色は `#switchBar` ボタンと同じ暗いティール背景（インラインスタイルで適用、`rgba(10,37,48,1)` / `#60c8e8` / `1.2px solid #90ddf0`）
+- メインUIの `logNoiseButton`（SE📢✖）を削除（ミュートトグルで代替可能なため）
+- `useLogChime` は常に `true` に固定（既存の `if (useLogChime)` 分岐は残置、localStorage キーは廃止＝orphan）
+
+**関連ファイル**
+- `views/index.ejs`: `#seMuteBtn` ボタン追加、`#logNoiseButton` 削除
+- `public/javascripts/index.js`: `_updateSEMuteBtn` / `toggleSEMute` / `_seMuted` / `_seVolumeBefore`、`logNoiseButton` 関連削除
 
 ---
 

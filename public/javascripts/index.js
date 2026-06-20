@@ -207,7 +207,7 @@ let muon = new Audio('sound/etc/muon.mp3');
 muon.autoplay = true;
 muon.setAttribute('playsinline', '');
 //ログ音
-let useLogChime = localStorage.getItem("useLogChime") === "true";
+let useLogChime = true;
 let showJoinLeaveMsg = localStorage.getItem("showJoinLeaveMsg") !== "false"; // デフォルトtrue
 let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // デフォルトtrue
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
@@ -299,7 +299,6 @@ const nameForm = document.getElementById('nameForm');
 const msgForm = document.getElementById('msgForm');
 const useOverlayChatButton = document.getElementById('useOverlayChatButton');
 const logs = document.getElementById('logs');
-const logNoiseButton = document.getElementById('logNoiseButton');
 const mainLogButton = document.getElementById('mainLogButton');
 const wa_i = document.getElementById('wa_i');
 const clear = document.getElementById('clear');
@@ -11811,9 +11810,6 @@ function setMsgSE(value) {
   });
 }
 
-_setBtnState(logNoiseButton, useLogChime ? 'skyblue' : 'red');
-logNoiseButton.textContent = useLogChime ? "SE🔊))" : "SE📢✖";
-
 document.getElementById('showJoinLeaveMsg').checked = showJoinLeaveMsg;
 document.getElementById('allowOthersOekaki').checked = allowOthersOekaki;
 document.getElementById('oekakiPerStateMode').checked = oekakiPerStateMode;
@@ -11830,19 +11826,39 @@ document.getElementById('rnnoiseCheck').checked = _rnnoiseEnabled;
 document.getElementById('audioBoostCheck').checked = _audioBoostEnabled;
 document.getElementById('highpassCheck').checked = _highpassEnabled;
 
-logNoiseButton.addEventListener('pointerdown', e => {
-  if (!(e.button === 0 || ['touch', 'pen'].includes(e.pointerType))) return;
-  e.preventDefault();
-  useLogChime = !useLogChime;
-  _setBtnState(logNoiseButton, useLogChime ? 'skyblue' : 'red');
-  logNoiseButton.textContent = useLogChime ? "SE🔊))" : "SE📢✖";
-  localStorage.setItem("useLogChime", useLogChime ? true : false);
-});
-
 function setSEVolume(value) {//SE音量調整
   localStorage.setItem("volume", value);
   setMsgSE(value);
+  _updateSEMuteBtn();
 }
+
+let _seMuted = false;
+let _seVolumeBefore = null;
+const _seMuteBtn = document.getElementById('seMuteBtn');
+_seMuteBtn.style.background = 'rgba(10, 37, 48, 1)';
+_seMuteBtn.style.color = '#60c8e8';
+_seMuteBtn.style.border = '1.2px solid #90ddf0';
+_seMuteBtn.style.borderRadius = '2px';
+_seMuteBtn.style.padding = '5px 8px';
+
+function _updateSEMuteBtn() {
+  const v = parseFloat(effectVolume.value);
+  _seMuted = (v === 0);
+  _seMuteBtn.textContent = _seMuted ? "🔇" : "🔊";
+}
+
+function toggleSEMute() {
+  if (_seMuted) {
+    const restore = _seVolumeBefore != null ? _seVolumeBefore : 0.3;
+    effectVolume.value = restore;
+    setSEVolume(restore);
+  } else {
+    _seVolumeBefore = parseFloat(effectVolume.value);
+    effectVolume.value = 0;
+    setSEVolume(0);
+  }
+}
+_updateSEMuteBtn();
 
 socket.on("get", data => {
 });
