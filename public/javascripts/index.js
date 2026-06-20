@@ -47,6 +47,7 @@ const _uiColorMap = {
   '#6C9BD2': '#60c8e8',
   'gray':    '#888888',
 };
+const _newUiInlineProps = ['color', 'borderColor', 'textShadow', 'filter', 'outline', 'opacity'];
 function _setBtnState(btn, color) {
   if (uiNewMode) {
     const c = _uiColorMap[color] || color;
@@ -55,8 +56,7 @@ function _setBtnState(btn, color) {
     btn.style.backgroundColor = '';
   } else {
     btn.style.backgroundColor = color;
-    btn.style.color = '';
-    btn.style.borderColor = '';
+    for (const p of _newUiInlineProps) btn.style[p] = '';
   }
 }
 _setBtnState(document.getElementById('checkAllListen'), 'pink');
@@ -9453,8 +9453,8 @@ function _applyUiModeToButtons() {
       }
     } else {
       const c = btn.style.color;
-      btn.style.borderColor = '';
-      if (c) { btn.style.backgroundColor = _uiReverseColorMap[c] || c; btn.style.color = ''; }
+      for (const p of _newUiInlineProps) btn.style[p] = '';
+      if (c) { btn.style.backgroundColor = _uiReverseColorMap[c] || c; }
     }
   });
 }
