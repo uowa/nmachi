@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <link rel="canonical" href="https:/nuco.moe">
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>
+    <%= title %>
+  </title>
+  <!-- <meta name="keywords" content="Necoject街, 猫街, necoject,プロジェクト街,Project街,プロ街,p街,pro街,チャット,牛丼"> -->
+  <meta name="description"
+    content="チャットサイトproject街の後継,Necoject街。Necoject街, 猫街, necoject,プロジェクト街,Project街,プロ街,p街,pro街,チャット,牛丼">
+  <meta name="google-site-verification" content="2-dgALIrrcUCpiJ44mdiBI8rdcOLkvbICL5CLBFnTLc" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/mediaelement/4.2.9/mediaelement-and-player.js"></script>
+  <!-- <script src="https://github.com/Jam3/voice-activity-detection.git"></script> -->
+  <!-- ↑audio用だけど失敗してる -->
+  <script type="text/javascript">  </script>
+
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+  <link rel="preload" as="font" type="font/ttf" href="/stylesheets/JKG-L_3.ttf" crossorigin>
+  <script>
+    function _assert(desc, v) {
+      if (v) {
+        return;
+      }
+      else {
+        let caller = _assert.caller || 'Top level';
+        console.error('ASSERT in %s, %s is :', caller, desc, v);
+      }
+    }
+  </script>
+</head>
+
+
+<body>
+  <script type="text/javascript">
+    function isWebGLSupported() {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(window.WebGLRenderingContext && (
+          canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+        );
+      } catch (e) {
+        return false;
+      }
+    }
+    let type = isWebGLSupported() ? "WebGL" : "canvas";
+    console.log("Pixi.js rendering type:", type);
+  </script>
+
+  <!-- audioの自動再生の許可をとるための無音ファイル -->
+  <!-- https://webty.jp/staffblog/production/post-907/ -->
+  <audio allow="autoplay" preload id="muonAudio" style="display:none">
+    <source src='sound/etc/muon.mp3'>
+  </audio>
+
+  <div id="mainFrame">
+    <div role="main" id="main" class="flexContainerColumn">
+      <div id="titleBar" class="flexContainer">
+        <!-- <p style="font-size:43px; color:yellow; font-weight: bold;">工事中 </p> -->
+        <!-- <p style="font-size:23px; color:red; font-weight: bold;">入れん人はクッキー消して</p> -->
+        <!--日付-->
+        <div id="day"></div>
+        <div id="title">
+          <%= title %>
+        </div>
+      </div>
+
+
+      <!--元プロ街の画面比率は11:8-->
+
+
+      <!-- 立て看板モーダル -->
+      <div id="signModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #4a90d9; border-radius:8px; padding:20px; min-width:300px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 4px; font-size:12px; color:#aac;">看板の文字</p>
+          <input type="text" id="signBoardText" maxlength="20" placeholder="看板の文字（省略可）" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">メッセージ</p>
+          <input type="text" id="signClickText" maxlength="100" placeholder="クリックメッセージ（省略可）" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">表示時間</p>
+          <select id="signDuration" style="background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; border-radius:4px; width:100%;">
+            <option value="300000">5分</option>
+            <option value="900000">15分</option>
+            <option value="1800000">30分</option>
+            <option value="3600000">1時間</option>
+            <option value="10800000">3時間</option>
+            <option value="86400000">1日</option>
+            <option value="259200000">3日</option>
+            <option value="604800000">1週間</option>
+            <option value="0">部屋移動まで</option>
+          </select>
+          <p style="margin:10px 0 4px; font-size:12px; color:#aac;">削除パスワード（省略可）</p>
+          <input type="password" id="signPassword" maxlength="50" placeholder="パスワードなしは誰でも削除可" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #4a90d9; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+            <button id="signCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signConfirm" style="background:#1a4a7a; border:1px solid #4a90d9; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">立てる</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看板右クリックメニュー -->
+      <div id="signContextMenu" oncontextmenu="return false" style="display:none; position:fixed; z-index:9998; background:#1a1a2e; border:1px solid #4a90d9; border-radius:4px; padding:4px 0; font-family:monospace;">
+        <ul style="list-style:none; margin:0; padding:0;">
+          <li id="signDeleteMenu" style="padding:8px 20px; cursor:pointer; color:#fff; white-space:nowrap;">看板を消す</li>
+        </ul>
+      </div>
+
+      <!-- 看板削除確認モーダル -->
+      <div id="signDeleteConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 16px;">看板を消しますか？</p>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button id="signDeleteConfirmNo" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signDeleteConfirmYes" style="background:#7a1a1a; border:1px solid #d94a4a; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">消す</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看板削除パスワードモーダル -->
+      <div id="signDeleteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#1a1a2e; border:2px solid #d94a4a; border-radius:8px; padding:20px; min-width:260px; color:#fff; font-family:monospace;">
+          <p style="margin:0 0 8px;">削除パスワードを入力してください</p>
+          <input type="password" id="signDeletePassword" maxlength="50" placeholder="パスワード" style="width:100%; box-sizing:border-box; background:#0d0d1a; border:1px solid #d94a4a; color:#fff; padding:6px; font-size:14px; border-radius:4px;">
+          <p id="signDeleteError" style="color:#f66; font-size:12px; margin:4px 0 0; display:none;">パスワードが違います</p>
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+            <button id="signDeleteCancel" style="background:#333; border:1px solid #666; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">キャンセル</button>
+            <button id="signDeleteConfirm" style="background:#7a1a1a; border:1px solid #d94a4a; color:#fff; padding:6px 16px; border-radius:4px; cursor:pointer;">削除</button>
+          </div>
+        </div>
+      </div>
+      <div id="Pmachi" class="flexContainerColumn">
+        <div id="Pmain" class="flexContainer">
+          <div id="PmainLeft" class="flexContainerColumn">
+            <div id="PmainTop" class="flexContainer">
+              <div class="flexContainerColumn">
+                <div id="graphic" oncontextmenu="return false">
+                  <!-- <button id="loginButton" onclick="login()">LOGIN</button> -->
+                   <!-- まだ残しとく前どんなんだっけって言われるかもなので、cssは消してない -->
+                </div>
+
+                <div id="form">
+                  <form name="nameForm" id="nameForm" class="flexCenter">
+                    <input type="text" name="userName" id="userName" maxlength='27' placeholder="名前を入れてね　※必須じゃなぃよ">
+                  </form>
+                  <form name="msgForm" id="msgForm" class="flexCenter">
+                    <textarea name="msg" id="msg" maxlength='10000' placeholder="メッセージはこちらへ"
+                      autocomplete="off" rows="1"></textarea>
+                    <button type="submit" id="sendBtn" class="smartphone">⏎</button>
+                  </form>
+                </div>
+
+                <!-- スイッチ類 -->
+                <div id="switchBar">
+                  <!-- <span class="PC">shift+Enterで改行、alt+Enterでログ残し</span> -->
+                  <div class="flexContainerColumn">
+                    <div class="flexspaceBetween">
+                      <span class="PC">shift+Enterで改行</span>
+                      <button id="train" type="button" onclick="trainClick();">&nbsp;電車&nbsp;&nbsp;&nbsp;</button>
+                    </div>
+                    <div class="flexspaceBetween">
+                      <div class="flexContainer">
+                        <button class="defaultRed" id="startVideo" type="button" onclick="startVideo();">動画配信</button>
+                        <button class="defaultRed" id="startAudio" type="button" onclick="startAudio();">音声配信</button>
+                      </div>
+                      <div class="flexContainer">
+                        <button id="checkAllListen" type="button" onclick="checkAllListenFunk();">自動受信</button>
+                      </div>
+                      <div class="flexContainer">
+                        <button type="button" id="mainLogButton" class="smartphone defaultRed">下ログ表示</button>
+                        <button type="button" id="useOverlayChatButton" class="smartphone right">画面チャット表示</button>
+                      </div>
+                      <div class="flexContainer">
+                        <button type="button" class="right" id="wa_i">wa-i!</button>
+                        <button type="button" class="right" id="clear">clear</button>
+                        <button type="button" id="undo">↶↩↫↺</button>
+                        <button type="button" id="redo">↷↪↬↻</button>
+
+                      </div>
+                      <button type="button" id="logNoiseButton">SE📢✖</button>
+                      <button type="button" id="settingButton" onclick="settingClick();">⚙🔩🔧</button>
+                      <button type="button" id="usersDisplay" onclick="usersDisplayClick();"> users:<span
+                          id="usersNumber">0</span></button>
+                    </div>
+                  </div>
+                </div>
+                <!-- スイッチ類↑↑↑↑↑↑↑↑ -->
+              </div>
+              <div id="mainLogFrame">
+                <div id="mainLog">
+                  <ul id="logs" class="flexContainerColumn"></ul>
+                </div>
+                <div id="roomEditPanel" style="display:none;overflow-y:auto;background:#0d0d1a;color:#fff;font-size:12px;font-family:monospace;box-sizing:border-box;max-width:1000px;">
+                  <!-- GATE作成セクション（内部で使用、常に非表示） -->
+                  <div id="gateCreateSection" style="display:none;"></div>
+                  <!-- 部屋編集セクション -->
+                  <div id="roomEditSection" style="display:none;padding:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #4a90d9;padding-bottom:6px;">
+                      <span style="color:#4a90d9;font-weight:bold;font-size:13px;">部屋を編集：<span id="roomEditNameDisplay" style="color:#fff;"></span></span>
+                      <button id="roomEditCloseBtn" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;line-height:1;">✕</button>
+                    </div>
+                    <div style="margin-bottom:6px;font-size:11px;color:#888;">部屋ID: <span id="roomEditRoomIdDisplay" style="color:#88aaff;font-family:monospace;word-break:break-all;"></span></div>
+                    <div style="display:flex;gap:4px;margin-bottom:6px;">
+                      <input type="password" id="roomEditPw" placeholder="パスワード未入力の場合、誰でも部屋を編集できます" style="flex:1;background:#111;border:1px solid #555;color:#fff;padding:4px;font-size:11px;min-width:0;" class="placeholder-gray">
+                      <button id="roomEditPwToggle" style="font-size:11px;padding:2px 6px;white-space:nowrap;">表示</button>
+                      <button id="roomEditAuthBtn" style="font-size:11px;padding:3px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;white-space:nowrap;">読込</button>
+                    </div>
+                    <div id="roomEditErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
+                    <div id="roomEditMain" style="display:none;">
+                      <!-- 部屋名編集 -->
+                      <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:11px;color:#aaa;white-space:nowrap;">部屋名:</span>
+                        <input id="roomNameEditInput" type="text" maxlength="30" style="flex:1;background:#111;border:1px solid #4a90d9;color:#fff;padding:3px;font-size:11px;min-width:0;">
+                        <button id="roomNameSaveBtn" style="font-size:11px;padding:2px 8px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">保存</button>
+                      </div>
+                      <div style="display:flex;gap:2px;border-bottom:1px solid #4a90d9;margin-bottom:0;">
+                        <button id="roomEditTabWarp" style="font-size:11px;padding:4px 10px;background:#1a3a6a;border:1px solid #4a90d9;border-bottom:none;color:#fff;cursor:pointer;">ワープ</button>
+                        <button id="roomEditTabImg" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">画像</button>
+                        <button id="roomEditTabCode" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">コード</button>
+                        <button id="roomEditTabScale" style="font-size:11px;padding:4px 10px;background:#0d0d1a;border:1px solid #4a90d9;border-bottom:none;color:#888;cursor:pointer;">スケール</button>
+                      </div>
+                      <!-- ワープタブ -->
+                      <div id="roomEditContentWarp" style="padding-top:6px;">
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:4px;">
+                          <span style="font-size:11px;color:#aaa;">形状:</span>
+                          <button type="button" id="warpShapeRect" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;padding:2px 6px;">矩形</button>
+                          <button type="button" id="warpShapeCircle" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">円</button>
+                          <button type="button" id="warpShapeEllipse" style="font-size:11px;background:#0d0d1a;border:1px solid #4a90d9;color:#888;padding:2px 6px;">楕円</button>
+                          <button type="button" id="warpPlaceBtn" style="font-size:11px;margin-left:4px;">配置</button>
+                          <button type="button" id="warpPlaceStopBtn" style="font-size:11px;display:none;">終了</button>
+                        </div>
+                        <div id="warpDelErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
+                        <div id="warpList" style="max-height:400px;overflow-y:auto;margin-top:2px;"></div>
+                      </div>
+                      <!-- 画像タブ -->
+                      <div id="roomEditContentImg" style="display:none;padding-top:6px;">
+                        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                          <select id="imgType" style="background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
+                            <option value="background">背景</option>
+                            <option value="platform">足場</option>
+                            <option value="object">オブジェクト</option>
+                          </select>
+                          <input type="file" id="imgFileInput" accept="image/png,image/jpeg" style="display:none">
+                          <button type="button" id="imgUploadBtn" style="font-size:11px;">ファイルから</button>
+                          <button type="button" id="imgDoodleBtn" style="font-size:11px;">落書き</button>
+                        </div>
+                        <!-- 落書きキャンバス（toggle） -->
+                        <div id="doodleArea" style="display:none;border:1px solid #4a90d9;margin-bottom:6px;">
+                          <div style="display:flex;gap:4px;align-items:center;padding:4px;flex-wrap:wrap;">
+                            <span style="font-size:11px;color:#aaa;">名前:</span>
+                            <input id="doodleNameInput" type="text" value="ラクガキ1" maxlength="30" style="width:80px;background:#111;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
+                            <span style="font-size:11px;color:#aaa;">色:</span>
+                            <div id="doodlePalette" style="display:flex;gap:2px;flex-wrap:wrap;"></div>
+                            <input id="doodleCustomColor" type="color" value="#ffffff" style="width:24px;height:24px;padding:0;border:none;background:none;cursor:pointer;" title="カスタム色">
+                            <span style="font-size:11px;color:#aaa;">太さ:</span>
+                            <input id="doodleLineWidth" type="range" min="1" max="20" value="3" style="width:60px;">
+                            <button id="doodleClearBtn" style="font-size:11px;">消去</button>
+                            <button id="doodleSaveBtn" style="font-size:11px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">画像として追加</button>
+                          </div>
+                          <div id="doodleCanvasInstruction" style="display:none;padding:20px;text-align:center;color:#aaa;font-size:12px;background:#111;border-top:1px solid #333;">画面に直接描いてください。描き終えたら「画像として追加」を押してください。</div>
+                          <canvas id="doodleCanvas" width="330" height="230" style="display:block;background:#fff;cursor:crosshair;touch-action:none;max-width:100%;"></canvas>
+                        </div>
+                        <div id="imgList" style="max-height:400px;overflow-y:auto;margin-top:4px;"></div>
+                      </div>
+                      <!-- コードタブ -->
+                      <div id="roomEditContentCode" style="display:none;padding-top:6px;">
+                        <textarea id="codeEditor" rows="8" placeholder="// parent.PIXI / parent.app / parent.customStage が使えます" style="width:100%;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:4px;font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box;"></textarea>
+                        <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                          <button type="button" id="codeTestBtn" style="font-size:11px;">テスト実行</button>
+                          <button type="button" id="codeSaveBtn" style="font-size:11px;">保存</button>
+                          <button type="button" id="codeLoadSampleBtn" style="font-size:11px;">テストコードを読み込む</button>
+                        </div>
+                        <div id="codeMsg" style="font-size:11px;margin-top:4px;color:#aaa;"></div>
+                        <!-- コードルール -->
+                        <details style="margin-top:8px;">
+                          <summary style="font-size:11px;color:#88aaff;cursor:pointer;">コードの書き方（クリックで展開）</summary>
+                          <div id="codeRulesBox" style="background:#111;border:1px solid #4a90d9;padding:8px;margin-top:4px;font-size:10px;line-height:1.6;white-space:pre-wrap;color:#cce;"></div>
+                          <button type="button" id="codeRulesCopyBtn" style="font-size:11px;margin-top:4px;">ルールをコピー（AIに貼り付け用）</button>
+                        </details>
+                      </div>
+                      <!-- スケールタブ -->
+                      <div id="roomEditContentScale" style="display:none;padding-top:6px;">
+                        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                          <span style="font-size:11px;color:#aaa;white-space:nowrap;">全体スケール:</span>
+                          <input type="range" id="roomScaleSlider" min="0.1" max="3" step="0.05" value="1" style="flex:1;min-width:80px;">
+                          <input type="number" id="roomScaleInput" min="0.1" max="10" step="0.05" value="1" style="width:52px;background:#0d0d1a;border:1px solid #4a90d9;color:#fff;padding:2px;font-size:11px;">
+                          <button type="button" id="roomScaleSaveBtn" style="font-size:11px;">保存</button>
+                        </div>
+                        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
+                          <button type="button" id="scaleZonePlaceBtn" style="font-size:11px;">エリア追加</button>
+                          <button type="button" id="scaleZonePlaceStopBtn" style="font-size:11px;display:none;">終了</button>
+                        </div>
+                        <div id="scaleZoneErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:2px;"></div>
+                        <div id="scaleZoneList" style="max-height:300px;overflow-y:auto;margin-top:2px;"></div>
+                      </div>
+                      <div style="margin-top:12px;border-top:1px solid #333;padding-top:8px;">
+                        <button id="roomDeleteBtn" type="button" style="font-size:11px;background:#3a0a0a;border:1px solid #a03030;color:#ffaaaa;padding:3px 10px;cursor:pointer;">この部屋を削除</button>
+                        <div id="roomDeleteConfirm" style="display:none;margin-top:6px;background:#1a0000;border:1px solid #c04040;padding:8px;border-radius:3px;">
+                          <div style="font-size:12px;color:#ff8888;margin-bottom:6px;">本当に削除しますか？<br><span style="font-size:10px;color:#aaa;">元に戻せません。部屋・画像・ワープがすべて消えます。</span></div>
+                          <div id="roomDeletePassWrap" style="display:none;margin-bottom:6px;">
+                            <input id="roomDeletePassInput" type="password" placeholder="編集パスワード" style="background:#0d0d1a;border:1px solid #c04040;color:#fff;padding:3px 6px;font-size:11px;width:100%;box-sizing:border-box;">
+                          </div>
+                          <div id="roomDeleteErr" style="color:#f88;font-size:11px;min-height:1em;margin-bottom:4px;"></div>
+                          <div style="display:flex;gap:6px;">
+                            <button id="roomDeleteConfirmBtn" type="button" style="font-size:11px;background:#800;border:1px solid #c04040;color:#fff;padding:3px 12px;cursor:pointer;">削除する</button>
+                            <button id="roomDeleteCancelBtn" type="button" style="font-size:11px;background:#222;border:1px solid #666;color:#aaa;padding:3px 12px;cursor:pointer;">キャンセル</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div style="margin-top:8px;font-size:13px;color:#ff9900;font-weight:bold;">⚠ 部屋は一日誰も出入りがなかったら消えます。</div>
+                      <!-- 右下3ボタン（sticky） -->
+                      <div id="roomEditBtns" style="position:sticky;bottom:0;background:#0d0d1a;border-top:1px solid #444;padding:8px 4px 4px;display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+                        <button id="roomEditDiscardBtn" style="font-size:12px;padding:5px 14px;background:#3a1010;border:1px solid #c04040;color:#ffaaaa;cursor:pointer;">保存せずに戻る</button>
+                        <button id="roomEditSaveBtn" style="font-size:12px;padding:5px 14px;background:#0a2a1a;border:1px solid #40a060;color:#aaffcc;cursor:pointer;">保存</button>
+                        <button id="roomEditCompleteBtn" style="font-size:12px;padding:5px 14px;background:#1a3a6a;border:1px solid #4a90d9;color:#fff;cursor:pointer;">完了</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div id="mainLogResizeBar"></div>
+              </div>
+            </div>
+            <div id="setting">
+              <div>
+                <label>配信画質：</label>
+                <select id="streamQualitySelect" onchange="changeStreamQuality(this.value)">
+                  <option value="max">最高 (無制限)</option>
+                  <option value="high">高 (1080p 60fps)</option>
+                  <option value="normal">標準 (480p 30fps)</option>
+                  <option value="low">低 (120p 10fps)</option>
+                </select>
+                <span id="streamStatus" style="margin-left:6px; font-size:0.85em;"></span>
+              </div>
+              <div>
+                <label>受信画質：</label>
+                <select id="receiverQualitySelect" onchange="changeReceiverQuality(this.value)">
+                  <option value="max">最高 (無制限)</option>
+                  <option value="high">高 (1Mbps)</option>
+                  <option value="normal">標準 (400kbps)</option>
+                  <option value="low">低 (100kbps)</option>
+                </select>
+              </div>
+              <div>
+                カメラ：<select id="cameraSelectMode" onchange="changeCameraSelectMode(this.value)" style="margin-right:4px">
+                  <option value="always">毎回選ぶ</option>
+                  <option value="fixed">固定</option>
+                </select>
+                <label><input type="checkbox" id="settingPreviewCheck" onchange="onSettingPreviewCheckChange(this)"> プレビュー</label>
+                <br>
+                <select id="cameraDeviceSelect" onfocus="populateDeviceSelects('videoinput')" onchange="onCameraDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+              </div>
+              <div id="settingPreviewWrap" style="display:none; width:50%; margin-top:4px; border-radius:4px; overflow:hidden; position:relative;">
+                <video id="settingPreview" autoplay playsinline muted style="width:100%; display:block; min-height:0;"></video>
+                <div id="settingPreviewBlackOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:#000; z-index:1;"></div>
+              </div>
+              <div>
+                マイク：<select id="micSelectMode" onchange="changeMicSelectMode(this.value)">
+                  <option value="always">毎回選ぶ</option>
+                  <option value="fixed">固定</option>
+                </select>
+                <br>
+                <select id="micDeviceSelect" onfocus="populateDeviceSelects('audioinput')" onchange="onMicDeviceSelect(this)" style="width:100%; margin-top:3px; box-sizing:border-box"></select>
+              </div>
+              <p>　動画サイズ</p>
+              <form id="selectVideoSize">
+                <input type="radio" name="videoSize" value="setMax" checked id="selectVideoSize1"
+                  onchange="changeVideoValue()"><label for="selectVideoSize1">ウィンドウのサイズに合わせて最大値にする</label>
+                <br>
+                <input type="radio" name="videoSize" value="setWidth" id="selectVideoSize2"
+                  onchange="changeVideoValue()"><label for="selectVideoSize2">横方向の大きさで指定する<input
+                    id="selectVideoSize2Num" type="number" max="100000" min="10" step="10" placeholder="330"
+                    onfocus="fucusVidoeSize('setWidth')" onblur="setVideoValue()" onchange="changeVideoValue()"></label>
+                <br>
+                <input type="radio" name="videoSize" value="setHeight" id="selectVideoSize3"
+                  onchange="changeVideoValue()"><label for="selectVideoSize3">縦方向の大きさで指定する<input
+                    id="selectVideoSize3Num" type="number" max="50000" min="10" step="10" placeholder="180"
+                    onfocus="fucusVidoeSize('setHeight')" onblur="setVideoValue()"
+                    onchange="changeVideoValue()"></label>
+              </form>
+              <details>
+                <summary style="cursor:pointer; user-select:none;">反転映像</summary>
+                <div role="main" id="main" class="flexContainer">
+                  <div>
+                    <input type="checkbox" name="videoReverse" id="selectVideoReverse"
+                      onchange="changeVideoReverse()"><label for="selectVideoReverse">自分の動画の左右反転映像を表示する(見えるのは自分だけ)</label>
+                    <br>
+                    <input type="checkbox" name="videoInverse" id="selectVideoInverse"
+                      onchange="changeVideoInverse()"><label for="selectVideoInverse">自分の動画の上下反転映像を表示する(見えるのは自分だけ)</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseAndReverse" id="selectVideoInverseAndReverse"
+                      onchange="changeVideoInverseAndReverse()"><label
+                      for="selectVideoInverseAndReverse">自分の動画の上下左右反転映像を表示する(見えるのは自分だけ)</label>
+                  </div>
+                  <div>
+                    <input type="checkbox" name="videoReverseOther" id="selectVideoReverseOther"
+                      onchange="changeVideoReverseOther()"><label for="selectVideoReverseOther">受信した動画の左右反転映像を表示する</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseOther" id="selectVideoInverseOther"
+                      onchange="changeVideoInverseOther()"><label for="selectVideoInverseOther">受信した動画の上下反転映像を表示する</label>
+                    <br>
+                    <input type="checkbox" name="videoInverseAndReverseOther" id="selectVideoInverseAndReverseOther"
+                      onchange="changeVideoInverseAndReverseOther()"><label
+                      for="selectVideoInverseAndReverseOther">受信した動画の上下左右反転映像を表示する</label>
+                  </div>
+                </div>
+              </details>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="checkbox" id="videoTransparentDefault" onchange="changeVideoTransparentDefault()"><label for="videoTransparentDefault" style="white-space:nowrap;">透過配信（ダブルタップ切替）</label>
+                <span style="white-space:nowrap;">透過度</span><input type="range" id="videoTransparentOpacitySlider" min="0.3" max="0.99" step="0.01" value="0.5" onchange="changeVideoTransparentOpacity(this.value)" style="flex:1; min-width:0;">
+              </div>
+              <div>
+                <input type="checkbox" id="streamSurfaceAllowed" onchange="changeStreamSurface()"><label for="streamSurfaceAllowed">配信画面への乗上げとラクガキ</label>
+              </div>
+              <br>
+              <div>
+                <input type="checkbox" id="showJoinLeaveMsg" onchange="changeShowJoinLeaveMsg()"><label for="showJoinLeaveMsg">入退出メッセージを表示する</label>
+              </div>
+              <div id="logHighlightWrap">
+                <input type="checkbox" id="useLogHighlight" onchange="changeLogHighlight()"><label for="useLogHighlight">ログのハイライト</label><span id="logHighlightSubs">（<span id="avatarHighlightSpan"><input type="checkbox" id="useAvatarHighlight" onchange="changeLogHighlight()"><label for="useAvatarHighlight">アバタークリック</label></span>、<span id="logItemHighlightSpan"><input type="checkbox" id="useLogItemHighlight" onchange="changeLogHighlight()"><label for="useLogItemHighlight">ログクリック</label></span>）</span>
+              </div>
+              <div>
+                <input type="checkbox" id="allowOthersOekaki" onchange="changeAllowOthersOekaki()"><label for="allowOthersOekaki">他の人からのアバター落書きを受け付ける</label>
+              </div>
+              <div>
+                <input type="checkbox" id="oekakiPerStateMode" onchange="changeOekakiPerStateMode()"><label for="oekakiPerStateMode">ラクガキをアニメーションごとに切り替える</label>
+              </div>
+              <div id="contextMenuPosWrap">
+                タップメニュー位置：<select id="contextMenuPos" onchange="changeContextMenuPos(this.value)"><option value="tapLeft">タップ位置の左</option><option value="tapRight">タップ位置の右</option><option value="left">画面の左上</option><option value="right">画面の右上</option></select>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="checkbox" id="useTTS" onchange="changeTTSSetting()"><label for="useTTS">読み上げ</label>
+                <select id="ttsMode" onchange="changeTTSSetting()">
+                  <option value="ikebo">低音</option>
+                  <option value="normal">高音</option>
+                  <option value="pitch">超高音</option>
+                  <option value="soundfont">どうぶつの森風</option>
+                </select>
+                <span style="white-space:nowrap;">音量</span><input type="range" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1" onchange="changeTTSVolume(this.value)" style="flex:1; min-width:0;">
+              </div>
+              <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
+                <span style="white-space:nowrap; font-size:11px;">部屋リンク</span>
+                <span id="roomLinkInput" style="flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#333; border-bottom:1px solid #aaa; padding-bottom:1px;"></span>
+                <button type="button" id="roomLinkCopyBtn" onclick="copyRoomLink()" style="font-size:14px; padding:0 4px; line-height:1.4;">⧉</button>
+              </div>
+            </div>
+
+            <div id="mediaContainer"></div>
+            <ul id="mediaMenu">
+            </ul>
+            <canvas id="avaVideoOverlay" style="display:none;position:fixed;top:0;left:0;z-index:11;pointer-events:none;"></canvas>
+            <!-- < class="flexContainer"> -->
+          </div>
+
+
+
+        </div><!-- Pmain -->
+
+        <br>
+        <br>
+        <!-- <p style="font-size:23px; color:rgb(138, 247, 15); font-weight: bold;">
+          テキストアボン再実装、ctrl押しながらテキストクリックでアボン <span style="font-size:23px; color:red;"> ※相互アボンじゃないので注意、相手の発言が見えなくなるよ</span>
+        </p> -->
+        <br>
+        <div id=footer class="flexContainerColumn">
+
+          <!-- ｐくｎとリンク -->
+          <div class="flexContainer">
+            <svg width="40" height="40" id="pkun">
+              <rect x="0" y="0" width="40" height="40"></rect>
+              <text x="20" y="35" class="svgText">
+                P
+              </text>
+            </svg>
+            <a id="Q-AURL" class="Q-AColor" href="/Q-A" target="_blank">Q & A</a>
+            <span class="rightSpace">　</span>
+            <a id="linkURL" class="linkColor" href="/link" target="_blank">リンク集☆</a>
+            <span class="rightSpace">　</span>
+
+          </div>
+          <!-- <p style="font-size:25px; color:yellow; font-weight: bold;"><a class="nucomoe" style="font-size:17px;"
+              href="https://nuco.moe/" target="_blank">https://nuco.moe/</a><span
+              style="font-size:17px">で入れるようになった</span>
+          </p> -->
+
+          <br>
+          <!-- <div id="senburahaihu" class="flexContainer"> -->
+          <!-- <p>windows用専ブラPMbrowserVer1.0 提供：</p> -->
+          <!-- <p class="rightSpace" style="color:red; font-weight:bold; font-size:17px;">闇の帝王</p>
+              <a class="rightSpace" href="/zip/p-m-browserVer1.0Win.zip" target="_blank">p-m-browserVer1.0Win.zip</a> -->
+          <!-- <div class="rightSpace"></div> -->
+          <!-- <div class="rightSpace"></div> -->
+          <!-- <a href="/zip/p-m-browserVer1.0Win.exe" target="_blank">p-m-browserVer1.0Win.exe(自動解凍)</a> -->
+          <!-- </div> -->
+
+
+          <div class="flexspaceBetween">
+            <!-- <div class="flexContainerColumn">
+              <br>
+              <a style="font-size:15px; color:rgb(233, 141, 43);"
+                href="https://www.amazon.co.jp/hz/wishlist/genericItemsPage/2C9OGTZ02QEXH?viewType=grid&ref_=wl_share"
+                target="_blank">カンパ(足りぬ)</a>
+              <br>
+
+              <script type="text/javascript">
+                function converter(M) {
+                  var str = "", str_as = "";
+                  for (var i = 0; i < M.length; i++) {
+                    str_as = M.charCodeAt(i);
+                    str += String.fromCharCode(str_as + 1);
+                  }
+                  return str;
+                }
+                var ad = converter(String.fromCharCode(115, 110, 113, 96, 63, 109, 116, 98, 110, 45) + String.fromCharCode(108, 110, 100));
+                var a = document.createElement('a');
+                a.style.fontSize = '15px';
+                a.style.color = 'yellow';
+                a.style.fontWeight = 'bold';
+                a.href = 'mailto:' + ad;
+                a.textContent = 'ﾒﾙｱﾄﾞ:' + ad;
+                document.currentScript.parentNode.insertBefore(a, document.currentScript.nextSibling);
+              </script>
+            </div> -->
+
+
+
+            <div class="flexContainerColumn">
+              <p>
+                SE音量調整：
+                <input type="range" value="0.3" id="effectVolume" min="0" max="1" step="0.001"
+                  onchange="setSEVolume(this.value)">
+              </p>
+              <br>
+              <div class="flexEnd">
+                <div id="selecter" class="flexspaceBetween">
+                  <div id="sizeSelecterFrame" class="selectreFrame">
+                    <span>画面サイズ</span><select name="sizeSelecter" id="sizeSelecter" class="sel">
+                      <option value=""></option>
+                      <option value="0.3">0.3</option>
+                      <option value="0.5">0.5</option>
+                      <option value="0.8">0.8</option>
+                      <option value="0.9">0.9</option>
+                      <option value="1.0">1.0</option>
+                      <option value="1.1">1.1</option>
+                      <option value="1.2">1.2</option>
+                      <option value="1.3">1.3</option>
+                      <option value="1.4">1.4</option>
+                      <option value="1.5">1.5</option>
+                      <option value="1.6">1.6</option>
+                      <option value="1.7">1.7</option>
+                      <option value="1.8">1.8</option>
+                      <option value="1.9">1.9</option>
+                      <option value="2.0">2.0</option>
+                      <option value="2.0">3.0</option>
+                    </select>
+                  </div>
+                  <br>
+                  <div id="fontSizeSelecterFrame" class="selectreFrame">
+                    <span>文字の大きさ</span><select name="fontSizeSelecter" id="fontSizeSelecter" class="sel">
+                      <option value=""></option>
+                      <option value="10">10</option>
+                      <option value="11">11</option>
+                      <option value="12">12</option>
+                      <option value="13">13</option>
+                      <option value="14">14</option>
+                      <option value="15">15</option>
+                      <option value="16">16</option>
+                      <option value="17">17</option>
+                      <option value="18">18</option>
+                      <option value="19">19</option>
+                      <option value="20">20</option>
+                      <option value="21">21</option>
+                      <option value="22">22</option>
+                      <option value="23">23</option>
+                      <option value="24">24</option>
+                      <option value="25">25</option>
+                      <option value="28">28</option>
+                      <option value="30">30</option>
+                      <option value="35">35</option>
+                      <option value="40">40</option>
+                      <option value="45">45</option>
+                      <option value="50">50</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <br>
+              <hr style="border-color: #4a90d9; margin: 8px 0;">
+              <div>
+                <p style="color: #4a90d9; font-size: 12px; margin: 4px 0;">― 編集用 ―</p>
+                <label><input type="checkbox" id="showCoordChk"> 座標表示</label>
+                <button type="button" id="floorPolyBtn">床Poly</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--footer-->
+
+
+      </div><!-- Pmachi "flexContainerColumn"↑↑↑↑↑↑↑↑ -->
+    </div>
+    <!--main -->
+  </div>
+  <!--mainFrame -->
+
+
+  <!-- </div> -->
+
+
+
+
+
+
+  <!-- <div id="kousinrireki">
+          <a href="https://twitter.com/Project_MACHI" target="_blank">https://twitter.com/Project_MACHI</a>
+          <p>管理人ツイッター　:ここで起こった全てのクレーム苦情罵倒暴言暴力はこちらへ</p>
+        </div> -->
+  <!-- <div class="flexContainerColumn" id="fontSousenkyo">
+    <p>フォント総選挙</p>
+    <div class="flexContainer">
+      <span class="flexShrink0">自分の名前</span>
+      <span class="selectForm" class="flexShrink0">
+        <select class="JKゴシックM" id="nameTextFont" name="nameTextFont" onchange="fontChange('nameText')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+      <span class="flexShrink0">チャット欄</span>
+      <span class="selectForm" class="flexShrink0">
+        <select class="kosugiMaru" id="chatFont" name="chatFont" onchange="fontChange('mainLog')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+    </div>
+    <div class="flexContainer">
+      <span>たいとる</span>
+      <span class="selectForm">
+        <select class="ピグモ00" id="titleFont" name="titleFont" onchange="fontChange('title')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span> 
+      <span>その他</span>
+      <span class="selectForm">
+        <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChange('sonota')">
+          <option class="鉄瓶ゴシック">鉄瓶ゴシック</option>
+          <option class="JKゴシックM">JKゴシックM</option>
+          <option class=kosugiMaru>kosugiMaru</option>
+          <option class="チカラヅヨク">チカラヅヨク</option>
+          <option class="チカラヨワク">チカラヨワク</option>
+          <option class="MSゴシック">MSゴシック</option>
+          <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
+          <option class="游ゴシック">游ゴシック</option>
+          <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
+        </select>
+      </span>
+    </div>
+  </div> -->
+
+
+  <script src="https://pixijs.download/v7.2.4/pixi.min.js"></script>
+  <div id="contextMenu" oncontextmenu="return false">
+    <ul>
+      <li id="sitMenu">座る</li>
+      <li id="sleepMenu">寝る</li>
+      <li id="abonMenu">アボン</li>
+      <li id="avatarOekakiMenu">ラクガキする</li>
+      <li id="signMenu">立て看板を立てる</li>
+      <li id="roomEditMenu">部屋を編集する</li>
+    </ul>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/marchingsquares@0.0.16/build/marchingsquares-isocontours.min.js"></script>
+  <script type="text/javascript" src="/javascripts/index.js"></script>
+  <noscript>
+    <p>javascriptが無効になってるみたいやから、有効にしてね！！</p>
+    <a href="https://www.enable-javascript.com/ja/">
+      あなたのWebブラウザーでJavaScriptを有効にする方法</a>
+  </noscript>
+  <div id="devicePickerOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; color:#333; padding:16px; border-radius:8px; min-width:240px; max-width:90vw;">
+      <p id="devicePickerLabel" style="margin:0 0 8px; font-weight:bold;"></p>
+      <video id="devicePickerPreview" autoplay playsinline muted style="width:100%; margin-bottom:6px; border-radius:4px; background:#000; display:none;"></video>
+      <div id="devicePickerPreviewWrap" style="margin-bottom:8px; display:none;">
+        <button type="button" id="devicePickerPreviewBtn" onclick="onDevicePickerPreviewClick()">プレビュー</button>
+      </div>
+      <div id="devicePickerFixWrap" style="margin-bottom:8px; display:none;">
+        <label><input type="checkbox" id="devicePickerFixCheck"> <span id="devicePickerFixLabel">次回から固定</span></label>
+      </div>
+      <select id="devicePickerSelect" style="width:100%; margin-bottom:10px;"></select>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="devicePickerOk" type="button">OK</button>
+        <button id="devicePickerCancel" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,1251 @@
+#!/usr/bin/env node
+
+/**
+ * モジュールの読み込み
+ */
+const appModule = require('../app');               // Expressアプリ本体
+const app = appModule;
+const db = require('../db/index');
+const debug = require('debug')('pmachi6:server'); // デバッグ用
+const fs = require('fs');                          // ファイル操作用
+const http = require('http');                      // HTTPサーバー用
+const https = require('https');                    // HTTPSサーバー用
+
+/**
+ * ポート番号を正規化する関数
+ * - 数字ならそのまま返す
+ * - named pipe なら文字列を返す
+ * - 無効なら false を返す
+ */
+function normalizePort(val) {
+  const port = parseInt(val, 10);
+  if (isNaN(port)) {
+    // 数字に変換できなければ named pipe とみなす
+    return val;
+  }
+  if (port >= 0) {
+    // 正の数字ならポート番号として返す
+    return port;
+  }
+  return false; // 無効なポート
+}
+
+
+
+//サーバーエラー時の処理
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error; // listen 系のエラーでなければ投げる
+  }
+
+  const bind = typeof port === 'string'
+    ? 'Pipe ' + port  // named pipe の場合
+    : 'Port ' + port; // ポート番号の場合
+
+  // 特定のエラーに対してわかりやすいメッセージ
+  switch (error.code) {
+    case 'EACCES':
+console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+    case 'EADDRINUSE':
+console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+    default:
+      throw error;
+  }
+}
+
+
+// サーバーが起動したときの処理
+function onListening() {
+  const addr = server.address();
+  const bind = typeof addr === 'string'
+    ? 'pipe ' + addr      // named pipe の場合
+    : 'port ' + addr.port; // ポート番号の場合
+  debug('Listening on ' + bind); // デバッグ用出力
+}
+
+
+// 環境変数やデフォルト値からポート番号を取得して Express に設定
+const port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * サーバー作成
+ * - SSL キーファイルがあれば HTTPS
+ * - なければ HTTP
+ */
+let server;
+
+try {
+  // SSL 証明書ファイルのパス
+  const nmachi_key = '../../../../usr/local/nginx/nmachi20201226.key';
+  const nmachi_crt = '../../../../usr/local/nginx/nmachi20220126.crt';
+  const nmachi_chain = '../../../../usr/local/nginx/nmachi20220126.pem';
+
+  // SSL オプション作成
+  const options = {
+    key: fs.readFileSync(nmachi_key),
+    cert: fs.readFileSync(nmachi_crt),
+    ca: fs.readFileSync(nmachi_chain)
+  };
+
+  // HTTPS サーバー作成
+  server = https.createServer(options, app);
+  console.log('HTTPS サーバーを作成しました');
+} catch (err) {
+  // ファイルが見つからなければ HTTP にフォールバック
+  console.warn('SSL ファイルが見つかりません。HTTP サーバーに切り替えます');
+  server = http.createServer(app);
+}
+
+// Socket.IO のセットアップ - クライアントとリアルタイム通信するためのライブラリ
+const io = require('socket.io')(server);
+
+
+// 環境に応じてサーバーのバインド先を決定
+// NODE_ENV が 'production' の場合 → 本番環境とみなし localhost にバインド
+// Codespaces 上の場合 → process.env.CODESPACE が設定されているので 0.0.0.0 にバインド（外部アクセス可能）
+// それ以外（通常ローカル開発など） → localhost にバインド
+const isCodespaces = !!process.env.CODESPACES || !!process.env.CODESPACE_NAME;
+const host = process.env.NODE_ENV === 'production' ? 'localhost'
+  : isCodespaces ? '0.0.0.0'
+    : 'localhost';
+
+
+
+
+// 部屋アトラスの生成を待ってからサーバー起動
+(appModule.atlasReady || Promise.resolve()).then(() => {
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
+});
+});
+server.on('error', onError);
+server.on('listening', onListening);
+
+// 期限切れユーザー部屋を毎時削除（lifetime_hoursカラムがある部屋はその時間、なければ24時間）
+setInterval(() => {
+  try {
+    const staleRooms = db.all(
+      "SELECT id FROM rooms WHERE is_system_room = 0 AND COALESCE(last_activity, created_at) < datetime('now', '-' || COALESCE(lifetime_hours, 24) || ' hours')"
+    );
+    for (const r of (staleRooms || [])) {
+      if (rooms[r.id]?.usersToken.size > 0) continue;
+      db.run('DELETE FROM direction_gates WHERE room_id = ?', r.id);
+      db.run('DELETE FROM rooms WHERE id = ?', r.id);
+      const dir = require('path').join(__dirname, '../public/uploads/rooms', r.id);
+      try { require('fs').rmSync(dir, { recursive: true, force: true }); } catch (_e) {}
+      delete rooms[r.id];
+    }
+  } catch (_e) {}
+}, 60 * 60 * 1000);
+
+
+let ip = {};
+
+let user = {};
+let socketID = {};
+let tokenNum = 0;
+
+let rooms = {};
+let roomNameList = ["エントランス", "草原", "うちゅー", "文字の部屋", "星1", "むげんのいりぐち", "むげん", "東の部屋", "南の部屋", "西の部屋", "北の部屋"];
+function displayName(roomId) { return rooms[roomId]?.name || roomId; }
+const KONA_ROOMS = new Set(["文字の部屋", "粉の部屋"]);
+
+// 文字の部屋・粉の部屋の状態を最大 KONA_PERSIST_MS 保存（全員退室後）
+const KONA_STATE_PERSIST = false; // デバッグ時はfalseに
+const KONA_PERSIST_MS = 30 * 60 * 1000;
+const konaPersistedStates = {}; // roomName → { particles, shards, textBlocks, bd, expiry }
+const konaPersistTimers = {};
+for (let i = 0; i < roomNameList.length; i++) {
+  rooms[roomNameList[i]] = {
+    drawHistory: [],
+    usersToken: new Set(),
+    signs: [],
+    videoSurfaces: {},
+  };
+}
+
+const crypto = require("crypto");
+
+function tripCreate(isTrip) {
+  let tripkey = isTrip;
+  // ソルト生成（2文字以上になるように 'H.' を追加し、2文字目と3文字目を切り出し）
+  let salt = (tripkey + "H.").slice(1, 3);
+  salt = salt.replace(/[^.-z]/g, ".");
+  salt = salt.replace(/:/g, "A");
+  salt = salt.replace(/;/g, "B");
+  salt = salt.replace(/</g, "C");
+  salt = salt.replace(/=/g, "D");
+  salt = salt.replace(/>/g, "E");
+  salt = salt.replace(/\?/g, "F");
+  salt = salt.replace(/@/g, "G");
+  salt = salt.replace(/\[/g, "a");
+  salt = salt.replace(/\\/g, "b");
+  salt = salt.replace(/]/g, "c");
+  salt = salt.replace(/\^/g, "d");
+  salt = salt.replace(/_/g, "e");
+  salt = salt.replace(/`/g, "f");
+
+  // AES用のキーとIVを生成（16バイトずつ、saltを埋めて残りは0埋め）
+  const key = Buffer.alloc(32, 0); // AES-256なので32バイト
+  key.write(salt, 0, "utf-8");
+  const iv = Buffer.alloc(16, 0);  // IVは16バイト
+  iv.write(salt, 0, "utf-8");
+
+  // 暗号化
+  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+  let encrypted = cipher.update(tripkey, "utf-8", "base64");
+  encrypted += cipher.final("base64");
+
+  // トリップとして末尾10文字（=は除去）
+  let trip = encrypted.substr(-10).replace(/=/g, "");
+  trip = "◆" + trip;
+  return trip;
+}
+
+let msgSE = {};
+msgSE.login = {};
+msgSE.login.in = new Array(0);
+msgSE.login.logout = new Array(0);
+msgSE.other = {};
+msgSE.other.in = new Array(1);
+msgSE.other.out = new Array(3);
+msgSE.other.logout = new Array(1);
+msgSE.outerSpace = {};
+msgSE.outerSpace.in = new Array(1);
+msgSE.outerSpace.out = new Array(1);
+msgSE.outerSpace.logout = new Array(1);
+
+function time() {
+  return " -- " + new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) + "--";
+}
+
+
+// 部屋名→SEキーのマッピング。新しい部屋を追加するときはここに追記
+const ROOM_SE_KEY = {
+  "エントランス": "other",
+  "草原":         "other",
+  "うちゅー":    "outerSpace",
+  "文字の部屋":   "outerSpace",
+  "粉の部屋":     "outerSpace",
+  "星1":         "outerSpace",
+  "むげんのいりぐち": "outerSpace",
+  "むげん":           "outerSpace",
+  "東の部屋":         "outerSpace",
+  "南の部屋":         "outerSpace",
+  "西の部屋":         "outerSpace",
+  "北の部屋":         "outerSpace",
+};
+
+let random;
+function volumeRandom(roomName, move) {
+  const key = ROOM_SE_KEY[roomName] || roomName;
+  const seEntry = msgSE[key] || msgSE.other;
+  random = Math.floor(Math.random() * seEntry[move].length);
+  return random;
+}
+
+//星1の星の色用ランダムカラー配列作成
+const starColors = [];
+setStarRandomColor();
+
+function setStarRandomColor() {
+  starColors.length = 0;
+  for (let i = 0; i < 1000; i++) {
+    // 0x000000～0xFFFFFFのランダムカラー
+    starColors.push(Math.floor(Math.random() * 0xFFFFFF));
+  }
+}
+
+
+// クライアントがサーバーに接続したときの処理
+io.on('connection', socket => {
+  // ユーザーごとに一意なトークンを発行
+  const token = crypto.randomUUID();
+  socketID[token] = socket.id;
+
+  // サーバー再起動時にクライアントへ再読み込みを促すメッセージを送る関数
+  function checkUser() {
+    if (!user[token]) {
+      io.to(socket.id).emit("emitSaikiMsg", {
+        msg: "ブラウザを更新してください",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  /**
+ * ユーザーが寝てたら起こす関数。
+ * sleepTimeNumが30分以上かつselfSleepがfalseの場合、ユーザーのsleep状態をfalseに設定し、
+ * 対応するルームにsleepイベントを送信します。その後、sleepTimeNumをリセットします。
+ */
+  function sleepTime() {
+    if (user[token].sleepTimeNum >= 30 * 60 && user[token].selfSleep == false) {
+      user[token].sleep = false;
+      io.to(user[token].room).emit("sleep", {
+        token: token,
+        sleep: user[token].sleep,
+      });
+    }
+    user[token].sleepTimeNum = 0;
+  }
+
+
+
+  // ユーザー情報を取得するイベント
+  socket.on("getMyUser", () => {
+    // ユーザー情報を初期化して保存
+    user[token] = {
+      userName: "名もなき名無し", // デフォルト名
+      token: token,
+      AX: 457, // 初期X座標
+      AY: 80,  // 初期Y座標
+      DIR: "S", // 初期向き
+      msg: "",
+      tarAspect: "gomaneco", // デフォルトアバター
+      room: "loginRoom",   // 初期部屋
+      video: false,
+      audio: false,
+      timeShade: new Date().getHours(),
+      avatarAlpha: 1.0,//アバターの透明度
+      sleep: false,
+      sit: false,
+      selfSleep: false,//ユーザー自身で設定した眠り状態
+      sleepTimeNum: 0,
+      drawHistory: [],
+      allowOthersOekaki: true,
+      carryOver: false,//ログ残し状態かどうか
+      // ⭐ 乗車状況の初期化
+      ridingObject: null,
+      ridingOffsetX: 0,
+      ridingOffsetY: 0,
+
+      // 一定時間操作がなければ自動でスリープ状態にする関数
+      countSleep: () => {
+        let setTimeoutSleep;
+        if (user[token]) {
+          user[token].sleepTimeNum++;
+          // 30分（1800秒）経過でスリープ
+          if (user[token].sleepTimeNum == 30 * 60) {
+            user[token].sleep = true;
+            io.to(user[token].room).emit("sleep", {
+              token: token,
+              sleep: user[token].sleep,
+            });
+          }
+          setTimeoutSleep = setTimeout(user[token].countSleep, 1000); // 1秒ごとにカウント
+        } else {
+          clearTimeout(setTimeoutSleep); // ユーザーがいなければタイマー解除
+        }
+      },
+    }
+
+    tokenNum++;
+
+    io.to(socket.id).emit("userInit", {
+      token: token,
+    });
+    user[token].countSleep();
+  });
+
+
+  socket.on("joineRoom", data => {//部屋移動
+    if (!checkUser()) return;
+
+    // 再接続時：指定部屋が現存しなければ失敗を通知
+    if (data.isReconnect && !roomNameList.includes(data.toRoom) && !rooms[data.toRoom]) {
+      io.to(socket.id).emit("reconnectFailed");
+      return;
+    }
+
+    // ユーザー投稿部屋：DBに存在しない場合は弾く
+    if (!rooms[data.toRoom] && !roomNameList.includes(data.toRoom)) {
+      const exists = db.get('SELECT id, name FROM rooms WHERE id = ?', data.toRoom);
+      if (!exists) {
+        io.to(socket.id).emit("roomNotFound");
+        return;
+      }
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {}, name: exists.name };
+    } else if (!rooms[data.toRoom]) {
+      rooms[data.toRoom] = { drawHistory: [], usersToken: new Set(), signs: [], videoSurfaces: {} };
+    }
+    // last_activity 更新（ユーザー投稿部屋のみ）
+    try {
+      db.run("UPDATE rooms SET last_activity = datetime('now') WHERE id = ? AND is_system_room = 0", data.toRoom);
+    } catch (_e) {}
+
+    let announce;
+    let fromRoom = user[token].room;
+    user[token].room = data.toRoom;
+    rooms[data.toRoom].usersToken.add(token);//部屋のユーザーリストに追加
+    user[token].carryOver = false;
+
+    if (user[token].ridingObject) {
+      // 乗車情報をリセット
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
+
+
+    if (fromRoom === "loginRoom" && data.userName && data.userName.length < 28) {//ログインの時かつ、名前が28未満の時
+      //トリップを作る
+      if (!ip[socket.handshake.address]) {
+        ip[socket.handshake.address] = { name: [data.userName], ip: socket.handshake.address };
+      } else {
+        if (!ip[socket.handshake.address].name.includes(data.userName)) {
+          ip[socket.handshake.address].name.push(data.userName);
+        }
+      }
+      data.userName = data.userName.replace(/◆/g, '□');
+      if (data.userName.match(/#/)) {
+        let index = data.userName.indexOf("#");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      if (data.userName.match(/＃/)) {
+        let index = data.userName.indexOf("＃");
+        let tripStr = data.userName.slice(index + 1);
+        let tripName = data.userName.slice(0, index);
+        data.userName = tripName + tripCreate(tripStr);
+      }
+      user[token].userName = data.userName;//名前をサバに保存
+      user[token].avatarAspect = data.avatarAspect;//アバターを設定
+      user[token].avatarColor = data.avatarColor;//アバターの色を設定
+      user[token].avatarAlpha = data.avatarAlpha;//アバターの透明度を設定
+      user[token].bubbleOffsetX = data.bubbleOffsetX || 0;
+      user[token].bubbleOffsetY = data.bubbleOffsetY || 0;
+      user[token].DIR = "S";
+
+      //soundNumの決定
+      user[token].soundNum = data.userName.length;
+      if (data.avatar == "necosuke" || data.avatar == "necosukeMono") {
+        user[token].soundNum++;
+      }
+      user[token].soundNum += data.avatarColor;
+      user[token].soundNum = user[token].soundNum % 9;
+
+      random = volumeRandom("login", "in");
+
+      //アバターお絵描き
+      user[token].drawHistory = data.drawHistory;
+
+      // 再接続時は保存座標を復元
+      if (data.reconnectAX !== undefined) {
+        user[token].AX = data.reconnectAX;
+        user[token].AY = data.reconnectAY;
+      }
+
+      if (data.reconnectAX !== undefined) {
+        announce = user[token].userName + "が" + displayName(data.toRoom) + "に再入室しました。" + time();
+      } else {
+        announce = user[token].userName + "が" + displayName(data.toRoom) + "に入室しました。" + time();
+      }
+    } else {//loginRoomから以外の時
+      //退室処理
+      if (rooms[fromRoom]) rooms[fromRoom].usersToken.delete(token);//元の部屋のユーザーリストから削除
+      // 退室者に乗っていたユーザーの乗車状態をリセット
+      if (rooms[fromRoom]) {
+        rooms[fromRoom].usersToken.forEach(otherToken => {
+          if (user[otherToken] && user[otherToken].ridingObject === token) {
+            user[otherToken].ridingObject = null;
+            user[otherToken].ridingOffsetX = 0;
+            user[otherToken].ridingOffsetY = 0;
+          }
+        });
+      }
+      try {
+        db.run("UPDATE rooms SET last_activity = datetime('now') WHERE id = ? AND is_system_room = 0", fromRoom);
+      } catch (_e) {}
+
+      if (data.train) {
+        announce = user[token].userName + "が電車に乗り込みました、ゆんやー！" + time();
+      } else {
+        announce = user[token].userName + "が" + displayName(data.toRoom) + "に移動しました。" + time();
+      }
+
+      if (fromRoom === "星1") {
+        setStarRandomColor();
+      }
+
+      socket.broadcast.to(fromRoom).emit("otherLeft", {//自分以外が部屋を出た場合
+        token: token,
+        random: volumeRandom(fromRoom, "out"),
+        announce: announce,
+        starColors: starColors,
+      });
+    }
+
+    //入室スポット座標（ログイン・部屋移動どちらでも適用）
+    switch (data.toSpot) {
+      case "entranceCloud1":
+        user[token].AX = 500;
+        user[token].AY = 80;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "grassFromEntrance": // エントランスから草原へ（左下に出現）⭐ 座標要調整
+        user[token].AX = 100;
+        user[token].AY = 430;
+        user[token].DIR = "NE";
+        break;
+      case "entranceMainSpot": // エントランス（ログイン用）
+        user[token].AX = 415;
+        user[token].AY = 315;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "entranceTrainSpot": // エントランス（列車用）
+        user[token].AX = 550;
+        user[token].AY = 125;
+        user[token].DIR = "S";
+        user[token].is2F = false;
+        break;
+      case "entranceFromMeadow":
+        user[token].AX = 650;
+        user[token].AY = 315;
+        user[token].DIR = "NW";
+        user[token].is2F = true;
+        break;
+      case "outerSpaceMainSpot":
+        user[token].AX = 200;
+        user[token].AY = 300;
+        user[token].DIR = "S";
+        break;
+      case "文字の部屋EntrySpot":
+        user[token].AX = 600;
+        user[token].AY = 340;
+        user[token].DIR = "W";
+        break;
+      case "文字の部屋LeftEntrySpot":
+        user[token].AX = 60;
+        user[token].AY = 340;
+        user[token].DIR = "E";
+        break;
+      case "粉の部屋EntrySpot":
+        user[token].AX = 580;
+        user[token].AY = 300;
+        user[token].DIR = "E";
+        break;
+      case "star1EntrySpot":
+        user[token].AX = 334;
+        user[token].AY = 450;
+        user[token].DIR = "N";
+        break;
+      case "mugenEntrySpot":
+        user[token].AX = 330;
+        user[token].AY = 340;
+        user[token].DIR = "N";
+        break;
+      case "mugenMainSpot":
+        user[token].AX = 330;
+        user[token].AY = 255;
+        user[token].DIR = "S";
+        break;
+      case "東の部屋Spot":
+      case "南の部屋Spot":
+      case "西の部屋Spot":
+      case "北の部屋Spot":
+        user[token].AX = 330;
+        user[token].AY = 255;
+        user[token].DIR = "S";
+        break;
+      default:
+        if (data.toSpot && data.toSpot.startsWith('userRoom:')) {
+          user[token].AX = 330;
+          user[token].AY = 380;
+          user[token].DIR = "S";
+        }
+        break;
+    }
+
+    if (fromRoom !== "loginRoom") {
+      user[token].msg = "";
+
+      if (data.train) {
+        announce = user[token].userName + "が電車に乗ってきました。" + time();
+      } else {
+        announce = user[token].userName + "が" + displayName(fromRoom) + "から移動してきました。" + time();
+      }
+      random = volumeRandom(data.toRoom, "in");
+    }
+
+
+    if (fromRoom !== data.toRoom) {
+      socket.leave(fromRoom);
+      socket.join(data.toRoom);
+    }
+
+    // 期限切れの看板を除去してから送信
+    const now = Date.now();
+    rooms[data.toRoom].signs = rooms[data.toRoom].signs.filter(s => !s.endTime || s.endTime > now);
+
+    io.to(socket.id).emit("joineRoom", {
+      user: user,
+      announce: announce,
+      fromRoom: fromRoom,
+      toRoom: data.toRoom,
+      drawHistory: rooms[data.toRoom].drawHistory,
+      random: random,
+      starColors: starColors,
+      signs: rooms[data.toRoom].signs,
+    });
+
+
+    // 入室時に既存のビデオ足場と落書き履歴を送信
+    const vSurfaces = rooms[data.toRoom].videoSurfaces || {};
+    for (const [surfToken, surf] of Object.entries(vSurfaces)) {
+      io.to(socket.id).emit('videoSurface', { token: surfToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, enabled: true, drawHistory: surf.drawHistory || [] });
+    }
+
+    socket.broadcast.to(data.toRoom).emit("otherJoined", {
+      userName: user[token].userName,
+      token: token,
+      avatarAspect: user[token].avatarAspect,
+      avatarColor: user[token].avatarColor,
+      avatarAlpha: user[token].avatarAlpha,
+      AX: user[token].AX,
+      AY: user[token].AY,
+      DIR: user[token].DIR,
+      sit: user[token].sit,
+      sleep: user[token].sleep,
+      announce: announce,
+      msg: user[token].msg,
+      drawHistory: user[token].drawHistory,
+
+      fromRoom: fromRoom,
+      toRoom: data.toRoom,
+      random: random,
+
+      ridingObject: user[token].ridingObject,
+      ridingOffsetX: user[token].ridingOffsetX,
+      ridingOffsetY: user[token].ridingOffsetY,
+
+      is2F: user[token].is2F ?? false,
+
+      bubbleOffsetX: user[token].bubbleOffsetX || 0,
+      bubbleOffsetY: user[token].bubbleOffsetY || 0,
+
+      allowOthersOekaki: user[token].allowOthersOekaki,
+    });
+
+    sleepTime();
+  });
+
+
+
+
+
+  //sleep情報を受け取ったら自分以外の部屋の人にスリープ情報を送る
+  socket.on("sleep", () => {
+    if (!checkUser()) return;
+    if (user[token].sleep) {//寝てた時
+      user[token].sleep = false;
+      user[token].selfSleep = false;
+      user[token].DIR = "S";
+    } else {//起きてた時
+      user[token].sleep = true;
+      user[token].selfSleep = true;
+    }
+    socket.broadcast.to(user[token].room).emit("sleep", {
+      token: token,
+      sleep: user[token].sleep,
+    });
+    user[token].sleepTimeNum = 0;
+  });
+
+  //アボンを受け取ったら、アボン設定を行う
+  socket.on("abonSetting", data => {
+    if (!checkUser()) return;
+    let abonMsg;
+    if (user[data.token] == null) {
+      abonMsg = "その住民は退出済みです";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+      });
+    } else if (!data.setAbon) {
+      abonMsg = user[data.token].userName + "をアボンしました。";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+        token: data.token,
+      });
+    } else {
+      abonMsg = user[data.token].userName + "のあぼんをやめました";
+      io.to(socket.id).emit("abonSetting", {
+        msg: abonMsg,
+        token: data.token,
+        AX: user[data.token].AX,
+        AY: user[data.token].AY,
+        DIR: user[data.token].DIR,
+        sit: user[data.token].sit,
+        room: user[data.token].room,
+        alpha: user[data.token].avatarAlpha,
+        sleep: user[data.token].sleep,
+      });
+    }
+    sleepTime();
+  });
+
+
+  //tapイベント
+  socket.on('tapMap', data => {
+    if (!checkUser()) return;
+
+    // 座標更新
+    user[token].AX = data.AX || user[token].AX;
+    user[token].AY = data.AY || user[token].AY;
+    user[token].DIR = data.DIR;
+    user[token].sit = data.sit !== undefined ? data.sit : user[token].sit;
+
+    // ⭐ 乗車状態の更新
+    if (data.moveType === "relative") {
+      user[token].ridingObject = data.targetObject;
+      user[token].ridingOffsetX = data.relativeX;
+      user[token].ridingOffsetY = data.relativeY;
+    } else if (!data.riding) {
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
+
+    // 他のクライアントに送信
+    socket.broadcast.to(user[token].room).emit("tapMap", {
+      token: token,
+      DIR: user[token].DIR,
+      AX: user[token].AX,
+      AY: user[token].AY,
+      sit: user[token].sit,
+      moveType: data.moveType || "absolute",
+      targetObject: data.targetObject,
+      relativeX: data.relativeX,
+      relativeY: data.relativeY,
+      riding: data.riding || false,
+      keyMove: data.keyMove || false,
+      keyFrame: data.keyFrame,
+      ridingOffsetX: data.ridingOffsetX,
+      ridingOffsetY: data.ridingOffsetY,
+    });
+  });
+
+
+  // 自分の物理状態（位置・乗車）をサーバーに通知 → 他クライアントへ配信
+  socket.on('transformData', data => {
+    if (!checkUser()) return;
+
+    // 境界制限
+    const AX = data.fromCloud ? data.AX : Math.max(0, Math.min(660, data.AX));
+    const AY = data.fromCloud ? data.AY : Math.max(0, Math.min(460, data.AY));
+
+    user[token].AX = AX;
+    user[token].AY = AY;
+    user[token].DIR = data.DIR;
+    user[token].is2F = data.is2F ?? user[token].is2F ?? false;
+
+    if (data.ridingData) {
+      user[token].ridingObject = data.ridingData.objectName;
+      user[token].ridingOffsetX = data.ridingData.offsetX;
+      user[token].ridingOffsetY = data.ridingData.offsetY;
+    } else {
+      user[token].ridingObject = null;
+      user[token].ridingOffsetX = 0;
+      user[token].ridingOffsetY = 0;
+    }
+
+    socket.broadcast.to(user[token].room).emit("transformOtherAvatarData", {
+      token,
+      AX,
+      AY,
+      DIR: data.DIR,
+      reason: data.reason,
+      isFalling: data.isFalling,
+      is2F: user[token].is2F ?? false,
+      ridingData: user[token].ridingObject ? {
+        objectName: user[token].ridingObject,
+        offsetX: user[token].ridingOffsetX,
+        offsetY: user[token].ridingOffsetY,
+      } : null,
+    });
+  });
+
+  // transformDataFromOther は廃止（他クライアントによる他人の位置報告は使わない）
+  socket.on('transformDataFromOther', () => {});
+
+
+  socket.on("sitChange", data => {//座る・立つ
+    if (!checkUser()) return;
+    user[token].DIR = data.DIR;
+    user[token].sit = data.sit;//座る・立つの状態を設定
+    socket.broadcast.to(user[token].room).emit("sitChange", {
+      token: token,
+      DIR: data.DIR,
+      sit: data.sit,
+      AX: data.AX,
+      AY: data.AY,
+    });
+    sleepTime();
+  });
+
+  socket.on("alphaChange", data => {//透明にする
+    if (!checkUser()) return;
+    user[token].avatarAlpha = data.alpha;//アバターの透明度を設定
+    if (user[token].room !== "loginRoom") {
+      socket.broadcast.to(user[token].room).emit("alphaChange", {
+        token: token,
+        alpha: data.alpha,
+      });
+    }
+    sleepTime();
+  });
+
+
+
+  //クライアントからメッセージを受けとったら送信
+  socket.on("emit_msg", data => {
+    if (!checkUser()) return;
+
+    let fontColor = "black";
+    if (data.msg == "スシ" || data.msg == "ｽｼ" || data.msg == "すし" || data.msg == "🍣" || data.msg == "寿司" || data.msg == "鮨" || data.msg == "susi") {
+      data.msg += "(" + new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) + ")";
+      fontColor = "white";
+    }
+    if (data.msg == "もみころ") {
+      data.msg += "(もみじゆるさんの略)";
+    }
+    if (data.carryOver) {
+      user[token].msg = data.msg;
+      user[token].carryOver = true;
+
+      //最後に発言したcarryOverメッセージをuserの最後に入れなおす
+      let value = user[token];
+      delete user[token];
+      user[token] = value;
+
+    } else {//carryOverじゃないなら、userのメッセージ情報は消しとく
+      user[token].msg = "";
+      user[token].carryOver = false;
+    }
+
+
+    if (data.msg == "#list" || data.msg == "#ﾘｽﾄ" || data.msg == "#リスト") {
+      let listName = [];
+      let listToken = [];
+      let n = 0;
+      Object.keys(user).forEach(key => {
+        if (user[key].room == user[token].room) {
+          listName[n] = user[key].userName;
+          listToken[n] = key;
+          n++;
+        }
+      });
+      io.to(socket.id).emit("list", {
+        listName: listName,
+        listToken: listToken,
+      });
+
+
+    } else if (data.msg == "#train" || data.msg == "#ﾄﾚｲﾝ" || data.msg == "#トレイン" || data.msg == "#rula" || data.msg == "#ﾙｰﾗ" || data.msg == "#ルーラ" || data.msg == "#電車") {
+
+      // システム部屋
+      const allRoomIds = [...roomNameList];
+      const allRoomTypes = roomNameList.map(() => 'system');
+      const allRoomNames = [...roomNameList];
+
+      // ユーザー部屋をDBから全件取得（last_activity降順、最大30件）
+      let dbUserRooms = [];
+      try {
+        dbUserRooms = db.all(
+          "SELECT id, name FROM rooms WHERE is_system_room = 0 ORDER BY COALESCE(last_activity, created_at) DESC LIMIT 30"
+        ) || [];
+      } catch (_e) {}
+      for (const dbRoom of dbUserRooms) {
+        allRoomIds.push(dbRoom.id);
+        allRoomNames.push(dbRoom.name);
+        allRoomTypes.push('user');
+      }
+
+      let trainList = [];
+      for (let i = 0; i < allRoomIds.length; i++) {
+        trainList[i] = allRoomNames[i] + ":";
+        Object.keys(user).forEach(key => {
+          if (user[key].room === allRoomIds[i]) {
+            if (user[key].video && user[key].audio) {
+              trainList[i] += user[key].userName + "📺🔊 "
+            } else if (user[key].video) {
+              trainList[i] += user[key].userName + "📺 "
+            } else if (user[key].audio) {
+              trainList[i] += user[key].userName + "🔊 "
+            }
+          }
+        });
+        trainList[i] += (rooms[allRoomIds[i]]?.usersToken.size ?? 0);
+      }
+
+      io.to(socket.id).emit("train", {
+        roomNameList: allRoomIds,
+        roomDisplayNames: allRoomNames,
+        roomTypes: allRoomTypes,
+        trainList: trainList,
+      });
+    } else {
+      io.to(user[token].room).emit("emit_msg", {
+        userName: user[token].userName,
+        msg: data.msg,
+        token: token,
+        carryOver: data.carryOver,
+        fontColor: fontColor,
+        soundNum: user[token].soundNum,
+        konaSeed: Date.now(),
+      });
+    }
+    sleepTime();
+  });
+
+
+  socket.on("konaKick", data => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaKick", { ax: data.ax, ay: data.ay, dvx: data.dvx, dvy: data.dvy });
+  });
+
+  socket.on("konaRequestSync", () => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    const ps = konaPersistedStates[user[token].room];
+    if (ps) {
+      io.to(socket.id).emit("konaSyncData", { targetToken: token, particles: ps.particles, shards: ps.shards, textBlocks: ps.textBlocks, bd: ps.bd });
+    } else {
+      socket.broadcast.to(user[token].room).emit("konaRequestSync", { requestingToken: token });
+    }
+  });
+
+  socket.on("konaSyncData", data => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaSyncData", {
+      targetToken: data.targetToken,
+      particles: data.particles,
+      shards: data.shards,
+      textBlocks: data.textBlocks,
+      bd: data.bd,
+    });
+  });
+
+  socket.on("konaPosSync", data => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaPosSync", { d: data.d, s: data.s, bi: data.bi, bds: data.bds });
+  });
+
+  socket.on("konaAvaStop", () => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaAvaStop");
+  });
+
+  socket.on("konaSyncFull", data => {
+    if (!checkUser()) return;
+    const konaRoom = user[token].room;
+    if (!KONA_ROOMS.has(konaRoom)) return;
+    konaPersistedStates[konaRoom] = { particles: data.particles, shards: data.shards, textBlocks: data.textBlocks, bd: data.bd };
+    socket.broadcast.to(konaRoom).emit("konaSyncFull", { particles: data.particles, shards: data.shards, textBlocks: data.textBlocks, bd: data.bd });
+  });
+
+  socket.on("konaHostClaim", (data) => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaHostClaim", { token, noSync: !!(data && data.noSync) });
+  });
+
+  socket.on("konaHostRelease", () => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaHostRelease", { token });
+  });
+
+  socket.on("konaShatter", (data) => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaShatter", data);
+  });
+
+  socket.on("konaFracture", (data) => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    socket.broadcast.to(user[token].room).emit("konaFracture", data);
+  });
+
+  socket.on("konaResyncFull", () => {
+    if (!checkUser()) return;
+    if (!KONA_ROOMS.has(user[token].room)) return;
+    // FL:0不一致を検知した非ホストから要求: ホストにkonaSyncFull送信を促す
+    socket.broadcast.to(user[token].room).emit("konaResyncFull", { token });
+  });
+
+  //お絵描き関連
+  socket.on("oekaki", data => {
+    if (!checkUser()) return;
+    if (user[token].room !== "loginRoom") {
+      if (data.avatarOekakiToken && user[data.avatarOekakiToken]?.allowOthersOekaki === false) return;
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+
+      target.drawHistory.push(data.line);
+
+      socket.broadcast.to(user[token].room).emit("oekaki", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        line: data.line,
+      });
+      sleepTime();
+    }
+  });
+
+  socket.on("oekakiClear", data => {
+    if (!checkUser()) return;
+    if (user[token].room !== "loginRoom") {
+      if (data.avatarOekakiToken && user[data.avatarOekakiToken]?.allowOthersOekaki === false) return;
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+      target.drawHistory = data.history;
+      socket.broadcast.to(user[token].room).emit("oekakiClear", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        history: target.drawHistory,
+      });
+      sleepTime();
+    }
+  });
+
+  socket.on("setAllowOthersOekaki", data => {
+    if (!checkUser()) return;
+    user[token].allowOthersOekaki = !!data.allow;
+    socket.broadcast.to(user[token].room).emit("setAllowOthersOekaki", {
+      token: token,
+      allow: user[token].allowOthersOekaki,
+    });
+  });
+
+  socket.on("undo", data => {//お絵描きを戻す
+    if (!checkUser()) return;
+    if (user[token].room !== "loginRoom") {
+      const target = data.avatarOekakiToken ? user[data.avatarOekakiToken] : rooms[user[token].room];
+      target.drawHistory = data.history;
+      socket.broadcast.to(user[token].room).emit("undo", {
+        token: token,
+        targetToken: data.avatarOekakiToken,
+        history: target.drawHistory
+      });
+      sleepTime();
+    }
+  });
+
+
+
+
+  // ---- 配信関連 ----
+  // When a user send a SDP message
+  // broadcast to all users in the room
+  socket.on("mediaButton", data => {
+    if (!checkUser()) return;
+    data.from = token;
+
+    if (user[token].room) {
+      socket.broadcast.to(user[token].room).emit("mediaButton", data);
+    }
+  });
+
+
+  socket.on("webRtcSignal", data => {
+    if (!checkUser()) return;
+    data.from = token;
+
+    // get send target
+    if (data.sendto) {//sendtoの送り先
+      const sendID = socketID[data.sendto];
+      console.log('[webRtcSignal]', data.type, 'from', token.slice(0,6), 'to', data.sendto.slice(0,6), 'sendID:', sendID || 'NONE');
+      socket.to(sendID).emit("webRtcSignal", data);
+    }
+  });
+
+
+  socket.on("stream", data => {
+    if (!checkUser()) return;
+    console.log(data); // ここでundefinedならサーバー送信ミス
+    if (user[token].room !== "loginRoom") {
+      let format = "";
+      if (data.format === "videoStart") {
+        user[token].video = true;
+        format = "が動画配信を始めました";
+      } else if (data.format === "videoStop") {
+        user[token].video = false;
+        format = "が動画配信を終わりました";
+      } else if (data.format === "audioStart") {
+        user[token].audio = true;
+        format = "が音声配信を始めました";
+      } else if (data.format === "audioStop") {
+        format = "が音声配信を終わりました";
+        user[token].audio = false;
+      }
+      io.to(user[token].room).emit("stream", {
+        msg: user[token].userName + format + time(),
+        token: token,
+      });
+      sleepTime();
+    }
+  });
+
+
+  // 退出時
+  socket.on("createSign", data => {
+    if (!checkUser()) return;
+    const roomName = user[token].room;
+    const signId = token + "_" + Date.now();
+    const signData = {
+      id: signId,
+      x: data.x,
+      y: data.y,
+      cloudRelX: data.cloudRelX ?? null, // 雲の上の場合は雲相対X
+      boardText: data.boardText,
+      clickText: data.clickText,
+      durationMs: data.durationMs,
+      endTime: data.durationMs > 0 ? Date.now() + data.durationMs : 0,
+    };
+    rooms[roomName].signs.push(signData);
+    // 自分を含む部屋全員に送信
+    io.to(roomName).emit("createSign", signData);
+    // タイマーで自動削除
+    if (data.durationMs > 0) {
+      setTimeout(() => {
+        rooms[roomName].signs = rooms[roomName].signs.filter(s => s.id !== signId);
+        io.to(roomName).emit("removeSign", { id: signId });
+      }, data.durationMs);
+    }
+  });
+
+  socket.on("removeSign", data => {
+    if (!checkUser()) return;
+    const roomName = user[token].room;
+    rooms[roomName].signs = rooms[roomName].signs.filter(s => s.id !== data.id);
+    io.to(roomName).emit("removeSign", { id: data.id });
+  });
+
+  socket.on("bubbleOffset", data => {
+    if (!checkUser()) return;
+    user[token].bubbleOffsetX = data.offsetX;
+    user[token].bubbleOffsetY = data.offsetY;
+    socket.broadcast.to(user[token].room).emit("bubbleOffset", {
+      token: token,
+      offsetX: data.offsetX,
+      offsetY: data.offsetY,
+    });
+  });
+
+  socket.on("roomDeleted", (data) => {
+    if (data && data.roomId) delete rooms[data.roomId];
+  });
+
+  socket.on("startRoomEdit", (data) => {
+    if (data && data.roomId) socket._editingRoomId = data.roomId;
+  });
+
+  socket.on("endRoomEdit", () => {
+    socket._editingRoomId = null;
+  });
+
+  socket.on('videoSurface', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room]) return;
+    if (!rooms[room].videoSurfaces) rooms[room].videoSurfaces = {};
+    if (data.enabled) {
+      const existing = rooms[room].videoSurfaces[data.token] || {};
+      rooms[room].videoSurfaces[data.token] = { x: data.x, y: data.y, width: data.width, height: data.height, drawHistory: existing.drawHistory || [] };
+    } else {
+      delete rooms[room].videoSurfaces[data.token];
+    }
+    socket.broadcast.to(room).emit('videoSurface', data);
+  });
+
+  socket.on('videoFloorOekaki', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room] || !rooms[room].videoSurfaces) return;
+    const surf = rooms[room].videoSurfaces[data.floorToken];
+    if (!surf) return;
+    if (!surf.drawHistory) surf.drawHistory = [];
+    surf.drawHistory.push(data.line);
+    socket.broadcast.to(room).emit('videoFloorOekaki', { token, floorToken: data.floorToken, line: data.line });
+  });
+
+  socket.on('videoFloorOekakiClear', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room] || !rooms[room].videoSurfaces) return;
+    const surf = rooms[room].videoSurfaces[data.floorToken];
+    if (!surf) return;
+    surf.drawHistory = data.history;
+    socket.broadcast.to(room).emit('videoFloorOekakiClear', { token, floorToken: data.floorToken, history: data.history });
+  });
+
+  socket.on('videoFloorUndo', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room] || !rooms[room].videoSurfaces) return;
+    const surf = rooms[room].videoSurfaces[data.floorToken];
+    if (!surf) return;
+    surf.drawHistory = data.history;
+    socket.broadcast.to(room).emit('videoFloorUndo', { token, floorToken: data.floorToken, history: data.history });
+  });
+
+  socket.on('requestVideoSurface', data => {
+    if (!checkUser()) return;
+    const room = user[token].room;
+    if (!rooms[room] || !rooms[room].videoSurfaces) return;
+    const surf = rooms[room].videoSurfaces[data.floorToken];
+    if (!surf) return;
+    io.to(socket.id).emit('videoSurface', { token: data.floorToken, x: surf.x, y: surf.y, width: surf.width, height: surf.height, enabled: true, drawHistory: surf.drawHistory || [] });
+  });
+
+  socket.on("disconnect", () => {
+    if (socket._editingRoomId) {
+      const r = db.get('SELECT name FROM rooms WHERE id = ? AND is_system_room = 0', [socket._editingRoomId]);
+      if (r && r.name === '') {
+        db.run('UPDATE mugen_gates SET room_id = NULL, room_name = NULL WHERE room_id = ?', [socket._editingRoomId]);
+        db.run('DELETE FROM direction_gates WHERE room_id = ?', [socket._editingRoomId]);
+        db.run('DELETE FROM rooms WHERE id = ?', [socket._editingRoomId]);
+      }
+      socket._editingRoomId = null;
+    }
+
+    if (!checkUser()) return;
+    const _dcRoom = user[token].room;
+    if (KONA_ROOMS.has(_dcRoom)) {
+      socket.broadcast.to(_dcRoom).emit("konaAvaStop");
+    }
+    if (_dcRoom !== "loginRoom") {
+      rooms[_dcRoom].usersToken.delete(token);//部屋のユーザーリストから削除
+      if (KONA_STATE_PERSIST && KONA_ROOMS.has(_dcRoom) && rooms[_dcRoom].usersToken.size === 0) {
+        clearTimeout(konaPersistTimers[_dcRoom]);
+        konaPersistTimers[_dcRoom] = setTimeout(() => { delete konaPersistedStates[_dcRoom]; delete konaPersistTimers[_dcRoom]; }, KONA_PERSIST_MS);
+      }
+      if (rooms[_dcRoom].videoSurfaces) {
+        delete rooms[_dcRoom].videoSurfaces[token];
+      }
+      io.to(_dcRoom).emit("logout", {
+        token: token,
+        msg: user[token].userName + "が退出しました。" + time(),
+        room: _dcRoom,
+        random: volumeRandom(_dcRoom, "logout"),
+      });
+    }
+
+    //メモリ解放
+    delete user[token];
+    delete socketID[token];
+
+    // close user connection
+    console.log((new Date()) + ' Peer disconnected. id=' + socket.id);
+  });
+});
