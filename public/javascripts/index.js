@@ -12861,8 +12861,10 @@ function settingClick() {
 }
 
 // Pくん
+const pkunWrap = document.getElementById('pkun-wrap');
 function clickPkun() {
   pkun.classList.add('moved');
+  pkunWrap.classList.add('moved');
 }
 
 let PkunFlag = true;
@@ -12873,6 +12875,7 @@ document.querySelector('svg').addEventListener('pointerdown', e => {
     PkunFlag = false;
   } else {
     pkun.classList.remove('moved');
+    pkunWrap.classList.remove('moved');
     PkunFlag = true;
   }
 }, { passive: true });

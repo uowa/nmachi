@@ -743,6 +743,8 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     cursor: pointer;
     stroke-linecap: round;
     fill: skyblue;
+    transform-box: fill-box;
+    transform-origin: 75% 50%;
 }
 
 .svgText {
@@ -753,72 +755,110 @@ li#mediaMenu_single:hover ul#mediaMenu_second-level {
     text-anchor: middle;
 }
 
+#pkun-wrap {
+    display: inline-block;
+    transform-origin: 75% 50%;
+}
+
+#pkun-wrap.moved {
+    animation: local-spin 0.08s infinite linear;
+}
+
+@keyframes local-spin {
+    to { transform: rotate(360deg); }
+}
+
 #pkun.moved {
-    animation-name: spin;
-    animation-duration: 2s;
-    animation-iteration-count: infinite;
-    animation-timing-function: ease-in-out;
-    /* animation-direction: alternate; */
-    animation-fill-mode: forwards;
+    animation: spin 2s infinite linear;
 }
 
 @keyframes spin {
+    /* ゆっくり移動 */
     0% {
-        transform: rotate(0) scale(1.8) translateX(-80px);
+        transform: rotate(0deg) scale(1.8) translateX(-80px);
+        filter: hue-rotate(0deg) drop-shadow(0 0 10px cyan);
     }
-    10% {
-        transform: rotate(50) scale(1.8) translateX(-5px);
+    12% {
+        transform: rotate(60deg) scale(2) translateX(calc(20px + 5vw));
+        filter: hue-rotate(50deg) drop-shadow(0 0 20px magenta);
     }
-    20% {
-        transform: rotate(75deg) scale(1.7);
+    /* 1回目の高速スピン（12%→17%） */
+    13% { transform: rotate(540deg) scale(2.1) translateX(calc(22px + 5vw)); }
+    14% { transform: rotate(1140deg) scale(2.3) translateX(calc(24px + 5vw)); }
+    15% { transform: rotate(1830deg) scale(2.5) translateX(calc(22px + 5vw)); }
+    16% { transform: rotate(2340deg) scale(2.3) translateX(calc(20px + 5vw)); }
+    17% {
+        transform: rotate(2460deg) scale(2.2) translateX(calc(18px + 5vw));
+        filter: hue-rotate(80deg) drop-shadow(0 0 30px yellow);
     }
-    25% {
-        transform: rotate(100deg) scale(1.7);
-    }
-    30% {
-        transform: rotate(270deg) scale(1.8) translateX(-80px);
+    /* 移動して幅拡大・光の影 */
+    28% {
+        transform: rotate(2620deg) scale(2.5) translateX(-80px);
         border-radius: 25%;
-        width: 250px;
+        width: 260px;
+        filter: hue-rotate(130deg) drop-shadow(70px 0 28px gold);
     }
-    40% {
-        transform: rotate(400deg) scale(1.8) translateX(-80px);
+    38% {
+        transform: rotate(2780deg) scale(2.8) translateX(-80px);
         border-radius: 25%;
-        width: 250px;
+        width: 310px;
         background-color: transparent;
+        filter: hue-rotate(155deg) blur(1px) drop-shadow(90px 0 40px orangered);
     }
+    /* 2回目の高速スピン（38%→42%）→円形化 */
+    39% { transform: rotate(3320deg) scale(2.9) translateX(-75px); background-color: transparent; }
+    40% { transform: rotate(3950deg) scale(3.1) translateX(-60px); }
+    41% { transform: rotate(4580deg) scale(3) translateX(-40px); }
+    42% {
+        transform: rotate(4880deg) scale(2.9) translateX(calc(30px + 5vw));
+        border-radius: 40%;
+        filter: hue-rotate(185deg) drop-shadow(0 0 50px red);
+    }
+    /* 円形でふわふわ */
     50% {
-        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        transform: rotate(5000deg) scale(2.8) translateX(calc(30px + 5vw));
         border-radius: 50%;
         background-color: transparent;
-        /* fill:skyblue; */
+        filter: hue-rotate(210deg) drop-shadow(0 0 45px red);
     }
     55% {
         background-color: rosybrown;
+        filter: hue-rotate(225deg) drop-shadow(0 0 60px hotpink);
     }
     60% {
-        transform: rotate(-200deg) scale(1.8) translateX(30px);
+        transform: rotate(5140deg) scale(3.2) translateX(calc(30px + 5vw));
         border-radius: 50%;
         background-color: transparent;
-        /*背景を初期値（透明）にする*/
-        /* fill: rgb(233, 200, 12); */
+        filter: hue-rotate(245deg) blur(2px) drop-shadow(0 0 65px violet);
     }
+    /* 3回目の高速スピン（60%→64%）→一気にgold拡大 */
+    61% { transform: rotate(5800deg) scale(3.8) translateX(calc(45px + 5vw)); }
+    62% { transform: rotate(6550deg) scale(5) translateX(calc(65px + 5vw)); }
+    63% { transform: rotate(7360deg) scale(6.5) translateX(calc(85px + 5vw)); }
+    64% {
+        transform: rotate(7900deg) scale(7.5) translateX(calc(100px + 5vw));
+        filter: hue-rotate(270deg) blur(1px) drop-shadow(0 0 80px gold);
+    }
+    /* gold発光・巨大化・静止 */
     80% {
-        transform: rotate(640deg) scale(5.8) translateX(100px);
+        transform: rotate(8040deg) scale(8) translateX(calc(100px + 5vw));
         background-color: gold;
-        /* fill:skyblue; */
+        filter: hue-rotate(305deg) blur(1px) drop-shadow(0 0 100px gold);
     }
     90% {
-        transform: rotate(640deg) scale(5.8) translateX(100px);
+        transform: rotate(8040deg) scale(8) translateX(calc(100px + 5vw));
         background-color: transparent;
-        /*背景を初期値（透明）にする*/
+        filter: hue-rotate(340deg) drop-shadow(0 0 30px transparent);
     }
     95% {
-        transform: rotate(720deg) scale(1.8) translateX(200px);
+        transform: rotate(8140deg) scale(2.5) translateX(calc(200px + 5vw));
         border-radius: 20%;
+        filter: hue-rotate(360deg) drop-shadow(0 0 45px deepskyblue);
     }
     100% {
-        transform: rotate(720deg) scale(1.8) translateX(50px);
+        transform: rotate(8240deg) scale(2.5) translateX(calc(50px + 5vw));
         border-radius: 20%;
+        filter: hue-rotate(360deg) drop-shadow(0 0 12px cyan);
     }
 }
 
