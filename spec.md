@@ -1524,6 +1524,24 @@ ridingObjectがない場合:
 
 ---
 
+### 54. SE音量調整・入退室SEバグ修正 ✅ (2026-06-20 実装完了)
+
+#### 現状（2026-06-20 実装完了）
+- SE音量スライダーを `onchange` → `oninput` に変更（リアルタイム反映、iOS Safariでも動作）
+- 入室SE再生条件 `else if (random)` → `else if (Number.isFinite(random))` に修正（`random=0` のときSEがスキップされるバグ）
+- `bin/www` のSE配列長をクライアント側の実際のSE数に合わせて修正（全て `new Array(1)` だったため `random` が常に `0` になり、うちゅー・文字の部屋等で入退室SEが完全に鳴らなかった）
+
+**修正前の挙動**
+- `msgSE.other.in = new Array(1)` → `random` は常に `0` → `if (0)` = falsy → エントランスでも常に入室SE鳴らず
+- `msgSE.outerSpace.in = new Array(1)` → 同様にうちゅー系の入室SEが常に鳴らず
+
+**関連ファイル**
+- `views/index.ejs`: SE音量スライダー
+- `public/javascripts/index.js`: Avatar constructor 内の入室SE再生
+- `bin/www`: `volumeRandom` 用SE配列長定義
+
+---
+
 ※ 以下は未確定仕様シリーズ。新スレッドで質問しないこと。
 ※ 未確定仕様を実装した場合は確定仕様（25番以降）に追加し、未確定シリーズからは削除する。
 ※ Items below are not finalized. Do not ask about them in new threads.
