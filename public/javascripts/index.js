@@ -1671,6 +1671,8 @@ const stream = [];
 // スマホやブラウザの自動再生制限を回避するための処理
 document.addEventListener('pointerdown', () => {
   document.getElementById("muonAudio").play();
+  if (!ttsAudioCtx) ttsAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  ttsAudioCtx.resume();
 }, {
   capture: false, // イベントキャプチャフェーズではなくバブリングフェーズで実行
   once: true,     // 最初の1回だけ実行
