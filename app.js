@@ -56,6 +56,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 
 app.use('/', indexRouter);//indexリクエストがあった時に.jsモジュールを使うよう設定する
+app.get('/index-test', (req, res) => res.render('index-test', { title: 'NecojectMachi [デザインテスト]' }));
+app.get('/index-test-jkg', (req, res) => res.render('index-test-jkg', { title: 'NecojectMachi [JKゴシックM]' }));
+app.get('/index-test-chikara-d', (req, res) => res.render('index-test-chikara-d', { title: 'NecojectMachi [チカラヅヨク]' }));
+app.get('/index-test-chikara-y', (req, res) => res.render('index-test-chikara-y', { title: 'NecojectMachi [チカラヨワク]' }));
 
 app.use("/kousinrireki", pagesRouter);
 app.use("/Q-A", pagesRouter);

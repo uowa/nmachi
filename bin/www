@@ -253,13 +253,13 @@ msgSE.login = {};
 msgSE.login.in = new Array(0);
 msgSE.login.logout = new Array(0);
 msgSE.other = {};
-msgSE.other.in = new Array(1);
-msgSE.other.out = new Array(3);
-msgSE.other.logout = new Array(1);
+msgSE.other.in = new Array(2);
+msgSE.other.out = new Array(4);
+msgSE.other.logout = new Array(2);
 msgSE.outerSpace = {};
-msgSE.outerSpace.in = new Array(1);
-msgSE.outerSpace.out = new Array(1);
-msgSE.outerSpace.logout = new Array(1);
+msgSE.outerSpace.in = new Array(2);
+msgSE.outerSpace.out = new Array(2);
+msgSE.outerSpace.logout = new Array(2);
 
 function time() {
   return " -- " + new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) + "--";

@@ -3276,7 +3276,7 @@ class Avatar {
       let regexp = /ＪＭＭ連合/i;//＠ＪＭＭ連合って文字が入ってたら爆発する
       if (fromRoom === "loginRoom" && regexp.test(this.name)) {
         msgSE.JMMLogin.play();
-      } else if (random) {
+      } else if (Number.isFinite(random)) {
         msgSE[roomSE].in[random].play();
       }
     }
