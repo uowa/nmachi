@@ -121,8 +121,8 @@ Pmachi6/
   ```
   GIT_DIR=/p/Pmachi6/.git GIT_WORK_TREE=/p/Pmachi6 "P:/git-portable/mingw64/bin/git.exe" -C "P:/Pmachi6" [コマンド]
   ```
-- **GitHub SSH鍵（2026-05-08 設定済み）**: 鍵は `P:/.ssh/id_ed25519`。`git config core.sshCommand` に `ssh -i /p/.ssh/id_ed25519 -o StrictHostKeyChecking=no` を設定済みのため、push 時に `GIT_SSH_COMMAND` の指定は不要。リモートは `git@github.com:uowa/nmachi.git`（旧 Pmachi5 から移動済み）。別PCでも P: ドライブを使う限り鍵はそのまま使える。
-- **git オブジェクト大規模破損（2026-05-06 修復済み）**: Google Drive 同期が `.git/objects/` を破損。`.git` を作り直し、現在のファイル全てを1コミットとして入れ直した。`git log` は1コミットのみ（過去履歴は消失）。旧 packfile は `.git_pack_backup/` に保存。
+- **GitHub SSH鍵（2026-05-08 設定済み）**: 鍵は `P:/.ssh/id_ed25519`。`git config core.sshCommand` に `ssh -i /p/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UpdateHostkeys=no` を設定済みのため、push 時に `GIT_SSH_COMMAND` の指定は不要。リモートは `git@github.com:uowa/nmachi.git`（旧 Pmachi5 から移動済み）。別PCでも P: ドライブを使う限り鍵はそのまま使える。（`-o UpdateHostkeys=no` は Google Drive の P: ドライブがハードリンク非対応のため known_hosts 更新エラーを防ぐ）
+- **git オブジェクト大規模破損（2026-05-06・2026-06-20 二度修復）**: Google Drive 同期が `.git/objects/pack/` を破損。2026-06-20: `git filter-branch` + `git replace` で破損コミットを切り捨て・書き換えし、GitHub に force push で上書き。現在 97コミット（`0e9ef8d 404ページにやせアボン画像追加` 以降）が有効履歴。それ以前の履歴は破損のため消失済み。
 - **`.gitignore` 追加済みパターン**: `.vs/`、`Microsoft/`、`.claude/`（認証情報含む）、`.git_pack_backup/`、`db_broken`（2026-05-06）、`db/rooms.db`・`public/uploads/`（2026-05-15、VPS運用でデプロイ時に上書きされないよう）
 - **VSCode settings.json（`P:\vscode\data\user-data\User\settings.json`）**: `git.path` は `P:\git-portable\mingw64\bin\git.exe`、`CLAUDE_CODE_GIT_BASH_PATH` は `P:\git-portable\bin\bash.exe` に設定済み。code.bat 経由で起動すれば P: が固定されるため全PC共通で動く。
 - **Claude Code 会話履歴**: `P:\vscode\.claude\projects\p--Pmachi6\` に集約済み（旧 d--/e-- ドライブ時代の履歴もコピー済み、破損ファイルは `.corrupted` にリネーム）。**必ず `code.bat` 経由で VSCode を起動すること**。普通に起動すると `C:\Users\user\.claude\` が参照され、履歴が見えなくなる。
