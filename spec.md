@@ -1555,7 +1555,7 @@ ridingObjectがない場合:
 - スライダーを手動操作してもボタン表示が連動更新（`setSEVolume` から `_updateSEMuteBtn()` を呼ぶ）
 - ボタン色は `#switchBar` ボタンと同じ暗いティール背景（インラインスタイルで適用、`rgba(10,37,48,1)` / `#60c8e8` / `1.2px solid #90ddf0`）
 - メインUIの `logNoiseButton`（SE📢✖）を削除（ミュートトグルで代替可能なため）
-- `useLogChime` は常に `true` に固定（既存の `if (useLogChime)` 分岐は残置、localStorage キーは廃止＝orphan）
+- `useLogChime` 変数および `if (useLogChime)` 分岐を全て削除、localStorage キー `useLogChime` も廃止
 
 **関連ファイル**
 - `views/index.ejs`: `#seMuteBtn` ボタン追加、`#logNoiseButton` 削除

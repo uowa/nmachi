@@ -206,8 +206,6 @@ let ttsVolume = parseFloat(localStorage.getItem("ttsVolume") ?? "1.0");
 let muon = new Audio('sound/etc/muon.mp3');
 muon.autoplay = true;
 muon.setAttribute('playsinline', '');
-//ログ音
-let useLogChime = true;
 let showJoinLeaveMsg = localStorage.getItem("showJoinLeaveMsg") !== "false"; // デフォルトtrue
 let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // デフォルトtrue
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
@@ -3273,13 +3271,12 @@ class Avatar {
 
     usersNumber.textContent = room.container.children.filter(child => child.token).length;//部屋人数の表記を変える
 
-    if (useLogChime) {//部屋入室の音を鳴らす
-      let regexp = /ＪＭＭ連合/i;//＠ＪＭＭ連合って文字が入ってたら爆発する
-      if (fromRoom === "loginRoom" && regexp.test(this.name)) {
-        msgSE.JMMLogin.play();
-      } else if (Number.isFinite(random)) {
-        msgSE[roomSE].in[random].play();
-      }
+    //部屋入室の音を鳴らす
+    let regexp = /ＪＭＭ連合/i;//＠ＪＭＭ連合って文字が入ってたら爆発する
+    if (fromRoom === "loginRoom" && regexp.test(this.name)) {
+      msgSE.JMMLogin.play();
+    } else if (Number.isFinite(random)) {
+      msgSE[roomSE].in[random].play();
     }
 
     //sleep処理
@@ -7090,9 +7087,7 @@ socket.on("otherLeft", data => {//自分以外が部屋から退室した時
     avaP[data.token]._tickerActive = false;
   }
   if (avaP[data.token].abon) return;//アボンされてない場合のみ処理を実行
-  if (useLogChime) {//ログチャイムがオンになってたら退室の音を鳴らす
-    msgSE[roomSE].out[data.random].play();
-  }
+  msgSE[roomSE].out[data.random].play();//退室の音を鳴らす
 
   // 退室アバターに乗っていたアバターの乗車を解除
   for (const tk in avaP) {
@@ -7189,9 +7184,7 @@ socket.on("logout", data => {
   }
 
   outputChatMsg(data.msg, false, data.token, true);//移動時のメッセージ出力
-  if (useLogChime) {//ログチャイムがオンになってたら、ログアウトの音を鳴らす
-    msgSE[roomSE].logout[data.random].play();
-  }
+  msgSE[roomSE].logout[data.random].play();//ログアウトの音を鳴らす
 
   if (avatarOekakiToken === data.token) {
     avatarOekakiToken = false;
@@ -11950,9 +11943,7 @@ socket.on("emit_msg", data => {
       }
       avaP[data.token].msg.log = !!data.carryOver;
       avaP[data.token].msg.eventMode = 'static';
-      if (useLogChime) {//ログの音を鳴らす
-        msgSE.log[data.soundNum].play();
-      }
+      msgSE.log[data.soundNum].play();//ログの音を鳴らす
     }
     avaP[data.token].msg.text = data.msg;
   } else {
