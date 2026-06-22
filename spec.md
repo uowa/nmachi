@@ -74,7 +74,6 @@
 
 | # | タスク | ブロック |
 |---|---|---|
-| 41 | [ロゴ名称変更（NecojectMachi → Necomachi）](#41-ロゴ名称変更necojectmachi--necomachi) | J |
 
 #### やりかけ・動作不安定（要修正）
 
@@ -1284,11 +1283,17 @@ ridingObjectがない場合:
 
 ---
 
-### 41. ロゴ名称変更（NecojectMachi → Necomachi）
-**Logo text rename**
-- 実装前に「NecojectMachi」の全使用箇所をプロジェクト内で検索してリストアップ
-- テキストベースファイル（HTML/JS/CSS/EJS）は変更可能
-- 画像ファイル（PNG等）は変更不可のためユーザーによる素材作り直しが必要
+### 41. ロゴ名称・タイトルフォント整備 ✅ (2026-06-23 実装完了)
+**Logo / title font overhaul**
+- 直接の名称変更ではなく、サイト名アンケート機能でユーザー投票による決定方式に変更
+- タイトルロゴはランダムフォント選出（titleFontFamily 約40フォント）
+- サイト下部（設定パネル内）に投票UI設置：6既定候補（NecojectMachi/Necomachi/猫街/にゃお街/ねこまち/ネコマチ）＋カスタム追加可能
+- 「テスト」ボタンで即時プレビュー、「投票」でサーバー記録、「結果を見る」で円グラフ表示
+- 候補別のプレビューURL：`/nyao` `/necomachi` `/nyaomachi` `/nekomachi` `/nekomachi-hk` `/nekomachi-hira` `/nekomachi-kata`
+- 全フォント比較ページ `/font-test` に8列（猫街/Necomachi/にゃお街/にゃおにゃお街/ねこ街/ねこまち/ネコマチ）
+- 漢字なしフォント等のフォールバック先は「みちます」に統一
+- フォントのunicode-range自動生成で「cmap対応だがglyph空」問題を解決
+- 商用配布NGフォントは .gitignore で除外し、README.md に各自DL手順を A(AI可)/B(BOOTH手動)/C(その他手動) の3カテゴリで掲載
 
 ---
 
