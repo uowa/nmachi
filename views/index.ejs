@@ -2,6 +2,7 @@
 <html lang="ja">
 
 <head>
+  <base href="/">
   <link rel="canonical" href="https:/nuco.moe">
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title>
@@ -691,6 +692,42 @@
                   </div>
                 </div>
               </div>
+              <div id="titlePoll" style="background:#1a1a2e; padding:10px; margin-top:10px; border:1px solid #4a90d9; color:#eee; font-size:13px;">
+                <p style="margin:0 0 8px; color:#ccc; font-size:12px;">サイト名アンケート <span style="font-size:10px; color:#888;">（テスト=プレビュー / 投票=サーバー記録）</span></p>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <%
+                    const _pollChoices = [
+                      { name: 'NecojectMachi', color: '#4a90d9' },
+                      { name: 'Necomachi',     color: '#d94a90' },
+                      { name: '猫街',          color: '#90d94a' },
+                      { name: 'にゃお街',      color: '#d9904a' },
+                      { name: 'ねこまち',      color: '#a06ad9' },
+                      { name: 'ネコマチ',      color: '#d9d04a' },
+                    ];
+                  %>
+                  <% _pollChoices.forEach(c => { %>
+                    <div class="poll-item" style="display:flex; align-items:center; gap:6px; background:#222; padding:4px 8px; border-radius:3px; border:1px solid #444;">
+                      <span style="display:inline-block; width:10px; height:10px; background:<%= c.color %>; border-radius:2px;"></span>
+                      <span style="flex:1; font-weight:bold; font-size:12px;"><%= c.name %></span>
+                      <button type="button" class="title-preview-btn" data-name="<%= c.name %>" style="padding:2px 8px; font-size:11px; cursor:pointer;">テスト</button>
+                      <button type="button" class="title-vote-btn" data-name="<%= c.name %>" style="padding:2px 8px; font-size:11px; background:#1a3a6a; color:#fff; border:1px solid #4a90d9; cursor:pointer;">投票</button>
+                      <span class="vote-count-wrap" data-name="<%= c.name %>" style="font-size:11px; color:#aac; min-width:40px; text-align:right; visibility:hidden;"><span class="vote-count" data-name="<%= c.name %>">-</span>票</span>
+                    </div>
+                  <% }) %>
+                  <div class="poll-item poll-add" style="display:flex; align-items:center; gap:6px; padding:4px 8px; opacity:0.55;">
+                    <span style="display:inline-block; width:10px; height:10px; background:#666; border-radius:2px;"></span>
+                    <button type="button" id="titlePollAddBtn" style="padding:2px 8px; font-size:11px; cursor:pointer;">＋</button>
+                    <input type="text" id="titlePollAddInput" maxlength="30" placeholder="…" style="flex:1; background:#111; border:1px solid #333; color:#ccc; padding:2px 6px; font-size:12px;">
+                  </div>
+                </div>
+                <div style="margin-top:8px; text-align:center;">
+                  <button type="button" id="titlePollShowResultBtn" style="padding:4px 14px; font-size:11px; background:#0a2a1a; color:#aaffcc; border:1px solid #40a060; cursor:pointer;">結果を見る</button>
+                </div>
+                <div id="titlePollChartWrap" style="display:none; margin-top:10px; text-align:center;">
+                  <svg id="titlePollChart" width="180" height="180" viewBox="-100 -100 200 200" style="background:#0d0d1a; border-radius:50%;"></svg>
+                  <p id="titlePollTotal" style="margin:6px 0 0; font-size:11px; color:#aac;"></p>
+                </div>
+              </div>
               <div id="devEditSection" style="display:none">
                 <hr style="border-color: #4a90d9; margin: 8px 0;">
                 <div>
@@ -710,6 +747,160 @@
     <!--main -->
   </div>
   <!--mainFrame -->
+  <script>
+    (function() {
+      const VOTE_TOKEN_KEY = 'titleVoteToken';
+      const POLL_COLORS = {
+        'NecojectMachi': '#4a90d9',
+        'Necomachi': '#d94a90',
+        '猫街': '#90d94a',
+        'にゃお街': '#d9904a',
+        'ねこまち': '#a06ad9',
+        'ネコマチ': '#d9d04a',
+      };
+      let voteToken = localStorage.getItem(VOTE_TOKEN_KEY);
+      if (!voteToken) {
+        voteToken = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+        localStorage.setItem(VOTE_TOKEN_KEY, voteToken);
+      }
+      const titleEl = document.getElementById('title');
+      const chartWrap = document.getElementById('titlePollChartWrap');
+      const chartSvg = document.getElementById('titlePollChart');
+      const totalEl = document.getElementById('titlePollTotal');
+      const pollListWrap = document.querySelector('#titlePoll > div[style*="flex-direction:column"]');
+      const addRow = document.querySelector('.poll-add');
+      let resultsRevealed = false;
+
+      function hashHue(str) {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+        return h % 360;
+      }
+      function colorFor(name) {
+        if (POLL_COLORS[name]) return POLL_COLORS[name];
+        const hue = hashHue(name);
+        const c = `hsl(${hue}, 65%, 55%)`;
+        POLL_COLORS[name] = c;
+        return c;
+      }
+      function buildRow(name) {
+        const row = document.createElement('div');
+        row.className = 'poll-item';
+        row.style.cssText = 'display:flex; align-items:center; gap:6px; background:#222; padding:4px 8px; border-radius:3px; border:1px solid #444;';
+        row.innerHTML = `
+          <span style="display:inline-block; width:10px; height:10px; border-radius:2px;"></span>
+          <span style="flex:1; font-weight:bold; font-size:12px;"></span>
+          <button type="button" class="title-preview-btn" style="padding:2px 8px; font-size:11px; cursor:pointer;">テスト</button>
+          <button type="button" class="title-vote-btn" style="padding:2px 8px; font-size:11px; background:#1a3a6a; color:#fff; border:1px solid #4a90d9; cursor:pointer;">投票</button>
+          <span class="vote-count-wrap" style="font-size:11px; color:#aac; min-width:40px; text-align:right; visibility:${resultsRevealed ? 'visible' : 'hidden'};"><span class="vote-count">-</span>票</span>
+        `;
+        row.querySelector('span').style.background = colorFor(name);
+        row.querySelectorAll('span')[1].textContent = name;
+        row.querySelectorAll('button, span.vote-count-wrap span').forEach(el => { el.dataset.name = name; });
+        attachHandlers(row);
+        return row;
+      }
+      function attachHandlers(row) {
+        row.querySelector('.title-preview-btn').addEventListener('click', (e) => {
+          const n = e.currentTarget.dataset.name;
+          if (titleEl) titleEl.textContent = n;
+          document.title = n;
+        });
+        row.querySelector('.title-vote-btn').addEventListener('click', (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          fetch('/api/title-vote', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ token: voteToken, choice: btn.dataset.name })
+          }).then(r => r.json()).then(() => refreshCounts()).finally(() => { btn.disabled = false; });
+        });
+      }
+
+      function drawChart(counts) {
+        const total = Object.values(counts).reduce((s, n) => s + n, 0);
+        if (chartSvg) chartSvg.innerHTML = '';
+        if (totalEl) totalEl.textContent = '合計: ' + total + '票';
+        if (!total || !chartSvg) return;
+        let acc = 0;
+        Object.entries(counts).forEach(([name, n]) => {
+          if (n === 0) return;
+          const start = acc / total * Math.PI * 2 - Math.PI / 2;
+          acc += n;
+          const end = acc / total * Math.PI * 2 - Math.PI / 2;
+          const x1 = Math.cos(start) * 95, y1 = Math.sin(start) * 95;
+          const x2 = Math.cos(end) * 95, y2 = Math.sin(end) * 95;
+          const large = (end - start) > Math.PI ? 1 : 0;
+          const color = POLL_COLORS[name] || '#888';
+          if (n === total) {
+            // 100%は1つの円
+            const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c.setAttribute('cx', 0); c.setAttribute('cy', 0); c.setAttribute('r', 95);
+            c.setAttribute('fill', color);
+            chartSvg.appendChild(c);
+          } else {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M 0 0 L ${x1} ${y1} A 95 95 0 ${large} 1 ${x2} ${y2} Z`);
+            path.setAttribute('fill', color);
+            chartSvg.appendChild(path);
+          }
+        });
+      }
+
+      function refreshCounts() {
+        return fetch('/api/title-vote/counts').then(r => r.json()).then(counts => {
+          if (resultsRevealed) {
+            document.querySelectorAll('.vote-count').forEach(el => {
+              el.textContent = counts[el.dataset.name] ?? 0;
+            });
+            drawChart(counts);
+          }
+          return counts;
+        }).catch(() => {});
+      }
+
+      document.querySelectorAll('.poll-item').forEach(row => {
+        if (row.classList.contains('poll-add')) return;
+        attachHandlers(row);
+      });
+      function loadCustomOptions() {
+        return fetch('/api/title-vote/options').then(r => r.json()).then(data => {
+          const existing = new Set(Array.from(document.querySelectorAll('.poll-item .title-vote-btn')).map(b => b.dataset.name));
+          data.custom.forEach(name => {
+            if (!existing.has(name)) pollListWrap.insertBefore(buildRow(name), addRow);
+          });
+        }).catch(() => {});
+      }
+      const addInput = document.getElementById('titlePollAddInput');
+      const addBtn = document.getElementById('titlePollAddBtn');
+      function submitAdd() {
+        const name = (addInput.value || '').trim();
+        if (!name) return;
+        addBtn.disabled = true;
+        fetch('/api/title-vote/suggest', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ token: voteToken, name })
+        }).then(r => r.json().then(j => ({ ok: r.ok, j }))).then(({ ok, j }) => {
+          if (ok) { addInput.value = ''; loadCustomOptions().then(refreshCounts); }
+          else alert(j.error || '追加失敗');
+        }).finally(() => { addBtn.disabled = false; });
+      }
+      addBtn.addEventListener('click', submitAdd);
+      addInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitAdd(); });
+      loadCustomOptions();
+      const showBtn = document.getElementById('titlePollShowResultBtn');
+      if (showBtn) {
+        showBtn.addEventListener('click', () => {
+          resultsRevealed = true;
+          document.querySelectorAll('.vote-count-wrap').forEach(el => { el.style.visibility = 'visible'; });
+          if (chartWrap) chartWrap.style.display = 'block';
+          showBtn.style.display = 'none';
+          refreshCounts();
+        });
+      }
+    })();
+  </script>
 
 
   <!-- </div> -->
@@ -768,9 +959,8 @@
           <option class="UDDigiKyokashoN-R">UD Digi Kyokasho N-R</option>
           <option class="游ゴシック">游ゴシック</option>
           <option class="microsoftjhengheiUIlight">microsoft jhenghei UI light</option>
-          <option class="まるっかな">まるっかな</option>
         </select>
-      </span> 
+      </span>
       <span>その他</span>
       <span class="selectForm">
         <select class="kosugiMaru" id="sonotaFont" name="sonotaFont" onchange="fontChange('sonota')">

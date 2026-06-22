@@ -78,6 +78,16 @@ db.exec(`
     filename TEXT NOT NULL,
     url TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS title_votes (
+    token TEXT PRIMARY KEY,
+    choice TEXT NOT NULL,
+    updated_at DATETIME DEFAULT NULL
+  );
+  CREATE TABLE IF NOT EXISTS title_suggestions (
+    name TEXT PRIMARY KEY,
+    suggested_by TEXT,
+    created_at DATETIME DEFAULT NULL
+  );
 `);
 
 const insertRoom = db.prepare(

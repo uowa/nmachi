@@ -339,7 +339,7 @@ let fontName;
 let obj;
 let index;
 let fontSize;
-const titleFontFamily = ["鉄瓶ゴシック", "kosugiMaru", "チカラヅヨク", "チカラヨワク", "まるっかな", "M+フォント", "源界明朝", "にゃしぃフォント改二", "PixelMplus", "めもわーるしかく"];
+const titleFontFamily = ["鉄瓶ゴシック", "kosugiMaru", "チカラヅヨク", "チカラヨワク", "M+フォント", "源界明朝", "にゃしぃフレンズ", "PixelMplus", "めもわーるしかく", "道玄坂12", "チェックポイント", "ポプらむキュート", "ピグモ00", "梅干し雑メモ", "みちます", "マキ丸ハンド", "19seg-box", "あおさぎ", "ふわふで", "推しゴ", "ぎっしりフォント", "なぎの", "どんぐりデュエル", "チェリーボム", "おまつりフォント", "くるん・デコ", "夜すがら手書き", "ぼてりん", "ロンド", "AOMEMOFONT", "マメロン", "みちます", "源暎アンチック", "みつバッチ", "数式フォント", "衡山毛筆", "美咲ゴシック", "モフ字", "青柳疎石", "喜々", "からすまる"];
 
 let loginMX;
 let loginMY;
@@ -1677,7 +1677,7 @@ document.addEventListener('pointerdown', () => {
 });
 
 //タイトル(NocojectMachi)をランダムで表示
-title.style.fontFamily = titleFontFamily[Math.floor(Math.random() * titleFontFamily.length)];
+title.style.fontFamily = `"${titleFontFamily[Math.floor(Math.random() * titleFontFamily.length)]}", "みちます"`;
 // title.style.fontSize = fontSize + 37 + "px";
 
 const mainLogResizeBar = document.getElementById("mainLogResizeBar");
@@ -7503,7 +7503,7 @@ function konaDropText(msg, seed, senderColor) {
 
   const effectiveSeed = seed != null ? seed : Date.now();
   const rng = _konaMakeRng(effectiveSeed);
-  const fontFamily = titleFontFamily[Math.floor(rng() * titleFontFamily.length)];
+  const fontFamily = [titleFontFamily[Math.floor(rng() * titleFontFamily.length)], "みちます"];
   const groups = _konaSplitGroups(text, rng);
 
   // 巨大テキスト判定（日本時間0:00台 or 1/125確率）

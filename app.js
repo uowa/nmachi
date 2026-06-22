@@ -6,12 +6,20 @@ var logger = require('morgan');
 var https = require('https');
 
 var indexRouter = require('./routes/index');//index.jsモジュールを読みこむ
+var nyaoRouter = require('./routes/nyao');//にゃおにゃお街タイトル版
+var necomachiRouter = require('./routes/necomachi');
+var nyaomachiRouter = require('./routes/nyaomachi');
+var nekomachiRouter = require('./routes/nekomachi');
+var nekomachiHkRouter = require('./routes/nekomachi-hk');
+var nekomachiHiraRouter = require('./routes/nekomachi-hira');
+var nekomachiKataRouter = require('./routes/nekomachi-kata');
 var pagesRouter = require("./routes/pages");//そのほかのページのモジュール用
 var polygonRouter = require('./routes/polygon'); //polygonモジュール
 var { roomRouter, objectRouter, atlasReady } = require('./routes/roomAtlas'); //部屋・オブジェクトアトラス生成
 var roomsApiRouter = require('./routes/rooms');
 var mugenRouter = require('./routes/mugen');
 var directionRouter = require('./routes/direction');
+var titleVoteRouter = require('./routes/titleVote');
 
 require('./db/init');
 
@@ -64,10 +72,18 @@ app.set('view engine', 'ejs');//viewフォルダのejsの拡張子を省略で�
 app.use(logger('dev'));
 app.use('/api/mugen', mugenRouter);
 app.use('/api/direction', directionRouter);
+app.use('/api/title-vote', titleVoteRouter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 
 app.use('/', indexRouter);//indexリクエストがあった時に.jsモジュールを使うよう設定する
+app.use('/nyao', nyaoRouter);
+app.use('/necomachi', necomachiRouter);
+app.use('/nyaomachi', nyaomachiRouter);
+app.use('/nekomachi', nekomachiRouter);
+app.use('/nekomachi-hk', nekomachiHkRouter);
+app.use('/nekomachi-hira', nekomachiHiraRouter);
+app.use('/nekomachi-kata', nekomachiKataRouter);
 app.get('/index-test', (req, res) => res.render('index-test', { title: 'NecojectMachi [デザインテスト]' }));
 app.get('/index-test-jkg', (req, res) => res.render('index-test-jkg', { title: 'NecojectMachi [JKゴシックM]' }));
 app.get('/index-test-chikara-d', (req, res) => res.render('index-test-chikara-d', { title: 'NecojectMachi [チカラヅヨク]' }));
@@ -79,6 +95,7 @@ app.use("/link", pagesRouter);
 app.use("/login_error_handling", pagesRouter);
 app.use("/dominionrule", pagesRouter);
 app.use("/button-test", pagesRouter);
+app.use("/font-test", pagesRouter);
 
 
 

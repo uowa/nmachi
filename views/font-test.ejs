@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タイトルフォント比較テスト</title>
+  <link rel="stylesheet" href="/stylesheets/style.css">
+  <style>
+    body { display: block; padding: 20px; background: rgb(50, 50, 58); color: #eee; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .note { font-size: 12px; color: #888; margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; max-width: 2000px; }
+    th, td { border: 1px solid #555; padding: 12px 16px; text-align: left; vertical-align: middle; }
+    th { background: #2a2a35; font-size: 13px; font-weight: normal; color: #aac; }
+    th.fontname { width: 240px; font-family: kosugiMaru; }
+    th.fontname a { color: #88c; text-decoration: none; }
+    th.fontname a:hover { text-decoration: underline; }
+    th.fontname .pending { display: block; font-size: 10px; color: #c66; margin-top: 2px; }
+    td.sample { font-size: 40px; font-weight: bold; line-height: 1.2; }
+    tr.section td { background: #3a2a2a; color: #fcc; font-size: 13px; padding: 10px; text-align: center; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>タイトルフォント比較テスト</h1>
+  <p class="note">`#title` で使用されるフォントで各タイトル候補を表示。化けるフォントはシステムフォントへフォールバックします。</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="fontname">フォント名</th>
+        <th>猫街</th>
+        <th>Necomachi</th>
+        <th>にゃお街</th>
+        <th>にゃおにゃお街</th>
+        <th>ねこ街</th>
+        <th>ねこまち</th>
+        <th>ネコマチ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <%
+        const sections = [
+          {
+            label: "■ 配置済みフォント（表示される）",
+            fonts: [
+              { name: "鉄瓶ゴシック", url: null },
+              { name: "kosugiMaru", url: "https://fonts.google.com/specimen/Kosugi+Maru" },
+              { name: "チカラヅヨク", url: null },
+              { name: "チカラヨワク", url: null },
+              { name: "M+フォント", url: "https://mplusfonts.github.io/" },
+              { name: "源界明朝", url: "https://flopdesign.com/blog/font/5146/" },
+              { name: "にゃしぃフレンズ", url: "https://yokutobanaitori.web.fc2.com/tegakifont.html" },
+              { name: "PixelMplus", url: "https://itouhiro.hatenablog.com/entry/20130602/font" },
+              { name: "めもわーるしかく", url: "https://modi.jpn.org/font_memoir.php" },
+              { name: "道玄坂12", url: "http://jikasei.me/font/kh-dotfont/" },
+              { name: "チェックポイント", url: "https://yokutobanaitori.web.fc2.com/tegakifont.html" },
+              { name: "ポプらむキュート", url: "https://moji-waku.com/poprumcute/index.html" },
+              { name: "ピグモ00", url: "https://moji-waku.com/pigmo/" },
+              { name: "梅干し雑メモ", url: "https://font.xxenxx.net/umeboshizatumemo/" },
+              { name: "あおさぎ", url: "https://ymnk-design.com/aosagi/" },
+              { name: "ふわふで", url: "https://huwahuwa.ff-design.net/ふわふで/" },
+              { name: "どんぐりデュエル", url: "https://hicchicc.github.io/00ff/" },
+              { name: "チェリーボム", url: "https://fonts.google.com/specimen/Cherry+Bomb+One" },
+              { name: "ロンド", url: "https://moji-waku.com/ronde/" },
+              { name: "マメロン", url: "http://moji-waku.com/mamelon/index.html" },
+              { name: "みちます", url: "http://www.masuseki.com/wp/?p=197" },
+              { name: "源暎アンチック", url: "http://okoneya.jp/font/download.html#dl-gea" },
+              { name: "衡山毛筆", url: "http://opentype.jp/kouzanmouhitufont.htm" },
+              { name: "美咲ゴシック", url: "https://littlelimit.net/misaki.htm" },
+              { name: "青柳疎石", url: "http://opentype.jp/aoyagisosekifont.htm", note: "著作権放棄完全フリー" },
+              { name: "喜々", url: "http://fontlab.web.fc2.com/kiki.html" },
+              { name: "からすまる", url: "https://booth.pm/ja/items/108047", note: "漢字なし" },
+              { name: "19seg-box", url: "https://palettype.booth.pm/items/178994" },
+              { name: "推しゴ", url: "https://atelierkotatu.booth.pm/items/5635169" },
+              { name: "ぎっしりフォント", url: "https://booth.pm/ja/items/4652044" },
+              { name: "なぎの", url: "https://microraptor.booth.pm/items/5010245" },
+              { name: "おまつりフォント", url: "https://213chan.booth.pm/items/5502706" },
+              { name: "くるん・デコ", url: "https://booth.pm/ja/items/6401767" },
+              { name: "夜すがら手書き", url: "https://booth.pm/ja/items/2801268" },
+              { name: "ぼてりん", url: "https://fontring.booth.pm/items/1029793" },
+              { name: "AOMEMOFONT", url: "https://booth.pm/ja/items/118072" },
+              { name: "みつバッチ", url: "https://booth.pm/ja/items/3723426", note: "商用要相談" },
+              { name: "数式フォント", url: "https://booth.pm/ja/items/3723139", note: "商用要相談" },
+              { name: "ドラマチック明朝", url: "https://ffont.jp/dramatic-mincho/" },
+              { name: "マキ丸ハンド", url: "https://www.ac-font.com/jp/detail_j_003.php" },
+              { name: "モフ字", url: "http://fub-koubou.work/mofuji/" },
+            ]
+          },
+        ];
+      %>
+      <% sections.forEach(sec => { %>
+        <tr class="section"><td colspan="8"><%= sec.label %></td></tr>
+        <% sec.fonts.forEach(f => { %>
+          <tr>
+            <th class="fontname">
+              <% if (f.url) { %><a href="<%= f.url %>" target="_blank"><%= f.name %></a><% } else { %><%= f.name %><% } %>
+              <% if (f.pending) { %><span class="pending"><%= f.pending %></span><% } %>
+              <% if (f.note) { %><span class="pending" style="color:#cc8;"><%= f.note %></span><% } %>
+            </th>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">猫街</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">Necomachi</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">にゃお街</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">にゃおにゃお街</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">ねこ街</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">ねこまち</td>
+            <td class="sample" style="font-family: '<%= f.name %>', 'みちます';">ネコマチ</td>
+          </tr>
+        <% }) %>
+      <% }) %>
+    </tbody>
+  </table>
+</body>
+</html>
