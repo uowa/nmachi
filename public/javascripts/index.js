@@ -978,14 +978,22 @@ function _replayOekakiOnGhost(g, ava) {
   }
 }
 
+// maxYキャッシュ: videoFloorObjects が変わるまで再計算しない
+let _mugenMaxYCache = null;
+function _invalidateMugenMaxY() { _mugenMaxYCache = null; }
+
 function _updateMugenGhosts() {
   if (!room || (room.name !== 'むげん' && !_DIR_ROOM_NAMES.has(room.name))) {
     if (_mugenGhostMap.size > 0) _destroyAllMugenGhosts();
+    _mugenMaxYCache = null;
     return;
   }
   const W = 660;
-  const _mugenFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
-  const maxY = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
+  if (_mugenMaxYCache === null) {
+    const _mugenFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+    _mugenMaxYCache = _mugenFloorH > 0 ? VIDEO_FLOOR_Y + _mugenFloorH : 460;
+  }
+  const maxY = _mugenMaxYCache;
   const MX = 60, MY = 80;
 
   for (const token of [..._mugenGhostMap.keys()]) {
@@ -995,19 +1003,6 @@ function _updateMugenGhosts() {
   for (const ava of Object.values(avaP)) {
     if (ava.abon || !ava.container.parent || !ava.avaC) continue;
     const x = ava.container.x, y = ava.container.y;
-
-    const candidateOffsets = [
-      [W, 0], [-W, 0], [0, maxY], [0, -maxY],
-      [W, maxY], [W, -maxY], [-W, maxY], [-W, -maxY],
-    ];
-    const avaBounds = ava.container.getBounds();
-    const visibleOffsets = candidateOffsets.filter(([dx, dy]) => {
-      const gx = x + dx, gy = y + dy;
-      if (gx > -MX && gx < W + MX && gy > -MY && gy < maxY + MY) return true;
-      const bl = avaBounds.x + dx, br = avaBounds.x + avaBounds.width + dx;
-      const bt = avaBounds.y + dy, bb = avaBounds.y + avaBounds.height + dy;
-      return br > 0 && bl < W && bb > 0 && bt < maxY;
-    });
 
     if (!_mugenGhostMap.has(ava.token)) {
       const ghosts = [];
@@ -1038,6 +1033,9 @@ function _updateMugenGhosts() {
         ghosts,
         _oekakiLen: -1, _stateKey: '', _perStateMode: false,
         _nameW: -1,
+        _lastX: NaN, _lastY: NaN, _lastTexUid: -1, _lastSpriteSX: NaN,
+        _lastScaleX: NaN, _lastScaleY: NaN, _lastAlpha: NaN, _lastZIndex: NaN,
+        _lastNameTagAlpha: NaN, _lastMaxY: NaN,
       });
     }
 
@@ -1069,19 +1067,54 @@ function _updateMugenGhosts() {
       }
     }
 
+    // 全フィールド差分チェック: アバター状態が変わってない時はゴースト更新skip
+    const texUid = ava.avaC.texture.baseTexture.uid;
+    const spriteSX = ava.avaC.scale.x;
+    const scaleX = ava.container.scale.x, scaleY = ava.container.scale.y;
+    const cAlpha = ava.container.alpha;
+    const cZ = ava.container.zIndex;
+    const ntAlpha = ava.nameTag.alpha;
+    if (
+      !oekakiDirty &&
+      entry._lastX === x && entry._lastY === y &&
+      entry._lastTexUid === texUid && entry._lastSpriteSX === spriteSX &&
+      entry._lastScaleX === scaleX && entry._lastScaleY === scaleY &&
+      entry._lastAlpha === cAlpha && entry._lastZIndex === cZ &&
+      entry._lastNameTagAlpha === ntAlpha && entry._lastMaxY === maxY
+    ) continue;
+    entry._lastX = x; entry._lastY = y;
+    entry._lastTexUid = texUid; entry._lastSpriteSX = spriteSX;
+    entry._lastScaleX = scaleX; entry._lastScaleY = scaleY;
+    entry._lastAlpha = cAlpha; entry._lastZIndex = cZ;
+    entry._lastNameTagAlpha = ntAlpha; entry._lastMaxY = maxY;
+
+    // visibleOffsets計算（getBoundsはdirty時のみ）
+    const avaBounds = ava.container.getBounds();
+    const candidateOffsets = [
+      [W, 0], [-W, 0], [0, maxY], [0, -maxY],
+      [W, maxY], [W, -maxY], [-W, maxY], [-W, -maxY],
+    ];
+    const visibleOffsets = candidateOffsets.filter(([dx, dy]) => {
+      const gx = x + dx, gy = y + dy;
+      if (gx > -MX && gx < W + MX && gy > -MY && gy < maxY + MY) return true;
+      const bl = avaBounds.x + dx, br = avaBounds.x + avaBounds.width + dx;
+      const bt = avaBounds.y + dy, bb = avaBounds.y + avaBounds.height + dy;
+      return br > 0 && bl < W && bb > 0 && bt < maxY;
+    });
+
     for (let i = 0; i < ghosts.length; i++) {
       const g = ghosts[i];
       const off = visibleOffsets[i];
       if (!off) { g.container.visible = false; continue; }
       g.sprite.texture = ava.avaC.texture;
       g.sprite.tint = ava.avaC.tint;
-      g.sprite.scale.x = ava.avaC.scale.x;
-      g.nameTag.alpha = ava.nameTag.alpha;
+      g.sprite.scale.x = spriteSX;
+      g.nameTag.alpha = ntAlpha;
       g.container.x = x + off[0];
       g.container.y = y + off[1];
       g.container.scale.copyFrom(ava.container.scale);
-      g.container.alpha = ava.container.alpha;
-      g.container.zIndex = ava.container.zIndex;
+      g.container.alpha = cAlpha;
+      g.container.zIndex = cZ;
       g.container.visible = true;
     }
   }
@@ -1445,27 +1478,35 @@ function drawDbImages() {
   });
 
   if (_dbImageZIndexTicker) { app.ticker.remove(_dbImageZIndexTicker); }
-  _dbImageZIndexTicker = () => {
+  _dbImageZIndexTicker = function dbImageZIndexTicker() {
+    // zIndex代入は parent.sortDirty=true を毎回triggerするため、値が変わらない時はskip
     for (let i = 0; i < dbImageSprites.length; i++) {
       if (dbRoomImages[i]?.type === 'object') {
-        dbImageSprites[i].zIndex = dbImageSprites[i].y + dbImageSprites[i].height;
+        const s = dbImageSprites[i];
+        const nz = s.y + s.height;
+        if (s.zIndex !== nz) s.zIndex = nz;
       }
     }
     for (let i = 0; i < _warpGateSprites.length; i++) {
       const s = _warpGateSprites[i];
-      s.zIndex = s.y + s.height;
+      const nz = s.y + s.height;
+      if (s.zIndex !== nz) s.zIndex = nz;
     }
+    // 編集オーバーレイ（borderGfx/handleGfx）はパスワード入力で編集モードに入っている時だけ存在する
+    if (_warpEditOverlays.length === 0 && _imgOverlays.length === 0) return;
     for (let i = 0; i < _warpEditOverlays.length; i++) {
       const ov = _warpEditOverlays[i];
       const z = ov.sprite.zIndex;
-      ov.borderGfx.zIndex = z + 0.5;
-      ov.handleGfx.zIndex = z + 1;
+      const bz = z + 0.5, hz = z + 1;
+      if (ov.borderGfx.zIndex !== bz) ov.borderGfx.zIndex = bz;
+      if (ov.handleGfx.zIndex !== hz) ov.handleGfx.zIndex = hz;
     }
     for (let i = 0; i < _imgOverlays.length; i++) {
       const ov = _imgOverlays[i];
       const z = ov.sprite.zIndex;
-      ov.borderGfx.zIndex = z + 0.5;
-      ov.handleGfx.zIndex = z + 1;
+      const bz = z + 0.5, hz = z + 1;
+      if (ov.borderGfx.zIndex !== bz) ov.borderGfx.zIndex = bz;
+      if (ov.handleGfx.zIndex !== hz) ov.handleGfx.zIndex = hz;
     }
   };
   app.ticker.add(_dbImageZIndexTicker);
@@ -1754,9 +1795,67 @@ graphic.appendChild(myCanvas);
 app.stage.sortableChildren = true;//子要素のzIndexをonにする。
 window.app = app;
 
+// === パフォーマンス計測ツール（debug用） ===
+// localStorage._perfDebug === "1" のときのみ ticker 関数の実行時間を集計
+// window._perfStart() で計測開始、window._perfEnd() でテーブル出力
+const _perfDebugEnabled = localStorage.getItem("_perfDebug") === "1";
+const _perfStats = {};
+let _perfActive = false;
+let _perfAnonCount = 0;
+if (_perfDebugEnabled) {
+  const _origTickerAdd = app.ticker.add.bind(app.ticker);
+  app.ticker.add = function (fn, ctx, priority) {
+    const name = fn.name || `anon_${++_perfAnonCount}`;
+    const wrapped = function (...args) {
+      if (!_perfActive) return fn.apply(this, args);
+      const t0 = performance.now();
+      const r = fn.apply(this, args);
+      const dt = performance.now() - t0;
+      const s = _perfStats[name] || (_perfStats[name] = { calls: 0, total: 0, max: 0 });
+      s.calls++;
+      s.total += dt;
+      if (dt > s.max) s.max = dt;
+      return r;
+    };
+    wrapped._perfOrig = fn;
+    return _origTickerAdd(wrapped, ctx, priority);
+  };
+  // remove時はラップ前関数で照合
+  const _origTickerRemove = app.ticker.remove.bind(app.ticker);
+  app.ticker.remove = function (fn) {
+    const head = app.ticker._head;
+    let node = head?.next;
+    while (node) {
+      if (node.fn && node.fn._perfOrig === fn) return _origTickerRemove(node.fn);
+      node = node.next;
+    }
+    return _origTickerRemove(fn);
+  };
+}
+window._perfStart = () => {
+  if (!_perfDebugEnabled) {
+    console.warn("[perf] localStorage._perfDebug を '1' にしてリロードしてください");
+    return;
+  }
+  for (const k of Object.keys(_perfStats)) delete _perfStats[k];
+  _perfActive = true;
+  console.log("[perf] 計測開始");
+};
+window._perfEnd = () => {
+  if (!_perfDebugEnabled) { console.warn("[perf] 未起動"); return; }
+  _perfActive = false;
+  const rows = Object.entries(_perfStats)
+    .map(([name, s]) => ({ name, calls: s.calls, totalMs: +s.total.toFixed(2), avgMs: +(s.total / s.calls).toFixed(3), maxMs: +s.max.toFixed(2) }))
+    .sort((a, b) => b.totalMs - a.totalMs);
+  console.log("[perf] 集計（totalMs降順）:");
+  console.table(rows);
+};
+
 // 全avaLoop完了後・PIXI描画前に他アバターに乗ってるアバターのzIndexを修正
-app.ticker.add(() => {
-  for (const ava of Object.values(avaP)) {
+app.ticker.add(function ridingZIndexTicker() {
+  if (_inRoomTransition) return;
+  for (const token in avaP) {
+    const ava = avaP[token];
     if (!ava.ridingObject?.token) continue;
     if (!ava.container.parent?.parent) continue; // stageに繋がっていないアバターはスキップ
     const newZ = (ava.ridingObject.container || ava.ridingObject).zIndex - 1;
@@ -1768,13 +1867,18 @@ app.ticker.add(() => {
 }, null, -10);
 
 // むげん・方角部屋のワープ後 dead reckoning（tapMap受信フレームでGSAPが未起動のまま1フレーム止まる問題を解消）
-app.ticker.add((delta) => {
+app.ticker.add(function mugenDeadReckoningTicker(delta) {
   if (!room || (room.name !== 'むげん' && !_DIR_ROOM_NAMES.has(room.name))) return;
-  const _drFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
-  const _drMaxY = _drFloorH > 0 ? VIDEO_FLOOR_Y + _drFloorH : 460;
+  // maxYは _updateMugenGhosts で既にキャッシュ済みのものを再利用（同条件で再計算するため一致）
+  let _drMaxY = _mugenMaxYCache;
+  if (_drMaxY === null) {
+    const _drFloorH = room.name === 'むげん' && Object.keys(videoFloorObjects).length > 0 ? Math.max(...Object.values(videoFloorObjects).map(f => f._pixiH || VIDEO_FLOOR_H)) : 0;
+    _drMaxY = _drFloorH > 0 ? VIDEO_FLOOR_Y + _drFloorH : 460;
+  }
   const _drNow = performance.now();
-  for (const ava of Object.values(avaP)) {
-    if (!ava._mugenDR || ava.token === myToken) continue;
+  for (const token in avaP) {
+    const ava = avaP[token];
+    if (!ava._mugenDR || token === myToken) continue;
     if (_drNow - ava._mugenDR.t > 120) { ava._mugenDR = null; continue; }
     ava.container.x += ava._mugenDR.vx * delta;
     ava.container.y += ava._mugenDR.vy * delta;
@@ -1792,8 +1896,10 @@ app.ticker.add((delta) => {
 }, null, -0.3);
 
 // 全priority-0コールバック（avaLoop・keyMoveTickerFn）完了後・描画直前にzIndexを同期
-app.ticker.add(() => {
-  for (const ava of Object.values(avaP)) {
+app.ticker.add(function zIndexSyncTicker() {
+  if (_inRoomTransition) { _updateMugenGhosts(); return; }
+  for (const token in avaP) {
+    const ava = avaP[token];
     if (ava.abon) continue;
     if (ava.ridingObject?.token) continue;
     if (!ava.container.parent?.parent) continue; // stageに繋がっていないアバターはスキップ
@@ -2710,13 +2816,13 @@ class MsgBubble extends PIXI.Container {
 
   _startOverlayTick() {
     if (this._overlayTickFn) return;
-    this._overlayTickFn = () => {
+    this._overlayTickFn = function bubbleOverlayTick() {
       if (!this._avatarContainer || this.parent !== avaBubbleLayer) return;
       const ac = this._avatarContainer;
       this.x = ac.x + this._lastBx * ac.scale.x;
       this.y = ac.y + this._lastBy * ac.scale.y;
       this.scale.set(ac.scale.x, ac.scale.y);
-    };
+    }.bind(this);
     app.ticker.add(this._overlayTickFn);
   }
 
@@ -2981,7 +3087,7 @@ class Avatar {
     });
 
     // AvatarのtickerはtickersListenersに入れない（部屋移動時にクリアされるとavaLoopが止まる）
-    this._tickerFn = () => { this.avaLoop(); };
+    this._tickerFn = function avaLoop() { this.avaLoop(); }.bind(this);
     this._tickerActive = true;
     app.ticker.add(this._tickerFn);
   }
@@ -3560,7 +3666,7 @@ class Avatar {
     // 3. その他のオブジェクトとの判定
     for (const otherObjContainer of roomContainer.children) {
       if (otherObjContainer === ava.container) continue;
-      const otherObj = Object.values(objMap).find(obj => obj.container === otherObjContainer);
+      const otherObj = otherObjContainer._obj; // GameObject/Roomコンストラクタ・各objMap登録箇所で設定済み（O(1)逆引き）
       if (!otherObj) continue;
 
       const tags = otherObj.tags || [];
@@ -3884,6 +3990,26 @@ class Avatar {
       sendData.ridingData = null;
     }
 
+    // 重複送信抑制: 前回と AX/AY/DIR/is2F/isFalling/ridingData が完全一致なら skip
+    // 落下中50ms throttle と合わせて無駄emit削減（静止中の連打や同じフレームの多重呼び出し対策）
+    const _last = this._lastSentTransform;
+    if (_last &&
+        _last.AX === sendData.AX && _last.AY === sendData.AY &&
+        _last.DIR === sendData.DIR && _last.is2F === sendData.is2F &&
+        _last.isFalling === sendData.isFalling &&
+        _last.rdObjName === (sendData.ridingData?.objectName ?? null) &&
+        _last.rdOffX === (sendData.ridingData?.offsetX ?? null) &&
+        _last.rdOffY === (sendData.ridingData?.offsetY ?? null)) {
+      return;
+    }
+    this._lastSentTransform = {
+      AX: sendData.AX, AY: sendData.AY, DIR: sendData.DIR,
+      is2F: sendData.is2F, isFalling: sendData.isFalling,
+      rdObjName: sendData.ridingData?.objectName ?? null,
+      rdOffX: sendData.ridingData?.offsetX ?? null,
+      rdOffY: sendData.ridingData?.offsetY ?? null,
+    };
+
     socket.emit("transformData", sendData);
     if (_isKonaRoom() && _konaCurrentHostToken !== myToken && Date.now() - _konaLastHostChangeAt > 2000) {
       socket.emit("konaHostClaim");
@@ -4040,6 +4166,7 @@ class GameObject {
     this.container = new PIXI.Container();
     this.container.eventMode = 'static';
     this.container.sortableChildren = true;
+    this.container._obj = this; // isStandingOnObjectの逆引き用
     this.sprite = sprite;
     this.container.addChild(this.sprite);
   }
@@ -4081,12 +4208,14 @@ class Room extends GameObject {
         // 2階フロア
         const floor2FContainer = new PIXI.Container();
         entrance2FFloor = { container: floor2FContainer, tags: ["standable2F"], name: "エントランス2階の地" };
+        floor2FContainer._obj = entrance2FFloor;
         objMap["エントランス2階の地"] = entrance2FFloor;
         floor2FContainer.hitArea = new PIXI.Polygon([0,152,159,151,239,152,298,160,362,175,439,200,514,224,590,251,660,284,660,405,576,334,510,292,460,267,404,242,357,222,320,210,297,201,289,200,276,224,254,239,231,253,199,265,164,272,135,282,99,289,61,301,30,309,0,320,0,249,52,242,94,236,136,226,172,217,198,206,216,196,220,177,215,168,187,166,168,164,132,164,86,164,38,164,0,164,0,152]);
         this.container.addChild(floor2FContainer);
         // 1階フロア
         const floor1FContainer = new PIXI.Container();
         entrance1FFloor = { container: floor1FContainer, tags: ["standable1F"], name: "エントランス1階の地" };
+        floor1FContainer._obj = entrance1FFloor;
         objMap["エントランス1階の地"] = entrance1FFloor;
         floor1FContainer.hitArea = new PIXI.Polygon([0,185,660,184,660,460,0,460]);
         this.container.addChild(floor1FContainer);
@@ -4276,6 +4405,7 @@ class Room extends GameObject {
         this.container.addChild(konaFloorGfx);
 
         _konaFloor = { container: konaFloorGfx, tags: ['standable'], name: '粉の床' };
+        konaFloorGfx._obj = _konaFloor;
         objMap['粉の床'] = _konaFloor;
         this.roomPolygons = [_konaFloor];
         break;
@@ -5523,6 +5653,7 @@ async function login() {
         floorGfx.hitArea = new PIXI.Polygon([0, 200, 660, 200, 660, 460, 0, 460]);
         floorGfx.eventMode = 'none';
         const floorObj = { container: floorGfx, tags: ['standable'], name: _resolvedDirectLinkId + '_floor' };
+        floorGfx._obj = floorObj;
         objMap[_resolvedDirectLinkId + '_floor'] = floorObj;
         const _r = new Room(bg, _resolvedDirectLinkId, []);
         _r.container.addChild(floorGfx);
@@ -5696,6 +5827,7 @@ async function goSelfToRoomSpot(toSpot, train) {
             floorGfx.hitArea = new PIXI.Polygon([0, 200, 660, 200, 660, 460, 0, 460]);
             floorGfx.eventMode = 'none';
             const floorObj = { container: floorGfx, tags: ['standable'], name: targetRoomId + '_floor' };
+            floorGfx._obj = floorObj;
             objMap[targetRoomId + '_floor'] = floorObj;
             const r = new Room(bg, targetRoomId, []);
             r.container.addChild(floorGfx);
@@ -7255,6 +7387,8 @@ socket.on("disconnect", (reason) => {
 
 socket.on("connect", () => {
   if (isReconnecting) {
+    // 再接続後はサーバー側に位置情報がない可能性があるため重複送信抑制キャッシュをクリア
+    if (avaP[myToken]) avaP[myToken]._lastSentTransform = null;
     socket.emit("getMyUser");
     if (document.getElementById('roomEditPanel').style.display !== 'none' && imgEditRoomId && !_isNewRoomMode) {
       socket.emit('startRoomEdit', { roomId: imgEditRoomId, isNew: _isNewRoomMode });
@@ -13254,7 +13388,7 @@ function _startAvaOverlay() {
   // 透過モード: cRect基準（動画全画面のためvRect不使用）
   // 通常モード: vRect基準（動画追従・vsx/vsyで統一）
   if (_avaOverlayPostTicker) app.ticker.remove(_avaOverlayPostTicker);
-  _avaOverlayPostTicker = () => {
+  _avaOverlayPostTicker = function _avaOverlayPostTicker() {
     if (!_avaOverlayCtx) return;
     if (el.width !== window.innerWidth || el.height !== window.innerHeight) {
       el.width = window.innerWidth;
@@ -15061,6 +15195,7 @@ function _recalcFloorPositions() {
     f._pixiH = pixiH;
     pixiX += w;
   });
+  _invalidateMugenMaxY();
 
   if (selfFloorTok && videoFloorObjects[selfFloorTok]) {
     const nf = videoFloorObjects[selfFloorTok];
@@ -15094,9 +15229,11 @@ function _updateVideoFloor(token, pixiX, pixiY, pixiW, pixiH, drawHistory) {
     container.addChild(oekakiGraphics);
     container.addChild(previewGraphics);
     floorObj = { container, oekakiGraphics, previewGraphics, drawHistory: [], redoStack: [], tags: ['standable'], name: 'videoFloor:' + token, oekakiAllowed: true };
+    container._obj = floorObj;
     videoFloorObjects[token] = floorObj;
     objMap['videoFloor:' + token] = floorObj;
     if (!_videoFloorZOrder.includes(token)) { _videoFloorZOrder.push(token); _updateVideoZIndices(); }
+    _invalidateMugenMaxY();
   }
   if (room && room.container && !floorObj.container.parent) {
     room.container.addChild(floorObj.container);
@@ -15154,6 +15291,7 @@ function _removeVideoFloor(token) {
   const _zi = _videoFloorZOrder.indexOf(token);
   if (_zi >= 0) _videoFloorZOrder.splice(_zi, 1);
   _updateVideoZIndices();
+  _invalidateMugenMaxY();
   _recalcFloorPositions();
   if (_videoTransparentActive) _applyTransparentLayout();
   if (Object.keys(videoFloorObjects).length === 0) { _videoFloorFocused = false; _stopAvaOverlay(); }

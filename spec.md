@@ -1261,6 +1261,14 @@ ridingObjectがない場合:
 
 **既知の挙動**: キー離し後、DR が最大 ~7px オーバーシュートして自然停止する。その後 `transformOtherAvatarData` が GSAP で最終位置に補正（0.2s）。
 
+#### 既知バグ（2026-06-24 確認・未対応）
+- **ゴースト落書きバグ**: 他のアバターと重なった状態でむげん部屋に移動すると、その他のアバターの落書きがむげん部屋にも出てくる
+  - パフォーマンス改善 #51 とは無関係（Step 2 revert で再現確認済み・元から存在）
+  - 原因未調査。`_updateMugenGhosts` / `_replayOekakiOnGhost` / `joineRoom` 時の `drawHistory` 処理あたりを別途調査
+- **電車後ワープ位置異常バグ**: 電車を使った後、ワープ位置がおかしくなる（変なところから星1へ行けたりする）
+  - パフォーマンス改善 #51 とは無関係（元から存在）
+  - 原因未調査。`warpPoints` 判定 or `goSelfToRoomSpot` 後の座標残り or 電車の `joineRoom` で前部屋の `AX/AY` が残る可能性
+
 ---
 
 ### 39. 設定パネル配置変更 ✅ (2026-06-12 実装完了)
@@ -1511,9 +1519,28 @@ ridingObjectがない場合:
 - 部屋画像も同様にsharp WebP quality 92・最大1320×960に変更（旧: quality 85・1024px）
 - 方角部屋BGの`?t=Date.now()`キャッシュ破壊を廃止 → ブラウザ・PIXIキャッシュが効くように
 
+**現状（2026-06-24 実施 ticker / 同期最適化）**
+- パフォーマンス計測ツール追加（`window._perfStart()` / `_perfEnd()`、`localStorage._perfDebug="1"`時のみ稼働、本番影響ゼロ）。`app.ticker.add` をモンキーパッチして各 ticker 関数の `calls/totalMs/avgMs/maxMs` を集計
+- 主要 ticker に名前付け: `ridingZIndexTicker` / `mugenDeadReckoningTicker` / `zIndexSyncTicker` / `dbImageZIndexTicker` / Avatar `_tickerFn` (`avaLoop`) / MsgBubble `_overlayTickFn` (`bubbleOverlayTick`)
+- `_dbImageZIndexTicker`: zIndex 値が変わらない時は代入skip（PIXI の sortDirty trigger を削減）。編集モード外では edit overlay 用2ループを完全skip
+- `_updateMugenGhosts`: dirty チェック強化。アバターの x/y/texture/scale/alpha/zIndex/nameTag.alpha/maxY が全て前回と同じならゴースト更新を完全skip（`getBounds()` も呼ばない）。maxY を `_mugenMaxYCache` でキャッシュし、`videoFloorObjects` 変更時に `_invalidateMugenMaxY()` で無効化
+- グローバル ticker 3本（`ridingZIndexTicker` / `mugenDeadReckoningTicker` / `zIndexSyncTicker`）: `_inRoomTransition` 中は早期return、`Object.values(avaP)` 廃止 → `for...in` で array allocation 削減。`mugenDeadReckoningTicker` は maxY キャッシュを `_updateMugenGhosts` と共有
+- `isStandingOnObject` の `Object.values(objMap).find(...)` を O(N²) → O(1) 化: `GameObject` constructor で `this.container._obj = this` を設定（Roomも継承）、literal objMap 登録箇所5箇所（entrance2F/1F・粉の床・ユーザー部屋floor×2・videoFloor）にも `container._obj = obj` 追加。`isStandingOnObject` 内は `otherObjContainer._obj` で逆引き
+- `sendTransformData` 重複送信抑制: 前回送信した `AX/AY/DIR/is2F/isFalling/ridingData` が完全一致なら emit skip（`_lastSentTransform` キャッシュ）。落下完了後の繰り返しemit や複数tickerからの重複呼び出しを削減。再接続時に `_lastSentTransform = null` でクリア
+- `_avaOverlayPostTicker` のキャッシュ最適化（Step 4）は試行→revert: PIXI内部に `getBounds()` updateID キャッシュがあるため外部 WeakMap キャッシュは逆効果と判明。配信中のこの ticker は本質的に 5-15ms/call かかる重い処理
+
 **残課題**
 - ユーザー部屋画像の先読み（ゲート付近に来たタイミングで先読みする仕組みは未実装）
-- 全体的な重い処理の洗い出し（PIXI描画・WebRTC等）は未着手
+- 配信中の `_avaOverlayPostTicker` 本格最適化（必要なフレームだけ実行する根本改修、または OffscreenCanvas 等への移行）
+- WebRTC 周り（カメラエンコード・送受信デコード）の見直しは未着手
+- `bin/www` の broadcast payload は実質改善余地なし（Socket.io は undefined を JSON シリアライズ時に除外するため）
+
+**次スレッド候補（ロード最適化）2026-06-24 調査**
+- ~~`mediaelement-and-player.js` (未使用CDNライブラリ) を削除~~ → 2026-06-24 対応済み（`views/index.ejs` L19 削除）
+- `muon.mp3` (209KB の無音ファイル) を短縮 or 削減検討。`<audio id="muonAudio">` (views/index.ejs) と `new Audio()` (index.js L206) で二重保持。サイズ確認の余地あり
+- SE Audio オブジェクト27個を起動時に即生成 → lazy生成 or `preload="none"` で起動時の HTTP リクエスト削減
+- 直リンク時の API 順次取得（resolve → /api/rooms/:id → /api/rooms/:id/images）の並列化
+- フォント ttf/otf → woff2 化（`public/stylesheets/` 合計 132MB、ttf→woff2 で 1/3 程度に圧縮可能）。`@font-face` 45個
 
 ---
 
