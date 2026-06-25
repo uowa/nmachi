@@ -1002,6 +1002,12 @@ function _updateMugenGhosts() {
 
   for (const ava of Object.values(avaP)) {
     if (ava.abon || !ava.container.parent || !ava.avaC) continue;
+    // 別部屋のアバター（部屋移動前にavaPに残ったまま container.parent が旧部屋のままの人）はskip
+    // ※前部屋でアバターに落書きされた状態でむげん部屋に行くと、その落書きが残って描画されるバグ対策
+    if (ava.container.parent !== room.container) {
+      if (_mugenGhostMap.has(ava.token)) _destroyMugenGhosts(ava.token);
+      continue;
+    }
     const x = ava.container.x, y = ava.container.y;
 
     if (!_mugenGhostMap.has(ava.token)) {
@@ -5733,6 +5739,12 @@ async function login() {
 async function goSelfToRoomSpot(toSpot, train) {
   _prevRoomForBlockReturn = room ? room.name : null;
   _inRoomTransition = true;
+  // タップ移動中の gsap アニメをキャンセル: アニメ完了時の onComplete が新部屋で
+  // checkObjectWarpPoints を呼んで古い座標で誤ワープするバグの対策（電車経由で頻発）
+  if (avaP[myToken]) {
+    gsap.killTweensOf(avaP[myToken].container);
+    avaP[myToken].isMoving = false;
+  }
   //配信関係の接続を切る
   stopAllConnection();
   if (videoStatus) {
@@ -12198,15 +12210,14 @@ socket.on("train", data => {
   overlayChat.children.forEach(c => { c.y += _tOff; });
   overlayChat.addChild(_tBtns);
   const _tCanvas = app.renderer.view;
-  const _tCleanup = () => {
-    _tCanvas.removeEventListener('pointerdown', _tCanvasHandler);
-    if (_tBtns.parent) { _tBtns.parent.removeChild(_tBtns); _tBtns.destroy({ children: true }); }
-  };
   const _tCanvasHandler = (e) => {
+    // overlayChat 非表示時はボタンも見えないので反応させない（見えないけど押せる謎挙動の修正）
+    if (!overlayChat.visible || !_tBtns.parent) return;
     if (e.button !== 0 && !['touch', 'pen'].includes(e.pointerType)) return;
     const rect = _tCanvas.getBoundingClientRect();
     const px = (e.clientX - rect.left) * (660 / rect.width);
-    const py = (e.clientY - rect.top) * (460 / rect.height) - overlayChat.y;
+    // _tBtns.y も引く: 新しいメッセージ追加で _tBtns 自体がスクロールで下にずれた時も正しく判定
+    const py = (e.clientY - rect.top) * (460 / rect.height) - overlayChat.y - _tBtns.y;
     for (const { bx, by, bw, bh, action } of _tBtnData) {
       if (px >= bx && px <= bx + bw && py >= by && py <= by + bh) {
         action();

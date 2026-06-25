@@ -1261,13 +1261,18 @@ ridingObjectがない場合:
 
 **既知の挙動**: キー離し後、DR が最大 ~7px オーバーシュートして自然停止する。その後 `transformOtherAvatarData` が GSAP で最終位置に補正（0.2s）。
 
-#### 既知バグ（2026-06-24 確認・未対応）
-- **ゴースト落書きバグ**: 他のアバターと重なった状態でむげん部屋に移動すると、その他のアバターの落書きがむげん部屋にも出てくる
-  - パフォーマンス改善 #51 とは無関係（Step 2 revert で再現確認済み・元から存在）
-  - 原因未調査。`_updateMugenGhosts` / `_replayOekakiOnGhost` / `joineRoom` 時の `drawHistory` 処理あたりを別途調査
-- **電車後ワープ位置異常バグ**: 電車を使った後、ワープ位置がおかしくなる（変なところから星1へ行けたりする）
-  - パフォーマンス改善 #51 とは無関係（元から存在）
-  - 原因未調査。`warpPoints` 判定 or `goSelfToRoomSpot` 後の座標残り or 電車の `joineRoom` で前部屋の `AX/AY` が残る可能性
+#### 修正済み既存バグ（2026-06-25 修正完了）
+
+**ゴースト落書きバグ** — 他のアバターと重なった状態でむげん部屋に移動すると、その他のアバターの落書きがむげん部屋にも出てくる
+- **原因**: `joineRoom` 受信時に新部屋にいない他者の `avaP[token]` が削除されない（ticker は止まるが avaP には残る）。container.parent は前部屋 (例: エントランス container) のままで truthy なので、`_updateMugenGhosts` の `Object.values(avaP)` ループに含まれ、その人の `drawHistory` がむげん部屋のゴーストとして描画されていた
+- **修正**: `_updateMugenGhosts` のループ冒頭で「`ava.container.parent !== room.container`（現在の部屋にいない）」アバターを skip & 既存ゴースト破棄するフィルタを追加
+
+**電車後ワープ位置異常バグ** — 電車を使った後、ワープ位置がおかしくなる（変なところから星1へ行けたりする）
+- **原因**: `socket.on("train")` のたびに canvas `pointerdown` listener と PIXI Container (`_tBtns`) が追加されるが、片付け機能 `_tCleanup` は定義されているだけで**呼ばれていなかった**。さらに listener 内に `overlayChat.visible` チェックがなく、画面チャット OFF (overlayChat 非表示) でも canvas クリックで反応していた → 見えない位置の過去ボタン領域に誤クリックして変な部屋に飛んでいた
+- **修正**:
+  - `_tCanvasHandler` 冒頭に `if (!overlayChat.visible || !_tBtns.parent) return;` を追加（見えてない時は反応しない）
+  - 座標判定に `- _tBtns.y` を追加（新規メッセージ追加で `_tBtns` 自体がスクロールで下にずれた時も正しく当たる）
+  - `goSelfToRoomSpot` 冒頭で `gsap.killTweensOf(avaP[myToken].container) + isMoving=false`（タップ移動中に部屋移動した場合、古いgsap onCompleteが新部屋でcheckObjectWarpPointsを誤発火するのを防ぐ二重防御）
 
 ---
 
