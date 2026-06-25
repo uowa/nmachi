@@ -1543,13 +1543,15 @@ ridingObjectがない場合:
   - `_directLinkRoomInfo` および `_userRoomNameCache` (UUID→name) でクライアントキャッシュ。同じ部屋への再訪時は fetch 不要
 - ユーザー部屋画像の先読み: `loadDbWarpZones` で取得した warp の `target_room_id` がユーザー部屋（UUID形式）なら、`_prewarmWarpTargets` で部屋名・画像一覧・画像URLを事前 fetch（`new Image().src` でブラウザ HTTPキャッシュ + 画像 cache に乗せる）。`_prewarmedRoomIds` Set で重複起動防止
 
-**残課題**
+**残課題（独立スレッド推奨：単独だと配信機能を壊すリスクあり）**
 - 配信中の `_avaOverlayPostTicker` 本格最適化（必要なフレームだけ実行する根本改修、または OffscreenCanvas 等への移行）
 - WebRTC 周り（カメラエンコード・送受信デコード）の見直しは未着手
-- `bin/www` の broadcast payload は実質改善余地なし（Socket.io は undefined を JSON シリアライズ時に除外するため）
 
 **次スレッド候補（ロード最適化）残り**
 - フォント ttf/otf → woff2 化（`public/stylesheets/` 合計 132MB、ttf→woff2 で 1/3 程度に圧縮可能）。`@font-face` 45個
+
+**調査済み・改善不要メモ**
+- `bin/www` の broadcast payload: Socket.io は undefined を JSON シリアライズ時に除外するため、payload の余分なキーを削っても帯域に影響なし。実質改善余地なし（2026-06-24 調査）
 
 ---
 
