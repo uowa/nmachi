@@ -121,7 +121,14 @@ let _resolvedDirectLinkId = _directLinkRoom;
 let _directLinkRoomExists = false;
 
 // 直リンクがユーザー部屋の場合: 部屋名→ID解決 + 存在確認 + HTTPキャッシュを温める
+// _directLinkRoomInfo: resolve/info APIから取った {id, name, ...} をキャッシュし
+// 後段の displayName 取得 fetch を省略する
+// _userRoomNameCache: UUID→部屋名のクライアントサイドキャッシュ。
+// 入室時のリンク表示で同じ部屋に再訪するとき fetch をスキップできる
 let _directLinkResolvePromise = Promise.resolve();
+let _directLinkRoomInfo = null;
+const _userRoomNameCache = {};
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 if (_directLinkRoom) {
   const _sysRoomSetDL = new Set(['エントランス', '草原', 'うちゅー', '文字の部屋', '粉の部屋', '星1', 'むげんのいりぐち', 'むげん', '東の部屋', '南の部屋', '西の部屋', '北の部屋']);
   if (_sysRoomSetDL.has(_directLinkRoom)) {
@@ -129,14 +136,28 @@ if (_directLinkRoom) {
   } else {
     _directLinkResolvePromise = (async () => {
       try {
+        if (_UUID_RE.test(_directLinkRoom)) {
+          // UUID形式: resolveをスキップし /api/rooms/:id を直接叩く
+          const ir = await fetch('/api/rooms/' + encodeURIComponent(_directLinkRoom));
+          if (ir.ok) {
+            const info = await ir.json();
+            if (info && info.id) {
+              _resolvedDirectLinkId = info.id; _directLinkRoomInfo = info; _directLinkRoomExists = true;
+              if (info.name) _userRoomNameCache[info.id] = info.name;
+              return;
+            }
+          }
+          return;
+        }
         const nr = await fetch('/api/rooms/resolve?name=' + encodeURIComponent(_directLinkRoom));
         if (nr.ok) {
           const nd = await nr.json();
-          if (nd && nd.id) { _resolvedDirectLinkId = nd.id; _directLinkRoomExists = true; return; }
+          if (nd && nd.id) {
+            _resolvedDirectLinkId = nd.id; _directLinkRoomInfo = nd; _directLinkRoomExists = true;
+            if (nd.name) _userRoomNameCache[nd.id] = nd.name;
+            return;
+          }
         }
-        // 名前解決失敗 → IDとして直接確認（UUID形式の旧リンク後方互換）
-        const ir = await fetch('/api/rooms/' + encodeURIComponent(_directLinkRoom));
-        if (ir.ok) _directLinkRoomExists = true;
       } catch (_e) {}
     })();
     (async () => {
@@ -203,9 +224,6 @@ let useTTS = localStorage.getItem("useTTS") === "true";
 let ttsMode = localStorage.getItem("ttsMode") || "normal";
 let ttsVolume = parseFloat(localStorage.getItem("ttsVolume") ?? "1.0");
 
-let muon = new Audio('sound/etc/muon.mp3');
-muon.autoplay = true;
-muon.setAttribute('playsinline', '');
 let showJoinLeaveMsg = localStorage.getItem("showJoinLeaveMsg") !== "false"; // デフォルトtrue
 let useLogHighlight = localStorage.getItem("useLogHighlight") !== "false"; // デフォルトtrue
 let useAvatarHighlight = localStorage.getItem("useAvatarHighlight") !== "false"; // デフォルトtrue
@@ -229,50 +247,71 @@ let _videoFloorFocused = false;
 const VIDEO_FLOOR_Y = 460;
 const VIDEO_FLOOR_H = 330;
 let highlightToken = null;
+// 初回 play() まで Audio オブジェクト生成を遅延させる軽量ラッパー。
+// 起動時にHTTP GET (preload=metadata) が27本走るのを抑制する。
+// API互換: `.play()` と `.volume` (getter/setter) のみ
+function _lazyAudio(src, initialVolume) {
+  let audio = null;
+  let pendingVolume = initialVolume != null ? initialVolume : 1;
+  return {
+    play() {
+      if (!audio) {
+        audio = new Audio(src);
+        audio.volume = pendingVolume;
+      }
+      return audio.play();
+    },
+    get volume() { return audio ? audio.volume : pendingVolume; },
+    set volume(v) {
+      pendingVolume = v;
+      if (audio) audio.volume = v;
+    },
+  };
+}
+
 const msgSE = {};
 msgSE.loginRoom = {};
 msgSE.loginRoom.in = [];
-msgSE.loginRoom.in[0] = new Audio('sound/login/tirin1.mp3');
+msgSE.loginRoom.in[0] = _lazyAudio('sound/login/tirin1.mp3');
 
-msgSE.JMMLogin = new Audio('sound/bomb2.mp3');
-msgSE.JMMLogin.volume = 0.3;
+msgSE.JMMLogin = _lazyAudio('sound/bomb2.mp3', 0.3);
 
 msgSE.log = [];
-msgSE.log[0] = new Audio('sound/log/cute-motion1.mp3');
-msgSE.log[1] = new Audio('sound/log/nyu3.mp3');
-msgSE.log[2] = new Audio('sound/log/papa1.mp3');
-msgSE.log[3] = new Audio('sound/log/se_maoudamashii_system10.mp3');
-msgSE.log[4] = new Audio('sound/log/se_maoudamashii_retro16.mp3');
-msgSE.log[5] = new Audio('sound/log/se_maoudamashii_se_sound15.mp3');
-msgSE.log[6] = new Audio('sound/log/se_maoudamashii_system42.mp3');
-msgSE.log[7] = new Audio('sound/log/se_maoudamashii_system45.mp3');
-msgSE.log[8] = new Audio('sound/log/se_maoudamashii_system48.mp3');
+msgSE.log[0] = _lazyAudio('sound/log/cute-motion1.mp3');
+msgSE.log[1] = _lazyAudio('sound/log/nyu3.mp3');
+msgSE.log[2] = _lazyAudio('sound/log/papa1.mp3');
+msgSE.log[3] = _lazyAudio('sound/log/se_maoudamashii_system10.mp3');
+msgSE.log[4] = _lazyAudio('sound/log/se_maoudamashii_retro16.mp3');
+msgSE.log[5] = _lazyAudio('sound/log/se_maoudamashii_se_sound15.mp3');
+msgSE.log[6] = _lazyAudio('sound/log/se_maoudamashii_system42.mp3');
+msgSE.log[7] = _lazyAudio('sound/log/se_maoudamashii_system45.mp3');
+msgSE.log[8] = _lazyAudio('sound/log/se_maoudamashii_system48.mp3');
 
 msgSE.other = {};
 msgSE.other.in = [];
 msgSE.other.log = [];
 msgSE.other.out = [];
 msgSE.other.logout = [];
-msgSE.other.in[0] = new Audio('sound/otherRoomIn/cursor7.mp3');
-msgSE.other.in[1] = new Audio('sound/otherRoomIn/touch1.mp3');
-msgSE.other.out[0] = new Audio('sound/otherRoomOut/pa1.mp3');
-msgSE.other.out[1] = new Audio('sound/otherRoomOut/se_maoudamashii_element_wind02.mp3');
-msgSE.other.out[2] = new Audio('sound/otherRoomOut/se_maoudamashii_system39.mp3');
-msgSE.other.out[3] = new Audio('sound/otherRoomOut/suck1.mp3');
-msgSE.other.logout[0] = new Audio('sound/otherRoomLogout/cancel1.mp3');
-msgSE.other.logout[1] = new Audio('sound/otherRoomLogout/decision15.mp3');
+msgSE.other.in[0] = _lazyAudio('sound/otherRoomIn/cursor7.mp3');
+msgSE.other.in[1] = _lazyAudio('sound/otherRoomIn/touch1.mp3');
+msgSE.other.out[0] = _lazyAudio('sound/otherRoomOut/pa1.mp3');
+msgSE.other.out[1] = _lazyAudio('sound/otherRoomOut/se_maoudamashii_element_wind02.mp3');
+msgSE.other.out[2] = _lazyAudio('sound/otherRoomOut/se_maoudamashii_system39.mp3');
+msgSE.other.out[3] = _lazyAudio('sound/otherRoomOut/suck1.mp3');
+msgSE.other.logout[0] = _lazyAudio('sound/otherRoomLogout/cancel1.mp3');
+msgSE.other.logout[1] = _lazyAudio('sound/otherRoomLogout/decision15.mp3');
 
 msgSE.outerSpace = {};
 msgSE.outerSpace.in = [];
 msgSE.outerSpace.log = [];
 msgSE.outerSpace.out = [];
 msgSE.outerSpace.logout = [];
-msgSE.outerSpace.in[0] = new Audio('sound/outerSpaceIn/se_maoudamashii_system11.mp3');
-msgSE.outerSpace.in[1] = new Audio('sound/outerSpaceIn/se_maoudamashii_system13.mp3');
-msgSE.outerSpace.out[0] = new Audio('sound/outerSpaceOut/se_maoudamashii_se_sound10.mp3');
-msgSE.outerSpace.out[1] = new Audio('sound/outerSpaceOut/se_maoudamashii_system33.mp3');
-msgSE.outerSpace.logout[0] = new Audio('sound/outerSpaceLogout/se_maoudamashii_onepoint31.mp3');
-msgSE.outerSpace.logout[1] = new Audio('sound/outerSpaceLogout/se_maoudamashii_system32.mp3');
+msgSE.outerSpace.in[0] = _lazyAudio('sound/outerSpaceIn/se_maoudamashii_system11.mp3');
+msgSE.outerSpace.in[1] = _lazyAudio('sound/outerSpaceIn/se_maoudamashii_system13.mp3');
+msgSE.outerSpace.out[0] = _lazyAudio('sound/outerSpaceOut/se_maoudamashii_se_sound10.mp3');
+msgSE.outerSpace.out[1] = _lazyAudio('sound/outerSpaceOut/se_maoudamashii_system33.mp3');
+msgSE.outerSpace.logout[0] = _lazyAudio('sound/outerSpaceLogout/se_maoudamashii_onepoint31.mp3');
+msgSE.outerSpace.logout[1] = _lazyAudio('sound/outerSpaceLogout/se_maoudamashii_system32.mp3');
 
 //エイリアス
 const html = document.querySelector('html');
@@ -620,7 +659,33 @@ async function loadDbWarpZones(roomId) {
     newZones.sort((a, b) => (a.warp_type === 'back' ? 0 : 1) - (b.warp_type === 'back' ? 0 : 1));
     dbWarpZones = newZones;
     drawWarpZones();
+    _prewarmWarpTargets(newZones);
   } catch (_e) {}
+}
+
+// ワープの target_room_id がユーザー部屋なら、入室時のレイテンシ削減のため
+// 部屋名・画像URL・背景色を事前 fetch して名前キャッシュ + ブラウザ HTTPキャッシュに乗せる
+const _prewarmedRoomIds = new Set();
+function _prewarmWarpTargets(zones) {
+  if (!Array.isArray(zones)) return;
+  for (const wz of zones) {
+    const tid = wz.target_room_id;
+    if (!tid || typeof tid !== 'string' || !_UUID_RE.test(tid)) continue;
+    if (_prewarmedRoomIds.has(tid)) continue;
+    _prewarmedRoomIds.add(tid);
+    // 名前キャッシュ
+    if (!_userRoomNameCache[tid]) {
+      fetch('/api/rooms/' + encodeURIComponent(tid))
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && d.name) _userRoomNameCache[tid] = d.name; })
+        .catch(() => {});
+    }
+    // 画像一覧 → 各画像 URL を Image() でプリロード
+    fetch('/api/rooms/' + encodeURIComponent(tid) + '/images')
+      .then(r => r.ok ? r.json() : null)
+      .then(imgs => { if (Array.isArray(imgs)) imgs.forEach(img => { if (img && img.url) new Image().src = img.url; }); })
+      .catch(() => {});
+  }
 }
 
 function _applyRoomBgColor(colorHex) {
@@ -5123,6 +5188,10 @@ class Room extends GameObject {
       }
       if (roomConfig.cloudSync) this.startCloudSync();
       if (roomConfig.skyTime) this.startSkyOverlay();
+    } else {
+      // ユーザー部屋など ROOM_PHYSICS 未登録の部屋: SEは "other" にフォールバック
+      // (未設定だと msgSE[undefined].in.play() でクラッシュする)
+      roomSE = "other";
     }
 
     this.roomPolygons.forEach(obj => {
@@ -5646,6 +5715,10 @@ async function login() {
       // ユーザー部屋への直リンク: 直接その部屋を生成してログイン（_resolvedDirectLinkIdはUUID）
       _loginRoomName = _resolvedDirectLinkId;
       _loginToSpot = undefined;
+      _inUserRoom = true;
+      // resolve/info APIから取れた部屋名を表示用に使用。URLが部屋名形式なら fallback で使う
+      _userRoomDisplayName = (_directLinkRoomInfo && _directLinkRoomInfo.name)
+        || (_UUID_RE.test(_directLinkRoom) ? '' : _directLinkRoom);
       if (!(objMap[_resolvedDirectLinkId] instanceof Room)) {
         const bg = new PIXI.Graphics();
         bg.zIndex = -200;
@@ -5666,7 +5739,6 @@ async function login() {
         _r.roomPolygons.push(floorObj);
         objMap[_resolvedDirectLinkId] = _r;
       }
-      _inUserRoom = true;
       room = objMap[_resolvedDirectLinkId];
     } else {
       _loginRoomName = 'エントランス';
@@ -5848,11 +5920,24 @@ async function goSelfToRoomSpot(toSpot, train) {
           }
           _inUserRoom = true;
           room = objMap[targetRoomId];
-          _userRoomDisplayName = '';
-          fetch('/api/rooms/' + encodeURIComponent(targetRoomId))
-            .then(r => r.ok ? r.json() : null)
-            .then(d => { if (d && d.name) { _userRoomDisplayName = d.name; updateRoomLinkDisplay(); } })
-            .catch(() => {});
+          // resolve/Info APIで取った name キャッシュ or _userRoomNameCache（ワープ事前fetch）を優先
+          const _cachedName = (_directLinkRoomInfo && _directLinkRoomInfo.id === targetRoomId && _directLinkRoomInfo.name)
+            || _userRoomNameCache[targetRoomId];
+          if (_cachedName) {
+            _userRoomDisplayName = _cachedName;
+          } else {
+            _userRoomDisplayName = '';
+            fetch('/api/rooms/' + encodeURIComponent(targetRoomId))
+              .then(r => r.ok ? r.json() : null)
+              .then(d => {
+                if (d && d.name) {
+                  _userRoomNameCache[targetRoomId] = d.name;
+                  _userRoomDisplayName = d.name;
+                  updateRoomLinkDisplay();
+                }
+              })
+              .catch(() => {});
+          }
         }
       }
       break;
@@ -12544,7 +12629,9 @@ function updateRoomLinkDisplay() {
     return;
   }
   const _roomLinkName = (_inUserRoom && _userRoomDisplayName) ? _userRoomDisplayName : room.name;
-  input.textContent = location.origin + location.pathname + '?room=' + encodeURIComponent(_roomLinkName);
+  // 表示は読みやすい未エンコード形式 / コピーは正しい URL エンコード形式
+  input.textContent = location.origin + location.pathname + '?room=' + _roomLinkName;
+  input.dataset.copyUrl = location.origin + location.pathname + '?room=' + encodeURIComponent(_roomLinkName);
   if (btn) btn.disabled = false;
 }
 
@@ -12552,7 +12639,20 @@ function copyRoomLink() {
   updateRoomLinkDisplay();
   const input = document.getElementById('roomLinkInput');
   if (!input || !input.textContent) return;
-  navigator.clipboard.writeText(input.textContent);
+  navigator.clipboard.writeText(input.dataset.copyUrl || input.textContent);
+  const btn = document.getElementById('roomLinkCopyBtn');
+  if (!btn) return;
+  let toast = document.getElementById('roomLinkCopyToast');
+  if (!toast) {
+    toast = document.createElement('span');
+    toast.id = 'roomLinkCopyToast';
+    toast.style.cssText = 'font-size:11px;color:#4a90d9;margin-left:4px;transition:opacity .3s;';
+    btn.insertAdjacentElement('afterend', toast);
+  }
+  toast.textContent = 'コピーしました！';
+  toast.style.opacity = '1';
+  clearTimeout(copyRoomLink._t);
+  copyRoomLink._t = setTimeout(() => { toast.style.opacity = '0'; }, 1500);
 }
 
 // クリック位置が足場（standableタグのあるオブジェクト）の上かどうか判定

@@ -87,13 +87,16 @@ router.get('/sample-list', (_req, res) => {
     res.json(files);
 });
 
-// GET /api/rooms/resolve?name=<name> - 部屋名からIDを解決
+// GET /api/rooms/resolve?name=<name> - 部屋名からID＋公開情報を解決
 router.get('/resolve', (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: 'name required' });
-    const room = db.get('SELECT id FROM rooms WHERE name = ? AND is_system_room = 0', [name]);
+    const room = db.get(
+        'SELECT id, name, is_system_room, avatar_scale, CASE WHEN edit_password_hash IS NOT NULL THEN 1 ELSE 0 END AS has_password FROM rooms WHERE name = ? AND is_system_room = 0',
+        [name]
+    );
     if (!room) return res.status(404).json({ error: 'not found' });
-    res.json({ id: room.id });
+    res.json(room);
 });
 
 // GET /api/rooms/:id - 部屋の公開情報

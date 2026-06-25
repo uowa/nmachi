@@ -1534,17 +1534,21 @@ ridingObjectがない場合:
 - `sendTransformData` 重複送信抑制: 前回送信した `AX/AY/DIR/is2F/isFalling/ridingData` が完全一致なら emit skip（`_lastSentTransform` キャッシュ）。落下完了後の繰り返しemit や複数tickerからの重複呼び出しを削減。再接続時に `_lastSentTransform = null` でクリア
 - `_avaOverlayPostTicker` のキャッシュ最適化（Step 4）は試行→revert: PIXI内部に `getBounds()` updateID キャッシュがあるため外部 WeakMap キャッシュは逆効果と判明。配信中のこの ticker は本質的に 5-15ms/call かかる重い処理
 
+**現状（2026-06-26 実施 ロード最適化）**
+- `muon.mp3` (213KB) を `muon.wav` (444B silent WAV) に置き換え (`views/index.ejs` および `views/index-test*.ejs` 全て更新)。`index.js` L206 の二重持ち `new Audio('sound/etc/muon.mp3')` も削除（実際は再生されてない死コードだった）
+- SE Audio オブジェクト27個を `_lazyAudio()` ラッパーで lazy 化（`index.js` L229-）。初回 `.play()` 時に `new Audio()` を生成。起動時の HTTP GET 27本を抑制。`.volume` setter は pendingVolume を蓄え、play 時に反映するので `setMsgSE` の挙動は完全互換
+- 直リンク時の API 並列化:
+  - `/api/rooms/resolve` を拡張: name/avatar_scale/has_password 等の公開情報も返すように（`routes/rooms.js`）→ post-login の `/api/rooms/:id` fetch を省略可能に
+  - クライアント側で UUID 形式入力を検出 (`_UUID_RE`) → resolve をスキップして `/api/rooms/:id` 直接フェッチ。round-trip 1回削減
+  - `_directLinkRoomInfo` および `_userRoomNameCache` (UUID→name) でクライアントキャッシュ。同じ部屋への再訪時は fetch 不要
+- ユーザー部屋画像の先読み: `loadDbWarpZones` で取得した warp の `target_room_id` がユーザー部屋（UUID形式）なら、`_prewarmWarpTargets` で部屋名・画像一覧・画像URLを事前 fetch（`new Image().src` でブラウザ HTTPキャッシュ + 画像 cache に乗せる）。`_prewarmedRoomIds` Set で重複起動防止
+
 **残課題**
-- ユーザー部屋画像の先読み（ゲート付近に来たタイミングで先読みする仕組みは未実装）
 - 配信中の `_avaOverlayPostTicker` 本格最適化（必要なフレームだけ実行する根本改修、または OffscreenCanvas 等への移行）
 - WebRTC 周り（カメラエンコード・送受信デコード）の見直しは未着手
 - `bin/www` の broadcast payload は実質改善余地なし（Socket.io は undefined を JSON シリアライズ時に除外するため）
 
-**次スレッド候補（ロード最適化）2026-06-24 調査**
-- ~~`mediaelement-and-player.js` (未使用CDNライブラリ) を削除~~ → 2026-06-24 対応済み（`views/index.ejs` L19 削除）
-- `muon.mp3` (209KB の無音ファイル) を短縮 or 削減検討。`<audio id="muonAudio">` (views/index.ejs) と `new Audio()` (index.js L206) で二重保持。サイズ確認の余地あり
-- SE Audio オブジェクト27個を起動時に即生成 → lazy生成 or `preload="none"` で起動時の HTTP リクエスト削減
-- 直リンク時の API 順次取得（resolve → /api/rooms/:id → /api/rooms/:id/images）の並列化
+**次スレッド候補（ロード最適化）残り**
 - フォント ttf/otf → woff2 化（`public/stylesheets/` 合計 132MB、ttf→woff2 で 1/3 程度に圧縮可能）。`@font-face` 45個
 
 ---
@@ -1597,6 +1601,22 @@ ridingObjectがない場合:
 **関連ファイル**
 - `views/index.ejs`: `#seMuteBtn` ボタン追加、`#logNoiseButton` 削除
 - `public/javascripts/index.js`: `_updateSEMuteBtn` / `toggleSEMute` / `_seMuted` / `_seVolumeBefore`、`logNoiseButton` 関連削除
+
+---
+
+### 56. 部屋リンク表示改善・コピーフィードバック ✅ (2026-06-26 実装完了)
+
+**現状**
+- 設定パネルの「部屋リンク」表示を未エンコード形式に変更（旧: `?room=%E3%81%82%E3%82...` → 新: `?room=部屋名`）。コピー時のみ `input.dataset.copyUrl` から URL エンコード版を貼り付け（`updateRoomLinkDisplay` / `copyRoomLink` in `index.js`）
+- コピーボタン横に「コピーしました！」を1.5秒表示してフェード（`#roomLinkCopyToast`）
+
+---
+
+### 57. ユーザー部屋入室時のクラッシュ・表示バグ修正 ✅ (2026-06-26 修正完了)
+
+**現状**
+- ユーザー部屋・未登録部屋へ入室時 `msgSE[undefined].in[random].play()` でクラッシュするバグを修正。`ROOM_PHYSICS` 未登録の部屋では `roomSE = "other"` にフォールバック（`Room.displayRoom`, `index.js` L5143）
+- 直リンクで入ったユーザー部屋の場合に設定パネルの部屋リンクが UUID 表示のままになるバグを修正。直リンクログインパスでも `_userRoomDisplayName` をセット（`login()` 内、`index.js` L5694）
 
 ---
 
