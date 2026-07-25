@@ -22,7 +22,7 @@
     "node-sqlite3-wasm": "^0.8.56",
     "pixi.js": "^5.2.1",
     "potrace": "^2.1.8",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.0",
     "simplify-js": "^1.2.4",
     "socket.io": "^4.8.1"
   }
